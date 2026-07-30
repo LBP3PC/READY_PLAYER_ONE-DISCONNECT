@@ -103,9 +103,10 @@
             display: block; width: calc(100% - 40px); background-color: var(--rr-orange);
             color: var(--rr-text-white); text-align: center; text-decoration: none;
             font-family: 'Fredoka One', cursive; font-size: 18px; padding: 14px 20px;
-            border-radius: 28px; margin: 20px auto 10px auto;
+            border-radius: 28px; margin: 25px auto 10px auto;
             box-shadow: 0 4px 12px rgba(255, 127, 0, 0.3); transition: transform 0.15s;
             text-transform: uppercase;
+            cursor: pointer;
         }
 
         .recnet-btn:hover { background-color: #FF9426; transform: translateY(-2px); }
@@ -137,8 +138,8 @@
                 <!-- Bouton 1 : Lien Discord -->
                 <a href="https://discord.gg" target="_blank" class="recnet-btn">Rejoindre le Discord</a>
 
-                <!-- Bouton 2 : Lien de Connexion Jeu mis à jour sur le port 2021 -->
-                <a href="http://localhost:2021" class="recnet-btn" style="background-color: #1F2733; border: 2px solid var(--rr-orange);">Lancer la connexion Jeu</a>
+                <!-- Bouton 2 : Connexion silencieuse corrigée pour Firefox -->
+                <a href="#" onclick="fetch('http://localhost:2021').catch(()=>{}); alert('Connexion au jeu lancée ! Tu peux ouvrir ton Rec Room 2021.'); return false;" class="recnet-btn" style="background-color: #1F2733; border: 2px solid var(--rr-orange);">Lancer la connexion Jeu</a>
             </div>
         </div>
     </main>
