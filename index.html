@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RecNet // Project Hub</title>
+    <title>RecNet // Project RecNet Hub</title>
     <style>
         :root {
             --rr-orange: #FF7F00;
-            --rr-bg: #1F2733;
             --rr-card: #2B3648;
             --rr-text-white: #FFFFFF;
             --rr-text-muted: #9BB0C1;
@@ -17,7 +16,8 @@
         @import url('https://googleapis.com');
 
         body {
-            background-color: var(--rr-bg);
+            /* On recrée le dégradé orange officiel de Rec Room */
+            background: linear-gradient(135deg, #fca34d 0%, #ff7f00 100%);
             color: var(--rr-text-white);
             font-family: 'Nunito', sans-serif;
             margin: 0;
@@ -26,11 +26,33 @@
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* L'arrière-plan animé avec le motif Rec Room */
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            /* Utilisation du pattern officiel des petites tasses à sourire */
+            background-image: url('https://githubusercontent.com');
+            background-size: 180px;
+            opacity: 0.15; /* Effet transparent discret comme dans le jeu */
+            z-index: 0;
+            pointer-events: none;
+            /* L'animation qui fait défiler en diagonale */
+            animation: moveBackground 25s linear infinite;
+        }
+
+        @keyframes moveBackground {
+            from { background-position: 0 0; }
+            to { background-position: 180px 180px; }
         }
 
         /* Le fameux bandeau haut officiel RecNet */
         .recnet-navbar {
-            background-color: var(--rr-orange);
+            background-color: #1F2733; /* Sombre pour détacher du fond orange */
             width: 100%;
             height: 65px;
             display: flex;
@@ -46,14 +68,14 @@
         .navbar-brand {
             font-family: 'Fredoka One', cursive;
             font-size: 28px;
-            color: var(--rr-text-white);
+            color: var(--rr-orange);
             margin-left: 25px;
             text-shadow: 2px 2px 0px rgba(0,0,0,0.15);
             letter-spacing: 0.5px;
         }
 
         .server-badge {
-            background-color: rgba(0, 0, 0, 0.2);
+            background-color: rgba(255, 255, 255, 0.1);
             padding: 6px 14px;
             border-radius: 20px;
             font-size: 13px;
@@ -81,13 +103,14 @@
             flex-direction: column;
             gap: 20px;
             padding-bottom: 40px;
+            z-index: 1;
         }
 
         /* Style des cartes de publication RecNet */
         .recnet-card {
             background-color: var(--rr-card);
             border-radius: 16px;
-            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
             overflow: hidden;
             border: 1px solid rgba(255,255,255,0.05);
         }
@@ -118,19 +141,23 @@
         }
 
         .username {
-            font-weight: 800;
-            font-size: 16px;
+            font-family: 'Fredoka One', cursive;
+            font-size: 22px;
+            color: var(--rr-orange);
+            letter-spacing: 0.5px;
         }
 
         .timestamp {
             font-size: 12px;
             color: var(--rr-text-muted);
+            font-family: 'Nunito', sans-serif;
+            font-weight: 800;
         }
 
         .card-body {
             padding: 20px;
-            font-size: 15px;
-            line-height: 1.5;
+            font-size: 16px;
+            line-height: 1.6;
         }
 
         .card-body p {
@@ -141,7 +168,7 @@
             margin-bottom: 0;
         }
 
-        /* Le gros bouton d'action officiel arrondi */
+        /* Le gros bouton d'action officiel arondi */
         .recnet-btn {
             display: block;
             width: calc(100% - 40px);
@@ -153,62 +180,45 @@
             font-size: 18px;
             padding: 14px 20px;
             border-radius: 28px;
-            margin: 10px auto 20px auto;
+            margin: 25px auto 10px auto;
             box-shadow: 0 4px 12px rgba(255, 127, 0, 0.3);
             transition: transform 0.15s, background-color 0.15s;
+            text-transform: uppercase;
         }
 
         .recnet-btn:hover {
             background-color: #FF9426;
             transform: translateY(-2px);
         }
-
-        .recnet-btn:active {
-            transform: translateY(0px);
-        }
     </style>
 </head>
 <body>
 
-    <!-- Barre supérieure de navigation RecNet -->
+    <!-- Barre supérieure officielle rec.net -->
     <nav class="recnet-navbar">
         <div class="navbar-brand">rec.net</div>
         <div class="server-badge">
             <div class="pulse-dot"></div>
-            <span>PROJECT HUB // ACTIVE</span>
+            <span>SERVER: ONLINE</span>
         </div>
     </nav>
 
-    <!-- Flux de l'application -->
+    <!-- Contenu principal -->
     <main class="main-feed">
 
         <div class="recnet-card">
             <div class="card-header">
-                <div class="avatar-stub">🚀</div>
+                <div class="avatar-stub">⚡</div>
                 <div class="header-info">
-                    <span class="username">Système Core_Network</span>
-                    <span class="timestamp">v42y-Build (2021)</span>
+                    <span class="username">Project RecNet Hub</span>
+                    <span class="timestamp">Serveur Privé & Modding v42y-2021</span>
                 </div>
             </div>
             <div class="card-body">
-                <p><strong>Bienvenu sur la plateforme de préservation !</strong></p>
-                <p>Nous avons déployé l'architecture de contournement pour vous donner un accès complet aux fonctionnalités réseau d'époque sans aucune restriction de jeton de sécurité.</p>
-            </div>
-        </div>
-
-        <div class="recnet-card">
-            <div class="card-header">
-                <div class="avatar-stub">🛠️</div>
-                <div class="header-info">
-                    <span class="username">Dossier technique</span>
-                    <span class="timestamp">Statut : Prêt</span>
-                </div>
-            </div>
-            <div class="card-body">
-                <p>Les protocoles d'hébergement pour serveurs locaux de dortoirs (Nebulon & RebornRec) acceptent les configurations de paquets JSON d'environnement.</p>
+                <p>Bienvenue sur la plateforme centrale de préservation pour les anciennes versions de Rec Room.</p>
+                <p>Hébergez vos propres serveurs de dortoirs en local avec RebornRec ou Nebulon, réparez les fichiers système JSON, et bypasser l'erreur summer facilement.</p>
                 
-                <!-- Remplace l'adresse ci-dessous par le lien d'invitation permanent de ton serveur Discord -->
-                <a href="https://discord.gg" target="_blank" class="recnet-btn">REJOINDRE LE DISCORD</a>
+                <a href="https://discord.gg" target="_blank" class="recnet-btn">Rejoindre le Discord</a>
             </div>
         </div>
 
