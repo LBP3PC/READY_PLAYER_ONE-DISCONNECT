@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project RecNet Hub // Central</title>
+    <style>
+        :root {
+            --rr-orange: #FF7F00;
+            --rr-dark: #0B0E14;
+            --rr-panel: #161A23;
+            --rr-text: #E0E6ED;
+            --rr-green: #2ECC71;
+        }
+        body {
+            background-color: var(--rr-dark);
+            color: var(--rr-text);
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: var(--rr-panel);
+            border: 2px solid var(--rr-orange);
+            border-radius: 8px; padding: 30px;
+            max-width: 600px; width: 90%;
+            box-shadow: 0 0 20px rgba(255, 127, 0, 0.2);
+            text-align: center;
+        }
+        h1 {
+            color: var(--rr-orange); font-size: 24px;
+            margin-bottom: 5px; text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .status {
+            font-size: 14px; color: var(--rr-green);
+            margin-bottom: 25px; font-weight: bold;
+        }
+        .status::before { content: "● "; }
+        p {
+            font-size: 15px; line-height: 1.6; text-align: left;
+            border-left: 3px solid var(--rr-orange);
+            padding-left: 15px; margin: 20px 0;
+        }
+        .btn {
+            display: inline-block; background-color: var(--rr-orange);
+            color: var(--rr-dark); text-decoration: none;
+            font-weight: bold; padding: 12px 25px;
+            border-radius: 5px; margin-top: 20px;
+            transition: transform 0.2s, background-color 0.2s;
+            text-transform: uppercase;
+        }
+        .btn:hover { background-color: #FF9F33; transform: scale(1.05); }
+        .footer { margin-top: 30px; font-size: 11px; color: #566573; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Project RecNet Hub</h1>
+        <div class="status">RECNET_SERVER: ONLINE (v42y-LEGACY)</div>
+        <p>Bienvenue sur le hub central de préservation et de modding pour les anciennes versions de Rec Room (2021/2022).</p>
+        <p>Hébergez vos propres serveurs privés avec Nebulon ou RebornRec, contournez les erreurs réseau (erreur summer) et sauvegardez vos maps dortoirs en toute sécurité.</p>
+        <a href="https://discord.gg" target="_blank" class="btn">Rejoindre le Discord</a>
+        <div class="footer">// ACCÈS DISPONIBLE // NON AFFILIÉ À REC ROOM INC. //</div>
+    </div>
+</body>
+</html>
