@@ -16,8 +16,7 @@
         @import url('https://googleapis.com');
 
         body {
-            /* On recrée le dégradé orange officiel de Rec Room */
-            background: linear-gradient(135deg, #fca34d 0%, #ff7f00 100%);
+            background: #ff7f00;
             color: var(--rr-text-white);
             font-family: 'Nunito', sans-serif;
             margin: 0;
@@ -30,29 +29,28 @@
             overflow-x: hidden;
         }
 
-        /* L'arrière-plan animé avec le motif Rec Room */
+        /* L'arrière-plan animé avec TON image exacte */
         body::before {
             content: "";
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
-            /* Utilisation du pattern officiel des petites tasses à sourire */
+            /* On utilise une copie haute définition de ton image de tasses */
             background-image: url('https://githubusercontent.com');
-            background-size: 180px;
-            opacity: 0.15; /* Effet transparent discret comme dans le jeu */
+            background-size: 250px;
+            opacity: 0.3; /* Visibilité parfaite du motif */
             z-index: 0;
             pointer-events: none;
-            /* L'animation qui fait défiler en diagonale */
-            animation: moveBackground 25s linear infinite;
+            /* L'animation magique de défilement */
+            animation: scrollBackground 20s linear infinite;
         }
 
-        @keyframes moveBackground {
+        @keyframes scrollBackground {
             from { background-position: 0 0; }
-            to { background-position: 180px 180px; }
+            to { background-position: 250px 250px; }
         }
 
-        /* Le fameux bandeau haut officiel RecNet */
         .recnet-navbar {
-            background-color: #1F2733; /* Sombre pour détacher du fond orange */
+            background-color: #1F2733;
             width: 100%;
             height: 65px;
             display: flex;
@@ -94,7 +92,6 @@
             box-shadow: 0 0 8px var(--rr-green);
         }
 
-        /* Conteneur principal calqué sur le flux de l'application */
         .main-feed {
             margin-top: 110px;
             width: 90%;
@@ -106,11 +103,10 @@
             z-index: 1;
         }
 
-        /* Style des cartes de publication RecNet */
         .recnet-card {
             background-color: var(--rr-card);
             border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
             overflow: hidden;
             border: 1px solid rgba(255,255,255,0.05);
         }
@@ -160,15 +156,6 @@
             line-height: 1.6;
         }
 
-        .card-body p {
-            margin: 0 0 15px 0;
-        }
-
-        .card-body p:last-child {
-            margin-bottom: 0;
-        }
-
-        /* Le gros bouton d'action officiel arondi */
         .recnet-btn {
             display: block;
             width: calc(100% - 40px);
@@ -182,7 +169,7 @@
             border-radius: 28px;
             margin: 25px auto 10px auto;
             box-shadow: 0 4px 12px rgba(255, 127, 0, 0.3);
-            transition: transform 0.15s, background-color 0.15s;
+            transition: transform 0.15s;
             text-transform: uppercase;
         }
 
@@ -194,7 +181,6 @@
 </head>
 <body>
 
-    <!-- Barre supérieure officielle rec.net -->
     <nav class="recnet-navbar">
         <div class="navbar-brand">rec.net</div>
         <div class="server-badge">
@@ -203,9 +189,7 @@
         </div>
     </nav>
 
-    <!-- Contenu principal -->
     <main class="main-feed">
-
         <div class="recnet-card">
             <div class="card-header">
                 <div class="avatar-stub">⚡</div>
@@ -221,7 +205,6 @@
                 <a href="https://discord.gg" target="_blank" class="recnet-btn">Rejoindre le Discord</a>
             </div>
         </div>
-
     </main>
 
 </body>
