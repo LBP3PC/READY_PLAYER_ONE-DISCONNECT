@@ -3,67 +3,216 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project RecNet Hub // Central</title>
+    <title>RecNet // Project Hub</title>
     <style>
         :root {
             --rr-orange: #FF7F00;
-            --rr-dark: #0B0E14;
-            --rr-panel: #161A23;
-            --rr-text: #E0E6ED;
-            --rr-green: #2ECC71;
+            --rr-bg: #1F2733;
+            --rr-card: #2B3648;
+            --rr-text-white: #FFFFFF;
+            --rr-text-muted: #9BB0C1;
+            --rr-green: #00CC66;
         }
+
+        @import url('https://googleapis.com');
+
         body {
-            background-color: var(--rr-dark);
-            color: var(--rr-text);
-            font-family: 'Courier New', Courier, monospace;
-            margin: 0; padding: 0;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
+            background-color: var(--rr-bg);
+            color: var(--rr-text-white);
+            font-family: 'Nunito', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             min-height: 100vh;
         }
-        .container {
-            background-color: var(--rr-panel);
-            border: 2px solid var(--rr-orange);
-            border-radius: 8px; padding: 30px;
-            max-width: 600px; width: 90%;
-            box-shadow: 0 0 20px rgba(255, 127, 0, 0.2);
+
+        /* Le fameux bandeau haut officiel RecNet */
+        .recnet-navbar {
+            background-color: var(--rr-orange);
+            width: 100%;
+            height: 65px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 100;
+        }
+
+        .navbar-brand {
+            font-family: 'Fredoka One', cursive;
+            font-size: 28px;
+            color: var(--rr-text-white);
+            margin-left: 25px;
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.15);
+            letter-spacing: 0.5px;
+        }
+
+        .server-badge {
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 800;
+            margin-right: 25px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pulse-dot {
+            width: 9px;
+            height: 9px;
+            background-color: var(--rr-green);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--rr-green);
+        }
+
+        /* Conteneur principal calqué sur le flux de l'application */
+        .main-feed {
+            margin-top: 110px;
+            width: 90%;
+            max-width: 580px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding-bottom: 40px;
+        }
+
+        /* Style des cartes de publication RecNet */
+        .recnet-card {
+            background-color: var(--rr-card);
+            border-radius: 16px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .card-header {
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .avatar-stub {
+            width: 42px;
+            height: 42px;
+            background-color: var(--rr-orange);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Fredoka One', cursive;
+            font-size: 18px;
+        }
+
+        .header-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .username {
+            font-weight: 800;
+            font-size: 16px;
+        }
+
+        .timestamp {
+            font-size: 12px;
+            color: var(--rr-text-muted);
+        }
+
+        .card-body {
+            padding: 20px;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .card-body p {
+            margin: 0 0 15px 0;
+        }
+
+        .card-body p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Le gros bouton d'action officiel arrondi */
+        .recnet-btn {
+            display: block;
+            width: calc(100% - 40px);
+            background-color: var(--rr-orange);
+            color: var(--rr-text-white);
             text-align: center;
+            text-decoration: none;
+            font-family: 'Fredoka One', cursive;
+            font-size: 18px;
+            padding: 14px 20px;
+            border-radius: 28px;
+            margin: 10px auto 20px auto;
+            box-shadow: 0 4px 12px rgba(255, 127, 0, 0.3);
+            transition: transform 0.15s, background-color 0.15s;
         }
-        h1 {
-            color: var(--rr-orange); font-size: 24px;
-            margin-bottom: 5px; text-transform: uppercase;
-            letter-spacing: 2px;
+
+        .recnet-btn:hover {
+            background-color: #FF9426;
+            transform: translateY(-2px);
         }
-        .status {
-            font-size: 14px; color: var(--rr-green);
-            margin-bottom: 25px; font-weight: bold;
+
+        .recnet-btn:active {
+            transform: translateY(0px);
         }
-        .status::before { content: "● "; }
-        p {
-            font-size: 15px; line-height: 1.6; text-align: left;
-            border-left: 3px solid var(--rr-orange);
-            padding-left: 15px; margin: 20px 0;
-        }
-        .btn {
-            display: inline-block; background-color: var(--rr-orange);
-            color: var(--rr-dark); text-decoration: none;
-            font-weight: bold; padding: 12px 25px;
-            border-radius: 5px; margin-top: 20px;
-            transition: transform 0.2s, background-color 0.2s;
-            text-transform: uppercase;
-        }
-        .btn:hover { background-color: #FF9F33; transform: scale(1.05); }
-        .footer { margin-top: 30px; font-size: 11px; color: #566573; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Project RecNet Hub</h1>
-        <div class="status">RECNET_SERVER: ONLINE (v42y-LEGACY)</div>
-        <p>Bienvenue sur le hub central de préservation et de modding pour les anciennes versions de Rec Room (2021/2022).</p>
-        <p>Hébergez vos propres serveurs privés avec Nebulon ou RebornRec, contournez les erreurs réseau (erreur summer) et sauvegardez vos maps dortoirs en toute sécurité.</p>
-        <a href="https://discord.gg" target="_blank" class="btn">Rejoindre le Discord</a>
-        <div class="footer">// ACCÈS DISPONIBLE // NON AFFILIÉ À REC ROOM INC. //</div>
-    </div>
+
+    <!-- Barre supérieure de navigation RecNet -->
+    <nav class="recnet-navbar">
+        <div class="navbar-brand">rec.net</div>
+        <div class="server-badge">
+            <div class="pulse-dot"></div>
+            <span>PROJECT HUB // ACTIVE</span>
+        </div>
+    </nav>
+
+    <!-- Flux de l'application -->
+    <main class="main-feed">
+
+        <div class="recnet-card">
+            <div class="card-header">
+                <div class="avatar-stub">🚀</div>
+                <div class="header-info">
+                    <span class="username">Système Core_Network</span>
+                    <span class="timestamp">v42y-Build (2021)</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <p><strong>Bienvenu sur la plateforme de préservation !</strong></p>
+                <p>Nous avons déployé l'architecture de contournement pour vous donner un accès complet aux fonctionnalités réseau d'époque sans aucune restriction de jeton de sécurité.</p>
+            </div>
+        </div>
+
+        <div class="recnet-card">
+            <div class="card-header">
+                <div class="avatar-stub">🛠️</div>
+                <div class="header-info">
+                    <span class="username">Dossier technique</span>
+                    <span class="timestamp">Statut : Prêt</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <p>Les protocoles d'hébergement pour serveurs locaux de dortoirs (Nebulon & RebornRec) acceptent les configurations de paquets JSON d'environnement.</p>
+                
+                <!-- Remplace l'adresse ci-dessous par le lien d'invitation permanent de ton serveur Discord -->
+                <a href="https://discord.gg" target="_blank" class="recnet-btn">REJOINDRE LE DISCORD</a>
+            </div>
+        </div>
+
+    </main>
+
 </body>
 </html>
