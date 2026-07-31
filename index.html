@@ -3,179 +3,246 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RecNet // Central Dashboard</title>
+    <title>Rec Room - Shop & Creator Hub</title>
     <style>
         :root {
-            --rr-orange: #FF7F00;
-            --rr-blue-nav: #0076FF;
-            --rr-bg-dark: #121620;
-            --rr-panel-blur: rgba(33, 43, 61, 0.85);
-            --rr-text-white: #FFFFFF;
-            --rr-text-muted: #A0B2C6;
-            --rr-green: #00CC66;
+            --rr-bg: #1a1e24;
+            --rr-dark-panel: #222831;
+            --rr-orange: #ff761b;
+            --rr-red-alert: #b83232;
+            --text-white: #ffffff;
+            --text-muted: #a0a6b2;
         }
 
         @import url('https://googleapis.com');
 
         body {
-            background-color: var(--rr-bg-dark);
-            color: var(--rr-text-white);
+            background-color: var(--rr-bg);
+            color: var(--text-white);
             font-family: 'Nunito', sans-serif;
             margin: 0; padding: 0;
-            min-height: 100vh;
-            display: flex; flex-direction: column;
-            position: relative; overflow-x: hidden;
+            overflow-x: hidden;
         }
 
-        body::before {
-            content: ""; position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
+        /* 🏢 HEADER OFFICIEL REC ROOM */
+        .rr-header {
+            background-color: #111419;
+            height: 65px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .header-left { display: flex; align-items: center; gap: 25px; }
+        .logo-img { height: 38px; cursor: pointer; }
+        .nav-link-top { color: var(--text-white); text-decoration: none; font-weight: 700; font-size: 14px; opacity: 0.8; }
+        .nav-link-top:hover { opacity: 1; }
+        
+        .header-right { display: flex; align-items: center; gap: 15px; }
+        .btn-login { background: transparent; border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 20px; border-radius: 6px; font-weight: 700; cursor: pointer; }
+        .btn-download { background: var(--rr-orange); border: none; color: white; padding: 7px 20px; border-radius: 6px; font-weight: 900; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(255,118,27,0.3); }
+
+        /* 🚨 BANNIÈRE ROUGE D'ALERTE */
+        .alert-banner {
+            background-color: var(--rr-red-alert);
+            padding: 12px 60px;
+            font-size: 12px;
+            font-weight: 700;
+            text-align: center;
+            line-height: 1.5;
+            position: relative;
+            border-bottom: 2px solid rgba(0,0,0,0.2);
+        }
+        .alert-banner a { color: white; text-decoration: underline; }
+
+        /* 📂 CONTENEUR PRINCIPAL */
+        .main-container {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        /* 🎴 GRILLE DES 3 AFFICHES PRINCIPALES */
+        .promo-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        .promo-card-wrapper { display: flex; flex-direction: column; gap: 10px; }
+        .promo-card {
+            background-color: #2c323f;
+            border-radius: 12px;
+            height: 200px;
+            overflow: hidden;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            position: relative;
+        }
+        .promo-card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px rgba(255,118,27,0.2); }
+        .promo-img { width: 100%; height: 100%; object-fit: cover; }
+        .promo-label { font-size: 13px; font-weight: 800; color: var(--text-white); text-decoration: none; display: flex; align-items: center; }
+        .promo-label:hover { color: var(--rr-orange); }
+
+        /* 🎛️ BARRE DE NAVIGATION CENTRALE (NEWS, EVENTS, ROOMS) */
+        .tabs-row {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 30px 0;
+        }
+        .tab-btn-orange {
+            background: #2c323f;
+            border: 1px solid rgba(255,118,27,0.3);
+            color: white;
+            padding: 8px 24px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .tab-btn-orange.active {
+            background: var(--rr-orange);
+            border-color: var(--rr-orange);
+        }
+
+        /* 🧩 GRID DU BAS (FEATURED & FEED) */
+        .content-layout {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 25px;
+            align-items: start;
+        }
+
+        /* À GAUCHE : FEATURED ROOMS */
+        .side-panel {
+            background-color: var(--rr-dark-panel);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .panel-title { font-size: 18px; font-weight: 900; margin-top: 0; margin-bottom: 15px; }
+        .mini-room-card {
+            background: #1a1e24;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .mini-img-box { height: 130px; background: #000; overflow: hidden; }
+        .mini-img-box img { width: 100%; height: 100%; object-fit: cover; }
+        .mini-info { padding: 10px; font-size: 12px; }
+        .mini-title { font-weight: 800; margin-bottom: 2px; }
+        .mini-author { color: var(--text-muted); }
+
+        /* À DROITE : LE GROS PROFIL DE THOMAS EN VEDETTE */
+        .center-feed-panel {
+            background-color: var(--rr-dark-panel);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .feed-title { font-size: 16px; font-weight: 800; color: var(--text-muted); margin: 0; }
+        
+        /* LA CARTE BANNIÈRE MAUVE DU PROFIL */
+        .profile-card-hub {
+            background-color: #ded6e9; /* Mauve clair de fond */
+            border-radius: 12px;
+            overflow: hidden;
+            color: #222831;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+        .profile-banner-top {
             background-image: url('https://githubusercontent.com');
-            background-size: 220px; opacity: 0.12; z-index: 0; pointer-events: none;
-            animation: scrollBackground 30s linear infinite;
+            background-size: 100px;
+            background-color: #bfaed3;
+            height: 60px;
+            opacity: 0.4;
         }
-
-        @keyframes scrollBackground {
-            from { background-position: 0 0; }
-            to { background-position: 220px 220px; }
+        .profile-body-content {
+            padding: 25px;
+            display: flex;
+            gap: 30px;
+            align-items: center;
+            background-color: #f3eff7;
+            position: relative;
         }
-
-        .navbar-top {
-            background-color: var(--rr-orange); width: 100%; height: 55px;
-            display: flex; align-items: center; justify-content: space-between;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); z-index: 10; position: fixed; top: 0; left: 0;
+        .avatar-frame {
+            width: 140px; height: 140px;
+            border-radius: 50%;
+            border: 5px solid white;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+            overflow: hidden;
+            background-color: #fff;
         }
-        .nav-left { display: flex; align-items: center; gap: 10px; margin-left: 20px; }
-        .profile-badge { background-color: var(--rr-blue-nav); padding: 6px 16px; border-radius: 20px; font-family: 'Fredoka One', cursive; font-size: 15px; }
-        .nav-right { display: flex; align-items: center; gap: 8px; margin-right: 20px; }
-        .nav-btn {
-            background-color: var(--rr-blue-nav); color: white; text-decoration: none; padding: 6px 14px; border-radius: 15px;
-            font-size: 13px; font-weight: 800; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: background 0.2s;
-        }
-        .nav-btn:hover { background-color: #005fd9; }
-        .nav-btn.active { background-color: #ffffff; color: var(--rr-blue-nav); border: 1px solid var(--rr-blue-nav); }
-
-        .dashboard-grid {
-            margin-top: 75px; padding: 15px; display: grid; grid-template-columns: 240px 1fr; gap: 15px;
-            height: calc(100vh - 105px); z-index: 1; width: calc(100% - 30px);
-        }
-        .panel {
-            background-color: var(--rr-panel-blur); backdrop-filter: blur(10px); border-radius: 16px;
-            border: 1px solid rgba(255,255,255,0.06); padding: 20px; display: flex; flex-direction: column;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.3); overflow-y: auto;
-        }
-
-        .panel-left { gap: 15px; }
-        .monitor-card { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; border: 1px solid rgba(0,118,255,0.2); }
-        .monitor-title { font-family: 'Fredoka One', cursive; color: var(--rr-blue-nav); font-size: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-        .pulse-light { width: 10px; height: 10px; background: var(--rr-green); border-radius: 50%; box-shadow: 0 0 10px var(--rr-green); animation: pulse 1.5s infinite; }
+        .avatar-frame img { width: 100%; height: 100%; object-fit: cover; }
         
-        @keyframes pulse {
-            0% { opacity: 0.4; }
-            50% { opacity: 1; }
-            100% { opacity: 0.4; }
-        }
-
-        .stat-line { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; font-weight: bold; }
-        .stat-line span:last-child { color: var(--rr-orange); }
+        .profile-details { display: flex; flex-direction: column; text-align: left; flex-grow: 1; }
+        .name-row { display: flex; align-items: center; gap: 10px; }
+        .user-main-name { font-size: 28px; font-weight: 900; margin: 0; color: #111419; }
+        .badge-ugc { background: #0076FF; color: white; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 800; }
+        .user-handle { color: #555e70; font-size: 15px; font-weight: 700; margin: 2px 0 12px 0; }
         
-        .progress-bar { background: #1e293b; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 4px; margin-bottom: 12px; }
-        .progress-fill { background: var(--rr-orange); width: 21%; height: 100%; transition: width 0.5s ease; }
-        .progress-fill.ram { background: var(--rr-blue-nav); width: 44%; }
+        .about-box { font-size: 14px; line-height: 1.5; color: #333d4f; }
+        .about-box b { color: #000; font-weight: 900; }
 
-        /* 📏 REDUCTION DE LA TAILLE DU CADRE PHOTO DE MOITIÉ COMME AVANT */
-        .photo-display-container {
-            width: 100%; max-width: 480px; height: 340px; border: 2px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px; overflow: hidden; background-color: #0f131a;
-            display: flex; justify-content: center; align-items: center; position: relative; margin: 15px auto 0 auto;
+        /* LE BADGE DE NIVEAU 78 EN CARRE */
+        .level-badge-box {
+            background: #ff5050;
+            color: white;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 24px;
+            font-weight: 900;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            border: 2px solid white;
+            align-self: flex-start;
+            margin-top: 5px;
         }
-        .server-photo-img { width: 100%; height: 100%; object-fit: contain; z-index: 2; }
-        .photo-overlay-info {
-            position: absolute; bottom: 0; left: 0; right: 0;
-            background: linear-gradient(transparent, rgba(0,0,0,0.9));
-            padding: 12px; font-size: 12px; color: #FFFFFF;
-            display: flex; justify-content: space-between; align-items: center; font-weight: bold; z-index: 3;
-        }
-        .btn-next-img {
-            background: var(--rr-orange); border: none; color: white; 
-            padding: 6px 12px; border-radius: 10px; cursor: pointer; 
-            font-family: 'Fredoka One', cursive; font-size: 11px; border-bottom: 3px solid #C46200;
-        }
-
-        .tab-content { display: none; height: 100%; flex-direction: column; }
-        .tab-content.active { display: flex; }
-        .content-home { justify-content: flex-start; }
-
-        .grid-vakken { display: grid; grid-template-columns: 1fr; gap: 15px; }
-        .box-vak { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,127,0,0.2); padding: 15px; border-radius: 12px; }
-        .box-vak h3 { margin: 0 0 8px 0; color: var(--rr-orange); font-family: 'Fredoka One'; }
-        
-        .btn-triche {
-            display: block; width: 100%; background: var(--rr-blue-nav); color: white; border: none;
-            padding: 10px; margin-top: 10px; border-radius: 8px; font-weight: 900; cursor: pointer;
-            text-align: center; border-bottom: 3px solid #005fd9; font-size: 13px;
-        }
-        .btn-triche:hover { background: #005fd9; }
     </style>
 </head>
 <body>
 
-    <nav class="navbar-top">
-        <div class="nav-left">
-            <div class="profile-badge">👑 LBP3PC // ENGINE</div>
+    <!-- 🏢 HEADER -->
+    <header class="rr-header">
+        <div class="header-left">
+            <img src="https://githubusercontent.com" class="logo-img" alt="Rec Room Logo">
+            <a href="#" class="nav-link-top">Shop</a>
+            <a href="#" class="nav-link-top">Creator Hub</a>
         </div>
-        <div class="nav-right">
-            <button class="nav-btn active" onclick="switchTab('home', this)">Ga naar</button>
-            <button class="nav-btn" onclick="switchTab('vakken', this)">Vakken</button>
-            <button class="nav-btn" onclick="switchTab('links', this)">Links</button>
-            <button class="nav-btn" onclick="switchTab('resultaten', this)">Resultaten</button>
+        <div class="header-right">
+            <button class="btn-login">Login</button>
+            <button class="btn-download">📥 Download</button>
         </div>
-    </nav>
+    </header>
 
-    <div class="dashboard-grid">
-        <div class="panel panel-left">
-            <div class="monitor-card">
-                <div class="monitor-title">
-                    <div class="pulse-light"></div>
-                    <span>Nebulon Server</span>
-                </div>
-                <div class="stat-line"><span>Statut</span><span style="color:var(--rr-green);">DISPONIBLE</span></div>
-                <div class="stat-line"><span>Canal Réseau</span><span>Localhost</span></div>
-                <div class="stat-line"><span>Charge CPU</span><span id="cpuVal">24%</span></div>
-                <div class="progress-bar"><div class="progress-fill" id="cpuBar"></div></div>
-                <div class="stat-line"><span>Mémoire RAM</span><span id="ramVal">44%</span></div>
-                <div class="progress-bar"><div class="progress-fill progress-fill ram" id="ramBar"></div></div>
-            </div>
-            
-            <div class="monitor-card" style="font-size: 13px; text-align: left; border-color: rgba(255,127,0,0.2);">
-                <b style="color: var(--rr-orange);">Liaison Machine</b><br>
-                • Adresse : localhost<br>
-                • Port : 2056<br>
-                • Cible : RecRoom 2021
-            </div>
-        </div>
+    <!-- 🚨 BANNIÈRE D'ALERTE CLÔTURE -->
+    <div class="alert-banner">
+        ⚠️ REC ROOM CLOSING DOWN / PLEASE READ: REC ROOM WILL BE CLOSING DOWN ON JUNE 1, 2026 AT NOON PACIFIC TIME. ALL REC ROOM PRODUCTS WILL BE CLOSED DOWN ON THIS DATE. THE REC ROOM GIFT CARD PROGRAM, REC TOKENS, REC WALLETS, THE CREATOR PAYMENT PROGRAM, AND RR+ WILL ALSO BE ENDING SOON. For more information, visit <a href="#">https://recroom.com</a> or <a href="#">https://recroom.com</a>.
+    </div>
 
-        <div class="panel panel-center">
-            <div id="tab-home" class="tab-content content-home active">
-                <div style="background: rgba(0,0,0,0.5); border-radius: 12px; padding: 15px; border-left: 4px solid var(--rr-orange); width: calc(100% - 30px); display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <h2 style="margin:0; font-family:'Fredoka One'; color:var(--rr-orange);">RecNet // Photo Feed</h2>
-                        <p style="margin:5px 0 0 0; font-size:14px; color:var(--rr-text-muted);">Vos captures d'écran de dortoir défilent proprement.</p>
-                    </div>
-                </div>
-                
-                <div class="photo-display-container">
-                    <img src="./DormRoom-2026-7-30-1-16-32.jpg" class="server-photo-img" id="mainPhotoImg" alt="RecRoom Content">
-                    <div class="photo-overlay-info">
-                        <span id="photoTitle">📷 Charge : DormRoom-2026-7-30-1-16-32.jpg</span>
-                        <button onclick="changeSamplePhoto()" class="btn-next-img">Suivante ➡️</button>
-                    </div>
-                </div>
-            </div>
+    <div class="main-container">
 
-            <div id="tab-vakken" class="tab-content">
-                <h2 style="font-family:'Fredoka One'; color:var(--rr-orange); margin-top:0;">Modules d'Outils (Vakken)</h2>
-                <div class="grid-vakken">
-                    <div class="box-vak">
-                        <h3>👑 Profil & Triche Avatar</h3>
-                        <p style="font-size:13px; color:var(--rr-text-muted);">Gestion des fichiers du serveur local :</p>
+        <!-- 🎴 LES 3 AFFICHES DU HAUT -->
+        <div class="promo-grid">
+            <div class="promo-card-wrapper">
+                <div class="promo-card"><img src="./DormRoom-2026-7-30-1-16-32.jpg" class="promo-img"></div>
+                <a href="#" class="promo-label">View Creator Hub ➡️</a>
+            </div>
+            <div class="promo-card-wrapper">
+                <div class="promo-card"><img src="./DormRoom-2026-7-30-1-20-12.jpg" class="promo-img"></div>
+                <a href="#" class="promo-label">Download For Free ➡️</a>
+            </div>
+            <div class="promo-card-wrapper">
+                <div class="promo-card"><img src="./DormRoom 2026 7 30 3 56 58.jpg" class="promo-img"></div>
