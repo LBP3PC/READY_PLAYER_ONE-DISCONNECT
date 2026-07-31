@@ -83,23 +83,23 @@
         .progress-fill { background: var(--rr-orange); width: 21%; height: 100%; transition: width 0.5s ease; }
         .progress-fill.ram { background: var(--rr-blue-nav); width: 44%; }
 
-        /* 📸 CORRECTION ET COUPE DE LA TAILLE DU CONTENEUR PHOTO IMAGE */
+        /* 📏 REDUCTION DE LA TAILLE DU CADRE PHOTO DE MOITIÉ COMME AVANT */
         .photo-display-container {
-            width: 100%; height: calc(100% - 95px); max-height: 420px; border: 2px solid rgba(255, 255, 255, 0.1);
+            width: 100%; max-width: 480px; height: 340px; border: 2px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px; overflow: hidden; background-color: #0f131a;
-            display: flex; justify-content: center; align-items: center; position: relative; margin-top: 15px;
+            display: flex; justify-content: center; align-items: center; position: relative; margin: 15px auto 0 auto;
         }
         .server-photo-img { width: 100%; height: 100%; object-fit: contain; z-index: 2; }
         .photo-overlay-info {
             position: absolute; bottom: 0; left: 0; right: 0;
             background: linear-gradient(transparent, rgba(0,0,0,0.9));
-            padding: 15px; font-size: 13px; color: #FFFFFF;
+            padding: 12px; font-size: 12px; color: #FFFFFF;
             display: flex; justify-content: space-between; align-items: center; font-weight: bold; z-index: 3;
         }
         .btn-next-img {
             background: var(--rr-orange); border: none; color: white; 
-            padding: 6px 14px; border-radius: 12px; cursor: pointer; 
-            font-family: 'Fredoka One', cursive; font-size: 12px; border-bottom: 3px solid #C46200;
+            padding: 6px 12px; border-radius: 10px; cursor: pointer; 
+            font-family: 'Fredoka One', cursive; font-size: 11px; border-bottom: 3px solid #C46200;
         }
 
         .tab-content { display: none; height: 100%; flex-direction: column; }
@@ -156,12 +156,11 @@
         </div>
 
         <div class="panel panel-center">
-            <!-- ONGLET DES PHOTOS DE DORTOIR CADRÉES -->
             <div id="tab-home" class="tab-content content-home active">
                 <div style="background: rgba(0,0,0,0.5); border-radius: 12px; padding: 15px; border-left: 4px solid var(--rr-orange); width: calc(100% - 30px); display: flex; justify-content: space-between; align-items: center;">
                     <div>
                         <h2 style="margin:0; font-family:'Fredoka One'; color:var(--rr-orange);">RecNet // Photo Feed</h2>
-                        <p style="margin:5px 0 0 0; font-size:14px; color:var(--rr-text-muted);">Vos captures d'écran de dortoir s'affichent à la bonne taille.</p>
+                        <p style="margin:5px 0 0 0; font-size:14px; color:var(--rr-text-muted);">Vos captures d'écran de dortoir défilent proprement.</p>
                     </div>
                 </div>
                 
@@ -174,7 +173,6 @@
                 </div>
             </div>
 
-            <!-- ONGLET DES TRICHES (VAKKEN) -->
             <div id="tab-vakken" class="tab-content">
                 <h2 style="font-family:'Fredoka One'; color:var(--rr-orange); margin-top:0;">Modules d'Outils (Vakken)</h2>
                 <div class="grid-vakken">
