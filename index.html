@@ -40,6 +40,175 @@
             to { background-position: 220px 220px; }
         }
 
+        /* 🟦 MENU SUPÉRIEUR COMPLET */
+        .navbar-top {
+            background-color: var(--rr-orange); width: 100%; height: 55px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); z-index: 10; position: fixed; top: 0; left: 0;
+        }
+        .nav-left { display: flex; align-items: center; gap: 10px; margin-left: 20px; }
+        .profile-badge { background-color: var(--rr-blue-nav); padding: 6px 16px; border-radius: 20px; font-family: 'Fredoka One', cursive; font-size: 15px; }
+        .nav-right { display: flex; align-items: center; gap: 8px; margin-right: 20px; }
+        .nav-btn {
+            background-color: var(--rr-blue-nav); color: white; text-decoration: none; padding: 6px 14px; border-radius: 15px;
+            font-size: 13px; font-weight: 800; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: background 0.2s;
+        }
+        .nav-btn:hover { background-color: #005fd9; }
+        .nav-btn.active { background-color: #ffffff; color: var(--rr-blue-nav); border: 1px solid var(--rr-blue-nav); }
+        .nav-btn.logout { background-color: #334155; }
+
+        /* INTERFACE GLOBAL */
+        .dashboard-grid {
+            margin-top: 75px; padding: 15px; display: grid; grid-template-columns: 240px 1fr 280px; gap: 15px;
+            height: calc(100vh - 105px); z-index: 1; width: calc(100% - 30px);
+        }
+        .panel {
+            background-color: var(--rr-panel-blur); backdrop-filter: blur(10px); border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.06); padding: 20px; display: flex; flex-direction: column;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3); overflow-y: auto;
+        }
+
+        /* GAUCHE : PLANTE */
+        .panel-left { gap: 15px; }
+        .plant-card { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; text-align: center; border: 1px solid rgba(255,127,0,0.2); }
+        .plant-title { font-family: 'Fredoka One', cursive; color: var(--rr-orange); font-size: 20px; }
+        .plant-img { font-size: 55px; margin: 10px 0; transition: transform 0.2s; }
+        .water-bar { background: #1e293b; height: 12px; border-radius: 6px; overflow: hidden; margin: 15px 0 10px 0; }
+        .water-fill { background: #0076FF; width: 20%; height: 100%; transition: width 0.3s; }
+        .btn-water { background: var(--rr-orange); border: none; color: white; padding: 6px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px; }
+
+        /* CENTRE */
+        .tab-content { display: none; height: 100%; flex-direction: column; }
+        .tab-content.active { display: flex; }
+        
+        .content-home {
+            justify-content: flex-start;
+            gap: 15px;
+        }
+        .grid-vakken { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 15px; }
+        .box-vak { background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; border-top: 4px solid var(--rr-orange); }
+        .link-item { background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-link { background: var(--rr-blue-nav); color: white; text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
+        .score-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+
+        /* DROITE : METEO DE PARIS */
+        .weather-box { text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 15px; }
+        .weather-city { font-family: 'Fredoka One', cursive; color: var(--rr-orange); font-size: 22px; }
+        .weather-temp { font-size: 36px; font-weight: 900; color: #FFFFFF; margin: 5px 0; }
+        .assignment-list { display: flex; flex-direction: column; gap: 8px; }
+        .assignment-title { font-family: 'Fredoka One', cursive; font-size: 16px; margin-bottom: 5px; color: var(--rr-orange); }
+        .assign-item { background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 13px; border-left: 3px solid var(--rr-blue-nav); }
+        .assign-item.today { border-left-color: var(--rr-green); }
+        .assign-tag { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; }
+
+        /* La liseuse multimédia imbriquée */
+        .photo-viewer-frame {
+            width: 100%;
+            height: calc(100% - 95px);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            background-color: rgba(0, 0, 0, 0.4);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NAV BAR SUPÉRIEURE -->
+    <nav class="navbar-top">
+        <div class="nav-left">
+            <div class="profile-badge">👑 LBP3PC</div>
+        </div>
+        <div class="nav-right">
+            <button class="nav-btn active" onclick="switchTab('home', this)">Ga naar</button>
+            <button class="nav-btn" onclick="switchTab('vakken', this)">Vakken</button>
+            <button class="nav-btn" onclick="switchTab('links', this)">Links</button>
+            <a href="https://discord.gg" target="_blank" class="nav-btn">Planner (Discord)</a>
+            <button class="nav-btn" onclick="switchTab('resultaten', this)">Resultaten</button>
+            <button class="nav-btn logout" onclick="window.location.reload();">Refresh 🔄</button>
+        </div>
+    </nav>
+
+    <!-- DASHBOARD PRINCIPAL -->
+    <div class="dashboard-grid">
+        <!-- GAUCHE -->
+        <div class="panel panel-left">
+            <div class="plant-card">
+                <div class="plant-title" id="plantDay">1 Day</div>
+                <div class="plant-img" id="plantEmoji">🌱</div>
+                <div style="font-size: 12px; color: var(--rr-text-muted);" id="waterTime">Watered 2h ago</div>
+                <div class="water-bar"><div class="water-fill" id="waterFill"></div></div>
+                <button class="btn-water" onclick="waterPlant()">Arroser la Plante 💧</button>
+            </div>
+            <div class="plant-card" style="font-size: 13px; text-align: left;">
+                <b style="color: var(--rr-orange);">Server Control</b><br>
+                • RebornRec Core active<br>
+                • Base de données ok<br>
+                • Erreur Summer bloquée
+            </div>
+        </div>
+
+        <!-- CENTRE : LE FIL PHOTO INTEGRÉ SANS REDIRECTION -->
+        <div class="panel panel-center">
+            <div id="tab-home" class="tab-content content-home active">
+                <div style="background: rgba(0,0,0,0.5); border-radius: 12px; padding: 15px; border-left: 4px solid var(--rr-orange); width: calc(100% - 30px); display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 style="margin:0; font-family:'Fredoka One'; color:var(--rr-orange);">RecNet // Photo Feed</h2>
+                        <p style="margin:5px 0 0 0; font-size:14px; color:var(--rr-text-muted);">Vos captures d'écran s'affichent et défilent en direct sur votre interface.</p>
+                    </div>
+                    <a href="https://discord.gg" target="_blank" style="background: var(--rr-orange); color: white; text-decoration: none; font-family: 'Fredoka One', cursive; font-size: 13px; padding: 6px 14px; border-radius: 15px; border-bottom: 3px solid #C46200;">Discord</a>
+                </div>
+                
+                <!-- Utilisation du player de dossier alternatif qui force l'intégration réseau de Google Drive -->
+                <iframe src="https://google.com" class="photo-viewer-frame" allow="autoplay"></iframe>
+            </div>
+
+            <div id="tab-vakken" class="tab-content">
+                <h2 style="font-family:'Fredoka One'; color:var(--rr-orange); margin-top:0;">Vos Modules de Modding (Vakken)</h2>
+                <div class="grid-vakken">
+                    <div class="box-vak"><h3>🎮 Configuration Jeu</h3><p style="font-size:13px; color:var(--rr-text-muted);">Paramétrage des builds de la version 2021.</p></div>
+                    <div class="box-vak"><h3>🛠️ Maker Pen Master</h3><p style="font-size:13px; color:var(--rr-text-muted);">Outils pour forcer l'inventaire au maximum.</p></div>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RecNet // Central Dashboard</title>
+    <style>
+        :root {
+            --rr-orange: #FF7F00;
+            --rr-blue-nav: #0076FF;
+            --rr-bg-dark: #121620;
+            --rr-panel-blur: rgba(33, 43, 61, 0.85);
+            --rr-text-white: #FFFFFF;
+            --rr-text-muted: #A0B2C6;
+            --rr-green: #00CC66;
+        }
+
+        @import url('https://googleapis.com');
+
+        body {
+            background-color: var(--rr-bg-dark);
+            color: var(--rr-text-white);
+            font-family: 'Nunito', sans-serif;
+            margin: 0; padding: 0;
+            min-height: 100vh;
+            display: flex; flex-direction: column;
+            position: relative; overflow-x: hidden;
+        }
+
+        body::before {
+            content: ""; position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url('https://githubusercontent.com');
+            background-size: 220px; opacity: 0.12; z-index: 0; pointer-events: none;
+            animation: scrollBackground 30s linear infinite;
+        }
+
+        @keyframes scrollBackground {
+            from { background-position: 0 0; }
+            to { background-position: 220px 220px; }
+        }
+
         /* 🟦 MENU SUPÉRIEUR COMPLET DE TA PHOTO */
         .navbar-top {
             background-color: var(--rr-orange); width: 100%; height: 55px;
