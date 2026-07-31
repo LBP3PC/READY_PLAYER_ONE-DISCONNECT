@@ -3,6 +3,240 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RecNet // LBP3PC Profile</title>
+    <style>
+        :root {
+            --rn-bg: #1e1e1e;
+            --rn-nav-bg: #151515;
+            --rn-orange: #ff7f00;
+            --rn-panel-bg: #252525;
+            --rn-btn-orange: #ff6b3d;
+            --text-white: #ffffff;
+            --text-muted: #aaaaaa;
+            --rr-green: #00CC66;
+        }
+
+        @import url('https://googleapis.com');
+
+        body {
+            background-color: var(--rn-bg);
+            color: var(--text-white);
+            font-family: 'Nunito', sans-serif;
+            margin: 0; padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .top-navbar {
+            background-color: var(--rn-nav-bg);
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            border-bottom: 1px solid #2d2d2d;
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+        }
+        .logo-area { font-size: 20px; font-weight: 900; color: var(--rn-orange); display: flex; align-items: center; gap: 5px; }
+        .logo-area span { color: white; font-weight: 400; font-size: 14px; margin-left: 10px; }
+
+        .app-layout {
+            margin-top: 50px;
+            height: calc(100vh - 50px);
+            width: 100%;
+            overflow-y: auto;
+        }
+
+        .profile-banner {
+            width: 100%;
+            height: 240px;
+            background-image: url('./DormRoom 2026 7 30 3 56 58.jpg');
+            background-size: cover;
+            background-position: center;
+            border-bottom: 4px solid var(--rn-orange);
+        }
+
+        .profile-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 30px;
+            padding: 20px;
+            max-width: 1300px;
+            margin: 0 auto;
+            width: calc(100% - 40px);
+        }
+
+        .profile-sidebar-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: -90px;
+            z-index: 10;
+        }
+        
+        .pfp-circle {
+            width: 130px; height: 130px;
+            border-radius: 50%;
+            border: 6px solid var(--rn-bg);
+            background-color: #ff3b30;
+            overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+        }
+        .pfp-circle img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .user-title-name { font-size: 22px; font-weight: 900; margin: 12px 0 2px 0; color: #fff; }
+        .user-tag { color: var(--text-muted); font-size: 13px; margin-bottom: 5px; }
+        .sub-count { font-size: 12px; color: var(--text-muted); margin-bottom: 15px; font-weight: 800; }
+
+        .btn-sub-orange {
+            width: 100%; background-color: var(--rn-btn-orange); color: white;
+            border: none; padding: 10px; border-radius: 6px;
+            font-weight: 900; font-size: 13px; cursor: pointer; text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .btn-friends {
+            width: 100%; background-color: #333; color: white;
+            border: none; padding: 8px; border-radius: 6px;
+            font-weight: 700; font-size: 12px; cursor: pointer;
+        }
+
+        .server-monitor-box {
+            background-color: var(--rn-panel-bg);
+            width: 100%;
+            border-radius: 10px;
+            padding: 15px;
+            box-sizing: border-box;
+            border: 1px solid #3d3d3d;
+            margin-top: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            text-align: left;
+        }
+        .monitor-headline {
+            font-family: 'Fredoka One', cursive;
+            color: var(--rn-orange);
+            font-size: 15px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .pulse-light-status { width: 9px; height: 10px; background: var(--rr-green); border-radius: 50%; box-shadow: 0 0 8px var(--rr-green); animation: statusPulse 1.5s infinite; }
+        @keyframes statusPulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+
+        .stat-row-item { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; font-weight: bold; }
+        .stat-row-item span:last-child { color: var(--rn-orange); }
+        
+        .stat-progress-bg { background: #151515; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 2px; margin-bottom: 10px; border: 1px solid #2d2d2d; }
+        .stat-progress-fill { background: var(--rn-orange); width: 24%; height: 100%; transition: width 0.4s ease; }
+        .stat-progress-fill.ram-color { background: var(--rn-btn-orange); width: 46%; }
+
+        .grid-header-tabs {
+            background-color: var(--rn-panel-bg);
+            border-radius: 8px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            border: 1px solid #333;
+            margin-bottom: 15px;
+        }
+        .grid-tab-item { font-size: 14px; opacity: 0.5; font-weight: bold; }
+        .grid-tab-item.active { opacity: 1; color: var(--rn-orange); border-bottom: 2px solid var(--rn-orange); padding-bottom: 2px; }
+
+        .filter-bar { font-size: 12px; font-weight: 800; color: var(--text-muted); text-align: left; margin-bottom: 15px; }
+
+        .photos-feed-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            padding-bottom: 40px;
+        }
+        .photo-grid-item {
+            background-color: #151515;
+            border-radius: 6px;
+            aspect-ratio: 16 / 10;
+            overflow: hidden;
+            border: 1px solid #2d2d2d;
+        }
+        .photo-grid-item img { width: 100%; height: 100%; object-fit: cover; }
+    </style>
+</head>
+<body>
+
+    <nav class="top-navbar">
+        <div class="logo-area">🟧 RECROOM <span>RecNet // Live Profile</span></div>
+        <div style="font-size: 16px; opacity: 0.7; display: flex; gap: 15px; cursor: pointer;">🔍 🔔 👤</div>
+    </nav>
+
+    <div class="app-layout">
+        <div class="profile-banner"></div>
+
+        <div class="profile-container">
+            <div class="profile-sidebar-card">
+                <div class="pfp-circle"><img src="./DormRoom-2026-7-30-1-16-32.jpg" alt="Pfp"></div>
+                
+                <!-- 👑 ENTRÉE DU PSEUDO LBP3PC ET DU COMPTEUR 5.9M FORCÉ -->
+                <h1 class="user-title-name" id="dynamicPseudo">LBP3PC</h1>
+                <div class="user-tag" id="dynamicTag">@LBP3PC</div>
+                <div class="sub-count" id="dynamicSubs">5.9M Subscribers</div>
+
+                <button class="btn-sub-orange" id="subBtnText">SUBSCRIBE 5.9M</button>
+                <button class="btn-friends">🤝 Friends</button>
+
+                <div class="server-monitor-box">
+                    <div class="monitor-headline">
+                        <div class="pulse-light-status"></div>
+                        <span>Nebulon Dynamic Link</span>
+                    </div>
+                    <div class="stat-row-item"><span>Statut IP</span><span style="color:var(--rr-green);" id="srvStatus">SCAN LOCAL</span></div>
+                    <div class="stat-row-item"><span>Machine</span><span>localhost</span></div>
+                    <div class="stat-row-item"><span>Port</span><span>2056</span></div>
+                    
+                    <div class="stat-row-item" style="margin-top:10px;"><span>Charge CPU</span><span id="liveCpu">24%</span></div>
+                    <div class="stat-progress-bg"><div class="stat-progress-fill" id="cpuBarFill"></div></div>
+                    
+                    <div class="stat-row-item"><span>Mémoire RAM</span><span id="liveRam">44%</span></div>
+                    <div class="stat-progress-bg"><div class="stat-progress-fill ram-color" id="ramBarFill"></div></div>
+                </div>
+            </div>
+
+            <div class="grid-content-area">
+                <div class="grid-header-tabs">
+                    <div class="grid-tab-item">☰ Flux</div>
+                    <div class="grid-tab-item active">📷 Photos</div>
+                    <div class="grid-tab-item">🏠 Rooms</div>
+                    <div class="grid-tab-item">📅 Events</div>
+                </div>
+
+                <div class="filter-bar">🎛️ FILTER PHOTOS</div>
+
+                <div class="photos-feed-grid">
+                    <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-16-32.jpg"></div>
+                    <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-20-12.jpg"></div>
+                    <div class="photo-grid-item"><img src="./DormRoom 2026 7 30 3 56 58.jpg"></div>
+                    <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-16-32.jpg"></div>
+                    <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-20-12.jpg"></div>
+                    <div class="photo-grid-item"><img src="./DormRoom 2026 7 30 3 56 58.jpg"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchConnectedPlayer() {
+            try {
+                const response = await fetch('http://localhost:2056/api/player/login', { method: 'GET' });
+                if (response.ok) {
+                    const data = await response.json();
+                    // Si le serveur local renvoie un pseudo spécifique, il prend la main
+                    document.getElementById('dynamicPseudo').innerText = data.DisplayName || "LBP3PC";
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RecNet // Central Profile</title>
     <style>
         :root {
