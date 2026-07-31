@@ -48,6 +48,7 @@
             overflow-y: auto;
         }
 
+        /* 🎆 GRANDE BANNIÈRE DE PRÉSENTATION DE TON DORTOIR DE FÊTE */
         .profile-banner {
             width: 100%;
             height: 240px;
@@ -74,6 +75,8 @@
             margin-top: -90px;
             z-index: 10;
         }
+        
+        /* 📷 TA PHOTO DE PROFIL REQUIN AVEC BORDURE */
         .pfp-circle {
             width: 130px; height: 130px;
             border-radius: 50%;
@@ -110,6 +113,7 @@
             border: 1px solid #3d3d3d;
             margin-top: 15px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            text-align: left;
         }
         .monitor-headline {
             font-family: 'Fredoka One', cursive;
@@ -164,23 +168,24 @@
 <body>
 
     <nav class="top-navbar">
-        <div class="logo-area">🟧 RECROOM <span>RecNet // Live Dashboard</span></div>
+        <div class="logo-area">🟧 RECROOM <span>RecNet // Live Profile</span></div>
         <div style="font-size: 16px; opacity: 0.7; display: flex; gap: 15px; cursor: pointer;">🔍 🔔 👤</div>
     </nav>
 
     <div class="app-layout">
+        <!-- GRANDE IMAGE BANNIÈRE DE FOND DE TON SITE -->
         <div class="profile-banner"></div>
 
         <div class="profile-container">
             <div class="profile-sidebar-card">
+                <!-- TA PHOTO DE PROFIL REQUIN CHARGÉE PAR DÉFAUT -->
                 <div class="pfp-circle"><img src="./DormRoom-2026-7-30-1-16-32.jpg" alt="Pfp"></div>
                 
-                <!-- 🔄 CASES DYNAMIQUES QUI COULENT DU SERVEUR -->
-                <h1 class="user-title-name" id="dynamicPseudo">Attente jeu...</h1>
-                <div class="user-tag" id="dynamicTag">@Connecting...</div>
-                <div class="sub-count" id="dynamicSubs">0 Subscribers</div>
+                <h1 class="user-title-name" id="dynamicPseudo">StuffedPuppy</h1>
+                <div class="user-tag" id="dynamicTag">@DeterminedPuppy1265</div>
+                <div class="sub-count" id="dynamicSubs">30 Subscribers</div>
 
-                <button class="btn-sub-orange" id="subBtnText">Subscribe</button>
+                <button class="btn-sub-orange" id="subBtnText">SUBSCRIBE 30</button>
                 <button class="btn-friends">🤝 Friends</button>
 
                 <div class="server-monitor-box">
@@ -223,10 +228,8 @@
     </div>
 
     <script>
-        // SCRIPT DETECTEUR DE PSEUDO DE CONNEXION LOCAL
         async function fetchConnectedPlayer() {
             try {
                 const response = await fetch('http://localhost:2056/api/player/login', { method: 'GET' });
                 if (response.ok) {
                     const data = await response.json();
-                    // Injecte le vrai pseudo détecté en direct depuis le serveur dotnet run
