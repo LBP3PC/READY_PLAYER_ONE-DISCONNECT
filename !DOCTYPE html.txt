@@ -27,6 +27,221 @@
             position: relative; overflow-x: hidden;
         }
 
+        /* Le véritable arrière-plan animé de Rec Room */
+        body::before {
+            content: ""; position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            /* Utilisation d'un motif transparent hébergé de manière stable */
+            background-image: url('https://squarespace-cdn.com');
+            background-size: 250px; opacity: 0.22; z-index: 0; pointer-events: none;
+            animation: scrollBackground 25s linear infinite;
+        }
+
+        @keyframes scrollBackground {
+            from { background-position: 0 0; }
+            to { background-position: 250px 250px; }
+        }
+
+        /* Barre de navigation supérieure */
+        .recnet-navbar {
+            background-color: var(--rr-dark); width: 100%; height: 70px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+            position: fixed; top: 0; left: 0; z-index: 100;
+        }
+
+        .navbar-brand {
+            font-family: 'Fredoka One', cursive; font-size: 32px;
+            color: var(--rr-orange); margin-left: 30px;
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.2); letter-spacing: 0.5px;
+        }
+
+        .server-badge {
+            background-color: rgba(255, 255, 255, 0.08); padding: 8px 16px;
+            border-radius: 30px; font-size: 13px; font-weight: 900; letter-spacing: 1px;
+            margin-right: 30px; display: flex; align-items: center; gap: 10px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .pulse-dot {
+            width: 10px; height: 10px; background-color: var(--rr-green);
+            border-radius: 50%; box-shadow: 0 0 12px var(--rr-green);
+        }
+
+        /* Conteneur principal */
+        .main-container {
+            margin-top: 110px; width: 90%; max-width: 620px;
+            display: flex; flex-direction: column; gap: 20px; padding-bottom: 5px; z-index: 1;
+        }
+
+        /* Onglets style Rec Room */
+        .recnet-tabs {
+            display: flex; gap: 10px; width: 100%; margin-bottom: 5px;
+        }
+
+        .tab-item {
+            background-color: var(--rr-dark); padding: 10px 22px;
+            border-radius: 20px 20px 0 0; font-family: 'Fredoka One', cursive;
+            font-size: 15px; color: var(--rr-text-muted); text-decoration: none;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.02);
+        }
+
+        .tab-item.active {
+            background-color: var(--rr-card); color: var(--rr-orange);
+            border-bottom: 3px solid var(--rr-orange);
+        }
+
+        /* Cartes d'affichage de contenu */
+        .recnet-card {
+            background-color: var(--rr-card); border-radius: 18px;
+            box-shadow: 0 12px 35px rgba(0,0,0,0.4); overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.05); margin-bottom: 5px;
+        }
+
+        .card-header {
+            padding: 20px; display: flex; align-items: center; gap: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.05); background-color: rgba(0,0,0,0.1);
+        }
+
+        .avatar-stub {
+            width: 50px; height: 50px; background: linear-gradient(45deg, var(--rr-orange), #FF9800);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-family: 'Fredoka One', cursive; font-size: 22px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .header-info { display: flex; flex-direction: column; }
+
+        .username {
+            font-family: 'Fredoka One', cursive; font-size: 24px;
+            color: #FFFFFF; letter-spacing: 0.5px;
+        }
+
+        .timestamp {
+            font-size: 13px; color: var(--rr-text-muted); font-weight: 800;
+        }
+
+        .card-body { padding: 25px; font-size: 16px; line-height: 1.7; }
+
+        /* Grille des statistiques système */
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 25px 0;
+        }
+
+        .stat-box {
+            background-color: rgba(0,0,0,0.15); padding: 12px; border-radius: 12px;
+            text-align: center; border: 1px solid rgba(255,255,255,0.02);
+        }
+
+        .stat-val {
+            font-family: 'Fredoka One', cursive; font-size: 20px; color: var(--rr-orange);
+        }
+
+        .stat-lbl {
+            font-size: 11px; color: var(--rr-text-muted); font-weight: 900; text-transform: uppercase;
+        }
+
+        /* Bouton d'action géant 3D relié à TON Discord */
+        .recnet-btn {
+            display: block; width: calc(100% - 10px); background-color: var(--rr-orange);
+            color: #FFFFFF; text-align: center; text-decoration: none;
+            font-family: 'Fredoka One', cursive; font-size: 20px; padding: 16px;
+            border-radius: 35px; margin: 15px auto 5px auto; border-bottom: 5px solid #D66A00;
+            box-shadow: 0 6px 16px rgba(255, 127, 0, 0.35); transition: all 0.1s ease;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+
+        .recnet-btn:hover { background-color: #FF8F1F; transform: translateY(-1px); }
+        .recnet-btn:active { transform: translateY(4px); border-bottom-width: 1px; }
+    </style>
+</head>
+<body>
+
+    <!-- Barre supérieure de l'application -->
+    <nav class="recnet-navbar">
+        <div class="navbar-brand">rec.net</div>
+        <div class="server-badge">
+            <div class="pulse-dot"></div>
+            <span>MASTER DATABASE</span>
+        </div>
+    </nav>
+
+    <!-- Flux global -->
+    <main class="main-container">
+
+        <!-- Onglets officiels -->
+        <div class="recnet-tabs">
+            <a href="#" class="tab-item active">Feed</a>
+            <a href="#" class="tab-item" onclick="alert('Bientôt : Liste des pièces de dortoirs publiques.'); return false;">Rooms</a>
+            <a href="#" class="tab-item" onclick="alert('Base de données synchronisée sur 192.168.1.169 !'); return false;">Status</a>
+        </div>
+
+        <!-- Carte principale -->
+        <div class="recnet-card">
+            <div class="card-header">
+                <div class="avatar-stub">👑</div>
+                <div class="header-info">
+                    <span class="username">Project RecNet Hub</span>
+                    <span class="timestamp">Serveur de Préservation Dédié (v42y)</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <p>Bienvenue sur le portail réseau officiel de préservation de l'écosystème Rec Room 2021.</p>
+                <p>Votre base de données locale gère actuellement les configurations système, supprime l'erreur summer à distance et prend en charge l'enregistrement natif du Maker Pen dans votre dortoir.</p>
+                
+                <!-- Section des statistiques du serveur -->
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-val">ONLINE</div>
+                        <div class="stat-lbl">Statut</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-val">v42y</div>
+                        <div class="stat-lbl">Version</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-val">LOCAL</div>
+                        <div class="stat-lbl">Région</div>
+                    </div>
+                </div>
+
+                <!-- Ton invitation Discord officielle -->
+                <a href="https://discord.gg" target="_blank" class="recnet-btn">Rejoindre la Communauté</a>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RecNet // Central Command Hub</title>
+    <style>
+        :root {
+            --rr-orange: #FF7F00;
+            --rr-dark: #1A212D;
+            --rr-card: #252F3F;
+            --rr-card-hover: #2F3B4E;
+            --rr-text: #FFFFFF;
+            --rr-text-muted: #8FA4B5;
+            --rr-green: #00E676;
+        }
+
+        @import url('https://googleapis.com');
+
+        body {
+            background: #ff7f00;
+            color: var(--rr-text);
+            font-family: 'Nunito', sans-serif;
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column;
+            align-items: center; min-height: 100vh;
+            position: relative; overflow-x: hidden;
+        }
+
         /* Arrière-plan animé officiel */
         body::before {
             content: ""; position: absolute;
