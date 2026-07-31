@@ -40,7 +40,6 @@
             to { background-position: 220px 220px; }
         }
 
-        /* 🟦 MENU SUPÉRIEUR */
         .navbar-top {
             background-color: var(--rr-orange); width: 100%; height: 55px;
             display: flex; align-items: center; justify-content: space-between;
@@ -57,7 +56,6 @@
         .nav-btn.active { background-color: #ffffff; color: var(--rr-blue-nav); border: 1px solid var(--rr-blue-nav); }
         .nav-btn.logout { background-color: #334155; }
 
-        /* INTERFACE GLOBAL */
         .dashboard-grid {
             margin-top: 75px; padding: 15px; display: grid; grid-template-columns: 240px 1fr 280px; gap: 15px;
             height: calc(100vh - 105px); z-index: 1; width: calc(100% - 30px);
@@ -68,7 +66,6 @@
             box-shadow: 0 8px 24px rgba(0,0,0,0.3); overflow-y: auto;
         }
 
-        /* GAUCHE : PLANTE */
         .panel-left { gap: 15px; }
         .plant-card { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; text-align: center; border: 1px solid rgba(255,127,0,0.2); }
         .plant-title { font-family: 'Fredoka One', cursive; color: var(--rr-orange); font-size: 20px; }
@@ -77,7 +74,6 @@
         .water-fill { background: #0076FF; width: 20%; height: 100%; transition: width 0.3s; }
         .btn-water { background: var(--rr-orange); border: none; color: white; padding: 6px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px; }
 
-        /* CENTRE */
         .tab-content { display: none; height: 100%; flex-direction: column; }
         .tab-content.active { display: flex; }
         
@@ -91,7 +87,6 @@
         .btn-link { background: var(--rr-blue-nav); color: white; text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
         .score-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
 
-        /* DROITE : METEO */
         .weather-box { text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 15px; }
         .weather-city { font-family: 'Fredoka One', cursive; color: var(--rr-orange); font-size: 22px; }
         .weather-temp { font-size: 36px; font-weight: 900; color: #FFFFFF; margin: 5px 0; }
@@ -101,50 +96,28 @@
         .assign-item.today { border-left-color: var(--rr-green); }
         .assign-tag { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; }
 
-        /* Zone d'affichage graphique */
         .photo-display-container {
-            width: 100%;
-            height: calc(100% - 95px);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            overflow: hidden;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            position: relative;
+            width: 100%; height: calc(100% - 95px); border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px; overflow: hidden; background-color: rgba(0, 0, 0, 0.5);
+            display: flex; justify-content: center; align-items: center; position: relative;
         }
-
-        .photo-display-container svg {
-            width: 80%;
-            height: 80%;
-        }
-
+        .photo-display-container svg { width: 80%; height: 80%; }
         .photo-overlay-info {
-            position: absolute;
-            bottom: 0; left: 0; right: 0;
+            position: absolute; bottom: 0; left: 0; right: 0;
             background: linear-gradient(transparent, rgba(0,0,0,0.9));
-            padding: 15px;
-            font-size: 13px;
-            color: #FFFFFF;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-weight: bold;
+            padding: 15px; font-size: 13px; color: #FFFFFF;
+            display: flex; justify-content: space-between; align-items: center; font-weight: bold;
         }
-
         .btn-next-img {
             background: var(--rr-orange); border: none; color: white; 
             padding: 6px 14px; border-radius: 12px; cursor: pointer; 
-            font-family: 'Fredoka One', cursive; font-size: 12px;
-            border-bottom: 3px solid #C46200;
+            font-family: 'Fredoka One', cursive; font-size: 12px; border-bottom: 3px solid #C46200;
         }
         .btn-next-img:active { transform: translateY(1px); border-bottom-width: 1px; }
     </style>
 </head>
 <body>
 
-    <!-- NAV BAR SUPÉRIEURE -->
     <nav class="navbar-top">
         <div class="nav-left">
             <div class="profile-badge">👑 LBP3PC</div>
@@ -159,9 +132,7 @@
         </div>
     </nav>
 
-    <!-- DASHBOARD PRINCIPAL -->
     <div class="dashboard-grid">
-        <!-- GAUCHE -->
         <div class="panel panel-left">
             <div class="plant-card">
                 <div class="plant-title" id="plantDay">1 Day</div>
@@ -178,7 +149,6 @@
             </div>
         </div>
 
-        <!-- CENTRE : LE FIL AUDIO ET DES GRAPHISMES INTEGRES -->
         <div class="panel panel-center">
             <div id="tab-home" class="tab-content content-home active">
                 <div style="background: rgba(0,0,0,0.5); border-radius: 12px; padding: 15px; border-left: 4px solid var(--rr-orange); width: calc(100% - 30px); display: flex; justify-content: space-between; align-items: center;">
@@ -186,3 +156,11 @@
                         <h2 style="margin:0; font-family:'Fredoka One'; color:var(--rr-orange);">RecNet // Photo Feed</h2>
                         <p style="margin:5px 0 0 0; font-size:14px; color:var(--rr-text-muted);">Vos souvenirs de dortoir s'affichent en direct ci-dessous.</p>
                     </div>
+                    <a href="https://google.com" target="_blank" style="background: var(--rr-orange); color: white; text-decoration: none; font-family: 'Fredoka One', cursive; font-size: 12px; padding: 8px 14px; border-radius: 15px; border-bottom: 3px solid #C46200;">Ouvrir le Drive 📁</a>
+                </div>
+                
+                <div class="photo-display-container">
+                    <svg viewBox="0 0 400 200" id="svgBox"></svg>
+                    <div class="photo-overlay-info">
+                        <span id="photoTitle">📷 Charge : DormRoom_v42y_Wall.png</span>
+                        <button onclick="changeSamplePhoto()" class="btn-next-img">Suivante ➡️</button>
