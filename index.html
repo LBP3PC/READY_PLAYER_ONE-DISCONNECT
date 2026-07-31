@@ -65,7 +65,6 @@
             box-shadow: 0 8px 24px rgba(0,0,0,0.3); overflow-y: auto;
         }
 
-        /* 📊 NOUVEAU COMPOSANT : SERVEUR MONITORING */
         .panel-left { gap: 15px; }
         .monitor-card { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; border: 1px solid rgba(0,118,255,0.2); }
         .monitor-title { font-family: 'Fredoka One', cursive; color: var(--rr-blue-nav); font-size: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
@@ -88,7 +87,6 @@
             width: 100%; background: var(--rr-orange); border: none; color: white; padding: 6px; 
             border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px; border-bottom: 3px solid #C46200;
         }
-        .btn-refresh-stats:active { transform: translateY(1px); border-bottom-width: 1px; }
 
         .tab-content { display: none; height: 100%; flex-direction: column; }
         .tab-content.active { display: flex; }
@@ -129,34 +127,28 @@
     </nav>
 
     <div class="dashboard-grid">
-        <!-- GAUCHE : STATS SERVEUR (REMPLACE LA PLANTE) -->
         <div class="panel panel-left">
             <div class="monitor-card">
                 <div class="monitor-title">
                     <div class="pulse-light"></div>
-                    <span>RebornRec Engine</span>
+                    <span>Nebulon Engine v2021</span>
                 </div>
-                
-                <div class="stat-line"><span>NetBox Ping</span><span id="pingVal">24 ms</span></div>
-                
-                <div class="stat-line"><span>CPU Usage</span><span id="cpuVal">34%</span></div>
+                <div class="stat-line"><span>NetBox Ping</span><span id="pingVal">18 ms</span></div>
+                <div class="stat-line"><span>CPU Usage</span><span id="cpuVal">28%</span></div>
                 <div class="progress-bar"><div class="progress-fill" id="cpuBar"></div></div>
-                
-                <div class="stat-line"><span>RAM Memory</span><span id="ramVal">56%</span></div>
+                <div class="stat-line"><span>RAM Memory</span><span id="ramVal">42%</span></div>
                 <div class="progress-bar"><div class="progress-fill progress-fill ram" id="ramBar"></div></div>
-                
                 <button class="btn-refresh-stats" onclick="simStats()">Forcer un Scan 🔄</button>
             </div>
             
             <div class="monitor-card" style="font-size: 13px; text-align: left; border-color: rgba(255,127,0,0.2);">
                 <b style="color: var(--rr-orange);">Server Control</b><br>
-                • Core : Connecté<br>
-                • Base locale : Validée<br>
-                • Code Erreur Summer : 0
+                • Core : 192.168.1.62<br>
+                • API Port : 25592<br>
+                • Status : En ligne
             </div>
         </div>
 
-        <!-- CENTRE -->
         <div class="panel panel-center">
             <div id="tab-home" class="tab-content content-home active">
                 <div style="background: rgba(0,0,0,0.5); border-radius: 12px; padding: 15px; border-left: 4px solid var(--rr-orange); width: calc(100% - 30px); display: flex; justify-content: space-between; align-items: center;">
@@ -164,6 +156,7 @@
                         <h2 style="margin:0; font-family:'Fredoka One'; color:var(--rr-orange);">RecNet // Photo Feed</h2>
                         <p style="margin:5px 0 0 0; font-size:14px; color:var(--rr-text-muted);">Vos captures d'écran s'affichent automatiquement en direct ci-dessous.</p>
                     </div>
+                    <a href="https://google.com" target="_blank" style="background: var(--rr-orange); color: white; text-decoration: none; font-family: 'Fredoka One', cursive; font-size: 12px; padding: 8px 14px; border-radius: 15px; border-bottom: 3px solid #C46200;">Ouvrir le Drive 📁</a>
                 </div>
                 
                 <div class="photo-display-container">
@@ -177,17 +170,10 @@
 
             <div id="tab-vakken" class="tab-content">
                 <h2 style="font-family:'Fredoka One'; color:var(--rr-orange); margin-top:0;">Vos Modules de Modding (Vakken)</h2>
+                <div class="grid-vakken">
+                    <div class="box-vak"><h3>🎮 Core Nebulon</h3><p style="font-size:13px; color:var(--rr-text-muted);">Serveur actif sur l'adresse IP 192.168.1.62.</p></div>
+                    <div class="box-vak<h3>🛠️ Port Écoute</h3><p style="font-size:13px; color:var(--rr-text-muted);">Liaison API validée sur le port réseau 25592.</p></div>
+                </div>
             </div>
+
             <div id="tab-links" class="tab-content">
-                <h2 style="font-family:'Fredoka One'; color:var(--rr-orange); margin-top:0;">Liens Réseau (Links)</h2>
-            </div>
-            <div id="tab-resultaten" class="tab-content">
-                <h2 style="font-family:'Fredoka One'; color:var(--rr-orange); margin-top:0;">Statistiques (Resultaten)</h2>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        window.onload = function() { simStats(); };
-
-        function switchTab(tabId, buttonElement) {
