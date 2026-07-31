@@ -65,13 +65,30 @@
             box-shadow: 0 8px 24px rgba(0,0,0,0.3); overflow-y: auto;
         }
 
+        /* 📊 NOUVEAU COMPOSANT : SERVEUR MONITORING */
         .panel-left { gap: 15px; }
-        .plant-card { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; text-align: center; border: 1px solid rgba(255,127,0,0.2); }
-        .plant-title { font-family: 'Fredoka One', cursive; color: var(--rr-orange); font-size: 20px; }
-        .plant-img { font-size: 55px; margin: 10px 0; transition: transform 0.2s; }
-        .water-bar { background: #1e293b; height: 12px; border-radius: 6px; overflow: hidden; margin: 15px 0 10px 0; }
-        .water-fill { background: #0076FF; width: 20%; height: 100%; transition: width 0.3s; }
-        .btn-water { background: var(--rr-orange); border: none; color: white; padding: 6px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px; }
+        .monitor-card { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; border: 1px solid rgba(0,118,255,0.2); }
+        .monitor-title { font-family: 'Fredoka One', cursive; color: var(--rr-blue-nav); font-size: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .pulse-light { width: 10px; height: 10px; background: var(--rr-green); border-radius: 50%; box-shadow: 0 0 10px var(--rr-green); animation: pulse 1.5s infinite; }
+        
+        @keyframes pulse {
+            0% { opacity: 0.4; }
+            50% { opacity: 1; }
+            100% { opacity: 0.4; }
+        }
+
+        .stat-line { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; font-weight: bold; }
+        .stat-line span:last-child { color: var(--rr-orange); }
+        
+        .progress-bar { background: #1e293b; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 4px; margin-bottom: 12px; }
+        .progress-fill { background: var(--rr-orange); width: 34%; height: 100%; transition: width 0.5s ease; }
+        .progress-fill.ram { background: var(--rr-blue-nav); width: 56%; }
+
+        .btn-refresh-stats {
+            width: 100%; background: var(--rr-orange); border: none; color: white; padding: 6px; 
+            border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px; border-bottom: 3px solid #C46200;
+        }
+        .btn-refresh-stats:active { transform: translateY(1px); border-bottom-width: 1px; }
 
         .tab-content { display: none; height: 100%; flex-direction: column; }
         .tab-content.active { display: flex; }
@@ -112,22 +129,34 @@
     </nav>
 
     <div class="dashboard-grid">
+        <!-- GAUCHE : STATS SERVEUR (REMPLACE LA PLANTE) -->
         <div class="panel panel-left">
-            <div class="plant-card">
-                <div class="plant-title" id="plantDay">1 Day</div>
-                <div class="plant-img" id="plantEmoji">🌱</div>
-                <div style="font-size: 12px; color: var(--rr-text-muted);" id="waterTime">Watered 2h ago</div>
-                <div class="water-bar"><div class="water-fill" id="waterFill"></div></div>
-                <button class="btn-water" onclick="waterPlant()">Arroser la Plante 💧</button>
+            <div class="monitor-card">
+                <div class="monitor-title">
+                    <div class="pulse-light"></div>
+                    <span>RebornRec Engine</span>
+                </div>
+                
+                <div class="stat-line"><span>NetBox Ping</span><span id="pingVal">24 ms</span></div>
+                
+                <div class="stat-line"><span>CPU Usage</span><span id="cpuVal">34%</span></div>
+                <div class="progress-bar"><div class="progress-fill" id="cpuBar"></div></div>
+                
+                <div class="stat-line"><span>RAM Memory</span><span id="ramVal">56%</span></div>
+                <div class="progress-bar"><div class="progress-fill progress-fill ram" id="ramBar"></div></div>
+                
+                <button class="btn-refresh-stats" onclick="simStats()">Forcer un Scan 🔄</button>
             </div>
-            <div class="plant-card" style="font-size: 13px; text-align: left;">
+            
+            <div class="monitor-card" style="font-size: 13px; text-align: left; border-color: rgba(255,127,0,0.2);">
                 <b style="color: var(--rr-orange);">Server Control</b><br>
-                • RebornRec Core active<br>
-                • Base de données ok<br>
-                • Erreur Summer bloquée
+                • Core : Connecté<br>
+                • Base locale : Validée<br>
+                • Code Erreur Summer : 0
             </div>
         </div>
 
+        <!-- CENTRE -->
         <div class="panel panel-center">
             <div id="tab-home" class="tab-content content-home active">
                 <div style="background: rgba(0,0,0,0.5); border-radius: 12px; padding: 15px; border-left: 4px solid var(--rr-orange); width: calc(100% - 30px); display: flex; justify-content: space-between; align-items: center;">
@@ -146,7 +175,6 @@
                 </div>
             </div>
 
-            <!-- Reste des onglets -->
             <div id="tab-vakken" class="tab-content">
                 <h2 style="font-family:'Fredoka One'; color:var(--rr-orange); margin-top:0;">Vos Modules de Modding (Vakken)</h2>
             </div>
@@ -160,31 +188,6 @@
     </div>
 
     <script>
+        window.onload = function() { simStats(); };
+
         function switchTab(tabId, buttonElement) {
-            const contents = document.querySelectorAll('.tab-content');
-            contents.forEach(content => content.classList.remove('active'));
-            const buttons = document.querySelectorAll('.nav-btn');
-            buttons.forEach(btn => btn.classList.remove('active'));
-            document.getElementById('tab-' + tabId).classList.add('active');
-            buttonElement.classList.add('active');
-        }
-
-        // 🖼️ LES NOMS ONT ÉTÉ ENTIÈREMENT CORRIGÉS AVEC LES ESPACES POUR LE TROISIÈME FICHIER
-        let currentPhotoIndex = 0;
-        const photosList = [
-            "DormRoom-2026-7-30-1-16-32.jpg",
-            "DormRoom-2026-7-30-1-20-12.jpg",
-            "DormRoom 2026 7 30 3 56 58.jpg" // L'écriture exacte avec les espaces !
-        ];
-
-        function changeSamplePhoto() {
-            currentPhotoIndex = (currentPhotoIndex + 1) % photosList.length;
-            // encodeURIComponent permet de traduire proprement les espaces pour le navigateur
-            document.getElementById('mainPhotoImg').src = "./" + encodeURIComponent(photosList[currentPhotoIndex]);
-            document.getElementById('photoTitle').innerHTML = "📷 Charge : " + photosList[currentPhotoIndex];
-        }
-
-        let waterLevel = 20; let dayCounter = 1;
-        function waterPlant() {
-            if(waterLevel < 100) {
-                waterLevel += 20;
