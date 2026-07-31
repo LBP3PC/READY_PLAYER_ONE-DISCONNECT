@@ -3,6 +3,262 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RecNet // StuffedPuppy</title>
+    <style>
+        :root {
+            --rn-bg: #1e1e1e;
+            --rn-nav-bg: #151515;
+            --rn-orange: #ff7f00;
+            --rn-panel-bg: #252525;
+            --rn-btn-orange: #ff6b3d;
+            --text-white: #ffffff;
+            --text-muted: #aaaaaa;
+        }
+
+        @import url('https://googleapis.com');
+
+        body {
+            background-color: var(--rn-bg);
+            color: var(--text-white);
+            font-family: 'Nunito', sans-serif;
+            margin: 0; padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* 👑 BARRE DU HAUT */
+        .top-navbar {
+            background-color: var(--rn-nav-bg);
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            border-bottom: 1px solid #2d2d2d;
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+        }
+        .logo-area { font-size: 20px; font-weight: 900; color: var(--rn-orange); display: flex; align-items: center; gap: 5px; }
+        .logo-area span { color: white; font-weight: 400; font-size: 14px; margin-left: 10px; }
+
+        /* 📐 DISPOSITION GÉNÉRALE */
+        .app-layout {
+            display: flex;
+            margin-top: 50px;
+            height: calc(100vh - 50px);
+            width: 100%;
+        }
+
+        /* 🎛️ MENU VERTICAL GAUCHE */
+        .sidebar-left {
+            width: 60px;
+            background-color: var(--rn-nav-bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 15px;
+            gap: 22px;
+            border-right: 1px solid #2d2d2d;
+            position: fixed; top: 50px; bottom: 0; left: 0;
+        }
+        .side-icon { font-size: 18px; opacity: 0.6; cursor: pointer; transition: opacity 0.2s; }
+        .side-icon:hover, .side-icon.active { opacity: 1; color: var(--rn-orange); }
+
+        /* 📜 ZONE DE CONTENU DÉFILANTE */
+        .main-scroll-content {
+            margin-left: 60px;
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 🎆 GRANDE BANNIÈRE DE PROFIL */
+        .profile-banner {
+            width: 100%;
+            height: 240px;
+            background-image: url('https://githubusercontent.com');
+            background-size: cover;
+            background-position: center;
+            border-bottom: 4px solid var(--rn-orange);
+            position: relative;
+        }
+
+        /* 👥 BLOC DU MILIEU (INFOS + GRILLE) */
+        .profile-container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: calc(100% - 40px);
+        }
+
+        /* 📋 CARTE DE PROFIL GAUCHE */
+        .profile-sidebar-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: -90px;
+            z-index: 10;
+        }
+        .pfp-circle {
+            width: 130px; height: 130px;
+            border-radius: 50%;
+            border: 6px solid var(--rn-bg);
+            background-color: #ff3b30;
+            overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 50px; box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+        }
+        .user-title-name { font-size: 22px; font-weight: 900; margin: 12px 0 2px 0; }
+        .user-tag { color: var(--text-muted); font-size: 13px; margin-bottom: 5px; }
+        .sub-count { font-size: 12px; color: var(--text-muted); margin-bottom: 15px; }
+
+        .info-box-stats {
+            background-color: var(--rn-panel-bg);
+            width: 100%;
+            border-radius: 8px;
+            padding: 15px;
+            box-sizing: border-box;
+            font-size: 13px;
+            display: flex; flex-direction: column; gap: 8px;
+            border: 1px solid #333; margin-bottom: 12px;
+        }
+        .status-badge { color: #888; font-weight: bold; }
+        .date-badge { font-size: 11px; color: #888; }
+
+        .btn-sub-orange {
+            width: 100%; background-color: var(--rn-btn-orange); color: white;
+            border: none; padding: 10px; border-radius: 6px;
+            font-weight: 900; font-size: 13px; cursor: pointer; text-transform: uppercase;
+            margin-bottom: 8px; box-shadow: 0 4px 10px rgba(255,107,61,0.2);
+        }
+        .btn-friends {
+            width: 100%; background-color: #333; color: white;
+            border: none; padding: 8px; border-radius: 6px;
+            font-weight: 700; font-size: 12px; cursor: pointer;
+        }
+
+        /* 🎛️ ONGLETS DE LA GRILLE */
+        .grid-header-tabs {
+            background-color: var(--rn-panel-bg);
+            border-radius: 8px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            border: 1px solid #333;
+            margin-bottom: 15px;
+        }
+        .grid-tab-item { font-size: 14px; opacity: 0.5; cursor: pointer; font-weight: bold; }
+        .grid-tab-item.active { opacity: 1; color: var(--rn-orange); border-bottom: 2px solid var(--rn-orange); padding-bottom: 2px; }
+
+        .filter-bar { font-size: 12px; font-weight: 800; color: var(--text-muted); text-align: left; margin-bottom: 15px; cursor: pointer; }
+
+        /* 🖼️ SUPER GRILLE DE PHOTOS PHOTO FEED */
+        .photos-feed-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        .photo-grid-item {
+            background-color: #151515;
+            border-radius: 6px;
+            aspect-ratio: 16 / 10;
+            overflow: hidden;
+            border: 1px solid #2d2d2d;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .photo-grid-item:hover { transform: scale(1.02); border-color: var(--rn-orange); }
+        .photo-grid-item img { width: 100%; height: 100%; object-fit: cover; }
+    </style>
+</head>
+<body>
+
+    <!-- 👑 TOP BAR -->
+    <nav class="top-navbar">
+        <div class="logo-area">🟧 RECROOM <span>RecNet // Archive</span></div>
+        <div style="font-size: 18px; opacity: 0.7;">🔍 🔔 👤</div>
+    </nav>
+
+    <div class="app-layout">
+        
+        <!-- 🎛️ SIDEBAR GAUCHE -->
+        <aside class="sidebar-left">
+            <div class="side-icon active">🏠</div>
+            <div class="side-icon">🌐</div>
+            <div class="side-icon">📷</div>
+            <div class="side-icon">🎨</div>
+            <div class="side-icon">⚙️</div>
+            <div class="side-icon" style="margin-top: auto; padding-bottom: 20px;">🚪</div>
+        </aside>
+
+        <!-- 📜 ZONE CENTRALE DÉFILANTE -->
+        <main class="main-scroll-content">
+            
+            <!-- BANNIÈRE -->
+            <div class="profile-banner"></div>
+
+            <!-- CONTENEUR GRILLE + INFOS -->
+            <div class="profile-container">
+                
+                <!-- GAUCHE : INFOS DU PROFIL -->
+                <div class="profile-sidebar-card">
+                    <div class="pfp-circle">👹</div>
+                    <h1 class="user-title-name">StuffedPuppy</h1>
+                    <div class="user-tag">@DeterminedPuppy1265</div>
+                    <div class="sub-count">30 Subscribers</div>
+
+                    <button class="btn-sub-orange">Subscribe 30</button>
+                    <button class="btn-friends">🤝 Friends</button>
+
+                    <div class="info-box-stats" style="margin-top: 15px;">
+                        <div><span class="status-badge">Offline</span></div>
+                        <div class="date-badge">📅 Joined June 16th 2021</div>
+                    </div>
+                </div>
+
+                <!-- DROITE : LA GRILLE DE PHOTOS -->
+                <div class="grid-content-area">
+                    
+                    <div class="grid-header-tabs">
+                        <div class="grid-tab-item">☰</div>
+                        <div class="grid-tab-item active">📷</div>
+                        <div class="grid-tab-item">🏠</div>
+                        <div class="grid-tab-item">📅</div>
+                    </div>
+
+                    <div class="filter-bar">🎛️ FILTER PHOTOS</div>
+
+                    <!-- LES CAPTURES DE TON GITHUB EN GRILLE -->
+                    <div class="photos-feed-grid">
+                        <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-16-32.jpg"></div>
+                        <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-20-12.jpg"></div>
+                        <div class="photo-grid-item"><img src="./DormRoom 2026 7 30 3 56 58.jpg"></div>
+                        <!-- Répétition des images pour créer l'effet de grille remplie comme ta photo -->
+                        <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-16-32.jpg"></div>
+                        <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-20-12.jpg"></div>
+                        <div class="photo-grid-item"><img src="./DormRoom 2026 7 30 3 56 58.jpg"></div>
+                        <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-16-32.jpg"></div>
+                        <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-20-12.jpg"></div>
+                        <div class="photo-grid-item"><img src="./DormRoom 2026 7 30 3 56 58.jpg"></div>
+                    </div>
+
+                </div>
+
+            </div>
+        </main>
+
+    </div>
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project RecNet Hub</title>
     <style>
         :root {
