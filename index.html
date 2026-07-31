@@ -40,7 +40,7 @@
             to { background-position: 220px 220px; }
         }
 
-        /* 🔒 INTERFACE ÉCRAN DE CONNEXION (LOGIN) */
+        /* 🔒 ÉCRAN DE CONNEXION (LOGIN) */
         #login-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: var(--rr-bg-dark); z-index: 999;
@@ -73,7 +73,7 @@
 
         .login-error { color: #ff4444; font-size: 13px; margin-top: 10px; font-weight: bold; display: none; }
 
-        /* 🟦 INTERFACE APPLICATION PRINCIPALE (CACHÉE AU BOOT) */
+        /* 🟦 APPLICATION PRINCIPALE (CACHÉE AVANT LE LOGIN) */
         #main-application { display: none; flex-direction: column; width: 100%; }
 
         .navbar-top {
@@ -102,7 +102,7 @@
             box-shadow: 0 8px 24px rgba(0,0,0,0.3); overflow-y: auto;
         }
 
-        /* COMPOSANTS INTERNES */
+        /* GAUCHE */
         .panel-left { gap: 15px; }
         .plant-card { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; text-align: center; border: 1px solid rgba(255,127,0,0.2); }
         .plant-title { font-family: 'Fredoka One', cursive; color: var(--rr-orange); font-size: 20px; }
@@ -111,6 +111,7 @@
         .water-fill { background: #0076FF; width: 20%; height: 100%; transition: width 0.3s; }
         .btn-water { background: var(--rr-orange); border: none; color: white; padding: 6px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px; }
 
+        /* CENTRE */
         .tab-content { display: none; height: 100%; flex-direction: column; }
         .tab-content.active { display: flex; }
         .content-home {
@@ -123,7 +124,7 @@
         .btn-link { background: var(--rr-blue-nav); color: white; text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
         .score-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
 
-        /* PANNEAU METEO DE PARIS */
+        /* DROITE : METEO DE PARIS */
         .weather-box { text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 15px; }
         .weather-city { font-family: 'Fredoka One', cursive; color: var(--rr-orange); font-size: 22px; }
         .weather-temp { font-size: 36px; font-weight: 900; color: #FFFFFF; margin: 5px 0; }
@@ -136,24 +137,24 @@
 </head>
 <body>
 
-    <!-- 🔒 ÉCRAN DE CONNEXION INITIAL -->
+    <!-- 🔒 ÉCRAN DE CONNEXION -->
     <div id="login-screen">
         <div class="login-box">
             <h2>RecNet Login</h2>
             <div class="input-group">
                 <label>Nom de compte (Username)</label>
-                <input type="text" id="username" placeholder="Entrez LBP3PC" value="LBP3PC">
+                <input type="text" id="username" value="LBP3PC">
             </div>
             <div class="input-group">
                 <label>Mot de passe (Password)</label>
-                <input type="password" id="password" placeholder="Choisis ton mot de passe">
+                <input type="password" id="password" placeholder="Entrez le mot de passe">
             </div>
             <button class="btn-login" onclick="checkLogin()">Se connecter</button>
-            <div class="login-error" id="loginError">Identifiants incorrects !</div>
+            <div class="login-error" id="loginError">Mot de passe incorrect !</div>
         </div>
     </div>
 
-    <!-- 🟦 STRUCTURE COMPLETE DU DASHBOARD (CACHÉ AVANT LE LOGIN) -->
+    <!-- 🟦 STRUCTURE DU DASHBOARD -->
     <div id="main-application">
         <nav class="navbar-top">
             <div class="nav-left">
