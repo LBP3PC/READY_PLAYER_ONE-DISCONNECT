@@ -40,7 +40,6 @@
             to { background-position: 220px 220px; }
         }
 
-        /* 🟦 MENU SUPÉRIEUR */
         .navbar-top {
             background-color: var(--rr-orange); width: 100%; height: 55px;
             display: flex; align-items: center; justify-content: space-between;
@@ -55,9 +54,7 @@
         }
         .nav-btn:hover { background-color: #005fd9; }
         .nav-btn.active { background-color: #ffffff; color: var(--rr-blue-nav); border: 1px solid var(--rr-blue-nav); }
-        .nav-btn.logout { background-color: #334155; }
 
-        /* INTERFACE GLOBAL */
         .dashboard-grid {
             margin-top: 75px; padding: 15px; display: grid; grid-template-columns: 240px 1fr 280px; gap: 15px;
             height: calc(100vh - 105px); z-index: 1; width: calc(100% - 30px);
@@ -78,31 +75,14 @@
 
         .tab-content { display: none; height: 100%; flex-direction: column; }
         .tab-content.active { display: flex; }
-        
         .content-home { justify-content: flex-start; gap: 15px; }
-        .grid-vakken { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 15px; }
-        .box-vak { background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; border-top: 4px solid var(--rr-orange); }
-        .link-item { background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .btn-link { background: var(--rr-blue-nav); color: white; text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
-        .score-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
 
-        .weather-box { text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 15px; }
-        .weather-city { font-family: 'Fredoka One', cursive; color: var(--rr-orange); font-size: 22px; }
-        .weather-temp { font-size: 36px; font-weight: 900; color: #FFFFFF; margin: 5px 0; }
-
-        /* Conteneur d'affichage d'image mis à jour */
         .photo-display-container {
             width: 100%; height: calc(100% - 95px); border: 2px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px; overflow: hidden; background-color: #151a24;
             display: flex; justify-content: center; align-items: center; position: relative;
         }
-        
         .server-photo-img { width: 100%; height: 100%; object-fit: contain; z-index: 2; }
-
-        .photo-fallback-text {
-            position: absolute; color: var(--rr-text-muted); font-size: 14px; text-align: center; z-index: 1;
-        }
-
         .photo-overlay-info {
             position: absolute; bottom: 0; left: 0; right: 0;
             background: linear-gradient(transparent, rgba(0,0,0,0.9));
@@ -118,7 +98,6 @@
 </head>
 <body>
 
-    <!-- NAV BAR SUPÉRIEURE -->
     <nav class="navbar-top">
         <div class="nav-left">
             <div class="profile-badge">👑 LBP3PC</div>
@@ -132,9 +111,7 @@
         </div>
     </nav>
 
-    <!-- DASHBOARD PRINCIPAL -->
     <div class="dashboard-grid">
-        <!-- GAUCHE -->
         <div class="panel panel-left">
             <div class="plant-card">
                 <div class="plant-title" id="plantDay">1 Day</div>
@@ -151,7 +128,6 @@
             </div>
         </div>
 
-        <!-- CENTRE -->
         <div class="panel panel-center">
             <div id="tab-home" class="tab-content content-home active">
                 <div style="background: rgba(0,0,0,0.5); border-radius: 12px; padding: 15px; border-left: 4px solid var(--rr-orange); width: calc(100% - 30px); display: flex; justify-content: space-between; align-items: center;">
@@ -159,11 +135,9 @@
                         <h2 style="margin:0; font-family:'Fredoka One'; color:var(--rr-orange);">RecNet // Photo Feed</h2>
                         <p style="margin:5px 0 0 0; font-size:14px; color:var(--rr-text-muted);">Vos captures d'écran s'affichent automatiquement en direct ci-dessous.</p>
                     </div>
-                    <a href="https://google.com" target="_blank" style="background: var(--rr-orange); color: white; text-decoration: none; font-family: 'Fredoka One', cursive; font-size: 12px; padding: 8px 14px; border-radius: 15px; border-bottom: 3px solid #C46200;">Drive 📁</a>
                 </div>
                 
                 <div class="photo-display-container">
-                    <div class="photo-fallback-text">🔄 Synchronisation avec GitHub en cours...<br><span style="font-size:11px;">(Si l'image reste noire, patientez 1 minute ou cliquez sur Suivante)</span></div>
                     <img src="./DormRoom-2026-7-30-1-16-32.jpg" class="server-photo-img" id="mainPhotoImg" alt="RecRoom Graphic">
                     <div class="photo-overlay-info">
                         <span id="photoTitle">📷 Charge : DormRoom-2026-7-30-1-16-32.jpg</span>
@@ -172,4 +146,45 @@
                 </div>
             </div>
 
+            <!-- Reste des onglets -->
             <div id="tab-vakken" class="tab-content">
+                <h2 style="font-family:'Fredoka One'; color:var(--rr-orange); margin-top:0;">Vos Modules de Modding (Vakken)</h2>
+            </div>
+            <div id="tab-links" class="tab-content">
+                <h2 style="font-family:'Fredoka One'; color:var(--rr-orange); margin-top:0;">Liens Réseau (Links)</h2>
+            </div>
+            <div id="tab-resultaten" class="tab-content">
+                <h2 style="font-family:'Fredoka One'; color:var(--rr-orange); margin-top:0;">Statistiques (Resultaten)</h2>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabId, buttonElement) {
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => content.classList.remove('active'));
+            const buttons = document.querySelectorAll('.nav-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            buttonElement.classList.add('active');
+        }
+
+        // 🖼️ FIX APPORTÉ SUR L'ECRITURE ET LES LIENS DES 3 CAPTURES GITHUB
+        let currentPhotoIndex = 0;
+        const photosList = [
+            "DormRoom-2026-7-30-1-16-32.jpg",
+            "DormRoom-2026-7-30-1-20-12.jpg",
+            "DormRoom-2026-7-30-3-56-58.jpg" // Correction : Utilisation des tirets comme sur ton dossier GitHub !
+        ];
+
+        function changeSamplePhoto() {
+            currentPhotoIndex = (currentPhotoIndex + 1) % photosList.length;
+            document.getElementById('mainPhotoImg').src = "./" + photosList[currentPhotoIndex];
+            document.getElementById('photoTitle').innerHTML = "📷 Charge : " + photosList[currentPhotoIndex];
+        }
+
+        let waterLevel = 20; let dayCounter = 1;
+        function waterPlant() {
+            if(waterLevel < 100) {
+                waterLevel += 20;
+                document.getElementById('waterFill').style.width = waterLevel + '%';
