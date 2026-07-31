@@ -140,10 +140,10 @@
             font-size: 11px; color: var(--rr-text-muted); font-weight: 900; text-transform: uppercase;
         }
 
-        /* Bouton d'action géant 3D */
+        /* Bouton d'action géant 3D relié à TON Discord */
         .recnet-btn {
             display: block; width: calc(100% - 10px); background-color: var(--rr-orange);
-            color: var(--rr-text-white); text-align: center; text-decoration: none;
+            color: #FFFFFF; text-align: center; text-decoration: none;
             font-family: 'Fredoka One', cursive; font-size: 20px; padding: 16px;
             border-radius: 35px; margin: 15px auto 5px auto; border-bottom: 5px solid #D66A00;
             box-shadow: 0 6px 16px rgba(255, 127, 0, 0.35); transition: all 0.1s ease;
@@ -204,8 +204,8 @@
                     </div>
                 </div>
 
-                <!-- Bouton Discord ultra-stylisé -->
-                <a href="https://discord.gg" target="_blank" class="recnet-btn">Rejoindre la Communauté</a>
+                <!-- Ton invitation Discord officielle -->
+                <a href="https://discord.gg/GYKVe8GeP" target="_blank" class="recnet-btn">Rejoindre la Communauté</a>
             </div>
         </div>
     </main>
