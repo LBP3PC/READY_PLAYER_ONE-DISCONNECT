@@ -101,24 +101,23 @@
         .assign-item.today { border-left-color: var(--rr-green); }
         .assign-tag { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; }
 
-        /* Zone d'affichage de l'image pure */
+        /* Zone d'affichage graphique */
         .photo-display-container {
             width: 100%;
             height: calc(100% - 95px);
             border: 2px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px;
             overflow: hidden;
-            background-color: rgba(0, 0, 0, 0.6);
+            background-color: rgba(0, 0, 0, 0.5);
             display: flex;
             justify-content: center;
             align-items: center;
             position: relative;
         }
 
-        .server-photo {
-            width: 100%;
-            height: 100%;
-            object-fit: contain; /* Évite de déformer les captures d'écran */
+        .photo-display-container svg {
+            width: 80%;
+            height: 80%;
         }
 
         .photo-overlay-info {
@@ -179,7 +178,7 @@
             </div>
         </div>
 
-        <!-- CENTRE : LE FIL PHOTO INTEGRÉ ET FONCTIONNEL -->
+        <!-- CENTRE : LE FIL AUDIO ET DES GRAPHISMES INTEGRES -->
         <div class="panel panel-center">
             <div id="tab-home" class="tab-content content-home active">
                 <div style="background: rgba(0,0,0,0.5); border-radius: 12px; padding: 15px; border-left: 4px solid var(--rr-orange); width: calc(100% - 30px); display: flex; justify-content: space-between; align-items: center;">
@@ -187,4 +186,3 @@
                         <h2 style="margin:0; font-family:'Fredoka One'; color:var(--rr-orange);">RecNet // Photo Feed</h2>
                         <p style="margin:5px 0 0 0; font-size:14px; color:var(--rr-text-muted);">Vos souvenirs de dortoir s'affichent en direct ci-dessous.</p>
                     </div>
-                    <!-- Bouton secondaire pour ajouter des fichiers sur ton Drive -->
