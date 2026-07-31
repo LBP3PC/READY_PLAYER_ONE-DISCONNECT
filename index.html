@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RecNet // StuffedPuppy</title>
+    <title>RecNet // StuffedPuppy Dashboard</title>
     <style>
         :root {
             --rn-bg: #1e1e1e;
@@ -13,266 +13,7 @@
             --rn-btn-orange: #ff6b3d;
             --text-white: #ffffff;
             --text-muted: #aaaaaa;
-        }
-
-        @import url('https://googleapis.com');
-
-        body {
-            background-color: var(--rn-bg);
-            color: var(--text-white);
-            font-family: 'Nunito', sans-serif;
-            margin: 0; padding: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        /* 👑 TOP BAR */
-        .top-navbar {
-            background-color: var(--rn-nav-bg);
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-            border-bottom: 1px solid #2d2d2d;
-            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-        }
-        .logo-area { font-size: 20px; font-weight: 900; color: var(--rn-orange); display: flex; align-items: center; gap: 5px; }
-        .logo-area span { color: white; font-weight: 400; font-size: 14px; margin-left: 10px; }
-
-        /* 📐 CONFIGURATION SQUELETTE */
-        .app-layout {
-            display: flex;
-            margin-top: 50px;
-            height: calc(100vh - 50px);
-            width: 100%;
-        }
-
-        /* 🎛️ SIDEBAR GAUCHE */
-        .sidebar-left {
-            width: 60px;
-            background-color: var(--rn-nav-bg);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding-top: 15px;
-            gap: 22px;
-            border-right: 1px solid #2d2d2d;
-            position: fixed; top: 50px; bottom: 0; left: 0;
-        }
-        .side-icon { font-size: 18px; opacity: 0.6; cursor: pointer; }
-        .side-icon.active { opacity: 1; color: var(--rn-orange); }
-
-        /* 📜 COMPOSANT CENTRAL DE DEFILEMENT */
-        .main-scroll-content {
-            margin-left: 60px;
-            flex-grow: 1;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            background-color: var(--rn-bg);
-        }
-
-        /* 🎆 LARGE BANNIÈRE FLOU DE DORTOIR */
-        .profile-banner {
-            width: 100%;
-            height: 240px;
-            background-image: url('./DormRoom 2026 7 30 3 56 58.jpg');
-            background-size: cover;
-            background-position: center;
-            border-bottom: 4px solid var(--rn-orange);
-            flex-shrink: 0;
-        }
-
-        /* 👥 BLOC INTERNE DE GRILLE */
-        .profile-container {
-            display: grid;
-            grid-template-columns: 280px 1fr;
-            gap: 25px;
-            padding: 20px;
-            max-width: 1200px;
-            margin: 0 auto;
-            width: calc(100% - 40px);
-        }
-
-        /* CARD INFOS PROFIL AVATAR */
-        .profile-sidebar-card {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-top: -90px;
-            z-index: 10;
-        }
-        .pfp-circle {
-            width: 130px; height: 130px;
-            border-radius: 50%;
-            border: 6px solid var(--rn-bg);
-            background-color: #ff3b30;
-            overflow: hidden;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-        }
-        .pfp-circle img { width: 100%; height: 100%; object-fit: cover; }
-        
-        .user-title-name { font-size: 22px; font-weight: 900; margin: 12px 0 2px 0; }
-        .user-tag { color: var(--text-muted); font-size: 13px; margin-bottom: 5px; }
-        .sub-count { font-size: 12px; color: var(--text-muted); margin-bottom: 15px; }
-
-        .info-box-stats {
-            background-color: var(--rn-panel-bg);
-            width: 100%;
-            border-radius: 8px;
-            padding: 15px;
-            box-sizing: border-box;
-            font-size: 13px;
-            display: flex; flex-direction: column; gap: 8px;
-            border: 1px solid #333; margin-top: 15px;
-            text-align: left;
-        }
-        .status-badge { color: #888; font-weight: bold; }
-        .date-badge { font-size: 11px; color: #888; }
-
-        .btn-sub-orange {
-            width: 100%; background-color: var(--rn-btn-orange); color: white;
-            border: none; padding: 10px; border-radius: 6px;
-            font-weight: 900; font-size: 13px; cursor: pointer; text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-        .btn-friends {
-            width: 100%; background-color: #333; color: white;
-            border: none; padding: 8px; border-radius: 6px;
-            font-weight: 700; font-size: 12px; cursor: pointer;
-        }
-
-        /* 🎛️ GRILLE ONGLETS HORIZONTAUX */
-        .grid-header-tabs {
-            background-color: var(--rn-panel-bg);
-            border-radius: 8px;
-            height: 45px;
-            display: flex;
-            align-items: center;
-            justify-content: space-around;
-            border: 1px solid #333;
-            margin-bottom: 15px;
-        }
-        .grid-tab-item { font-size: 14px; opacity: 0.5; font-weight: bold; }
-        .grid-tab-item.active { opacity: 1; color: var(--rn-orange); border-bottom: 2px solid var(--rn-orange); padding-bottom: 2px; }
-
-        .filter-bar { font-size: 12px; font-weight: 800; color: var(--text-muted); text-align: left; margin-bottom: 15px; }
-
-        /* 🖼️ SPLENDIDE GRID DE PHOTOS DE SOUVENIRS */
-        .photos-feed-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-        }
-        .photo-grid-item {
-            background-color: #151515;
-            border-radius: 6px;
-            aspect-ratio: 16 / 10;
-            overflow: hidden;
-            border: 1px solid #2d2d2d;
-        }
-        .photo-grid-item img { width: 100%; height: 100%; object-fit: cover; }
-    </style>
-</head>
-<body>
-
-    <!-- 👑 BARRE SUPÉRIEURE DE NAVIGATION -->
-    <nav class="top-navbar">
-        <div class="logo-area">🟧 RECROOM <span>RecNet // Archive</span></div>
-        <div style="font-size: 16px; opacity: 0.7; display: flex; gap: 15px;">🔍 🔔 👤</div>
-    </nav>
-
-    <div class="app-layout">
-        
-        <!-- 🎛️ PANNEAU DE NAVIGATION LATÉRAL -->
-        <aside class="sidebar-left">
-            <div class="side-icon active">🏠</div>
-            <div class="side-icon">🌐</div>
-            <div class="side-icon">📷</div>
-            <div class="side-icon">🎨</div>
-            <div class="side-icon">⚙️</div>
-            <div class="side-icon" style="margin-top: auto; padding-bottom: 20px;">🚪</div>
-        </aside>
-
-        <!-- 📜 ZONE CENTRALE DE DÉFILEMENT DE FLUX -->
-        <main class="main-scroll-content">
-            
-            <div class="profile-banner"></div>
-
-            <div class="profile-container">
-                
-                <!-- GAUCHE : BLOC IDENTITÉ UTISATEUR -->
-                <div class="profile-sidebar-card">
-                    <!-- Utilise ta photo #1 en profil rouge -->
-                    <div class="pfp-circle"><img src="./DormRoom-2026-7-30-1-16-32.jpg"></div>
-                    <h1 class="user-title-name">StuffedPuppy</h1>
-                    <div class="user-tag">@DeterminedPuppy1265</div>
-                    <div class="sub-count">30 Subscribers</div>
-
-                    <button class="btn-sub-orange">Subscribe 30</button>
-                    <button class="btn-friends">🤝 Friends</button>
-
-                    <div class="info-box-stats">
-                        <div><span class="status-badge">Offline</span></div>
-                        <div class="date-badge">📅 Joined June 16th 2021</div>
-                    </div>
-                </div>
-
-                <!-- DROITE : ALIGNEMENT DES FICHIERS EN MULTI-GRILLE -->
-                <div class="grid-content-area">
-                    
-                    <div class="grid-header-tabs">
-                        <div class="grid-tab-item">☰</div>
-                        <div class="grid-tab-item active">📷 Photos</div>
-                        <div class="grid-tab-item">🏠 Rooms</div>
-                        <div class="grid-tab-item">📅 Events</div>
-                    </div>
-
-                    <div class="filter-bar">🎛️ FILTER PHOTOS</div>
-
-                    <!-- RECONSTITUTION DE TOUTE TA GALERIE COMPLÈTE -->
-                    <div class="photos-feed-grid">
-                        <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-16-32.jpg"></div>
-                        <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-20-12.jpg"></div>
-                        <div class="photo-grid-item"><img src="./DormRoom 2026 7 30 3 56 58.jpg"></div>
-                        
-                        <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-16-32.jpg"></div>
-                        <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-20-12.jpg"></div>
-                        <div class="photo-grid-item"><img src="./DormRoom 2026 7 30 3 56 58.jpg"></div>
-                        
-                        <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-16-32.jpg"></div>
-                        <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-20-12.jpg"></div>
-                        <div class="photo-grid-item"><img src="./DormRoom 2026 7 30 3 56 58.jpg"></div>
-                    </div>
-
-                </div>
-
-            </div>
-        </main>
-
-    </div>
-
-</body>
-</html>
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RecNet // StuffedPuppy</title>
-    <style>
-        :root {
-            --rn-bg: #1e1e1e;
-            --rn-nav-bg: #151515;
-            --rn-orange: #ff7f00;
-            --rn-panel-bg: #252525;
-            --rn-btn-orange: #ff6b3d;
-            --text-white: #ffffff;
-            --text-muted: #aaaaaa;
+            --rr-green: #00CC66;
         }
 
         @import url('https://googleapis.com');
@@ -301,61 +42,36 @@
         .logo-area { font-size: 20px; font-weight: 900; color: var(--rn-orange); display: flex; align-items: center; gap: 5px; }
         .logo-area span { color: white; font-weight: 400; font-size: 14px; margin-left: 10px; }
 
-        /* 📐 DISPOSITION GÉNÉRALE */
+        /* 📐 BLOC PRINCIPAL SANS SIDEBAR GAUCHE */
         .app-layout {
-            display: flex;
             margin-top: 50px;
             height: calc(100vh - 50px);
             width: 100%;
-        }
-
-        /* 🎛️ MENU VERTICAL GAUCHE */
-        .sidebar-left {
-            width: 60px;
-            background-color: var(--rn-nav-bg);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding-top: 15px;
-            gap: 22px;
-            border-right: 1px solid #2d2d2d;
-            position: fixed; top: 50px; bottom: 0; left: 0;
-        }
-        .side-icon { font-size: 18px; opacity: 0.6; cursor: pointer; transition: opacity 0.2s; }
-        .side-icon:hover, .side-icon.active { opacity: 1; color: var(--rn-orange); }
-
-        /* 📜 ZONE DE CONTENU DÉFILANTE */
-        .main-scroll-content {
-            margin-left: 60px;
-            flex-grow: 1;
             overflow-y: auto;
-            display: flex;
-            flex-direction: column;
         }
 
-        /* 🎆 GRANDE BANNIÈRE DE PROFIL */
+        /* 🎆 LARGE BANNIÈRE DE PROFIL */
         .profile-banner {
             width: 100%;
             height: 240px;
-            background-image: url('https://githubusercontent.com');
+            background-image: url('./DormRoom 2026 7 30 3 56 58.jpg');
             background-size: cover;
             background-position: center;
             border-bottom: 4px solid var(--rn-orange);
-            position: relative;
         }
 
-        /* 👥 BLOC DU MILIEU (INFOS + GRILLE) */
+        /* 👥 STRUCTURE CENTRALE LARGE */
         .profile-container {
             display: grid;
-            grid-template-columns: 280px 1fr;
-            gap: 20px;
+            grid-template-columns: 300px 1fr;
+            gap: 30px;
             padding: 20px;
-            max-width: 1200px;
+            max-width: 1300px;
             margin: 0 auto;
             width: calc(100% - 40px);
         }
 
-        /* 📋 CARTE DE PROFIL GAUCHE */
+        /* CARTE DE PROFIL */
         .profile-sidebar-card {
             display: flex;
             flex-direction: column;
@@ -370,30 +86,19 @@
             background-color: #ff3b30;
             overflow: hidden;
             display: flex; align-items: center; justify-content: center;
-            font-size: 50px; box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
         }
+        .pfp-circle img { width: 100%; height: 100%; object-fit: cover; }
+        
         .user-title-name { font-size: 22px; font-weight: 900; margin: 12px 0 2px 0; }
         .user-tag { color: var(--text-muted); font-size: 13px; margin-bottom: 5px; }
         .sub-count { font-size: 12px; color: var(--text-muted); margin-bottom: 15px; }
-
-        .info-box-stats {
-            background-color: var(--rn-panel-bg);
-            width: 100%;
-            border-radius: 8px;
-            padding: 15px;
-            box-sizing: border-box;
-            font-size: 13px;
-            display: flex; flex-direction: column; gap: 8px;
-            border: 1px solid #333; margin-bottom: 12px;
-        }
-        .status-badge { color: #888; font-weight: bold; }
-        .date-badge { font-size: 11px; color: #888; }
 
         .btn-sub-orange {
             width: 100%; background-color: var(--rn-btn-orange); color: white;
             border: none; padding: 10px; border-radius: 6px;
             font-weight: 900; font-size: 13px; cursor: pointer; text-transform: uppercase;
-            margin-bottom: 8px; box-shadow: 0 4px 10px rgba(255,107,61,0.2);
+            margin-bottom: 8px;
         }
         .btn-friends {
             width: 100%; background-color: #333; color: white;
@@ -401,7 +106,38 @@
             font-weight: 700; font-size: 12px; cursor: pointer;
         }
 
-        /* 🎛️ ONGLETS DE LA GRILLE */
+        /* 📊 PANNEAU DE MONITEUR DU SERVEUR LOCAL DÉDIÉ */
+        .server-monitor-box {
+            background-color: var(--rn-panel-bg);
+            width: 100%;
+            border-radius: 10px;
+            padding: 15px;
+            box-sizing: border-box;
+            border: 1px solid #3d3d3d;
+            margin-top: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .monitor-headline {
+            font-family: 'Fredoka One', cursive;
+            color: var(--rn-orange);
+            font-size: 15px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-align: left;
+        }
+        .pulse-light-status { width: 9px; height: 10px; background: var(--rr-green); border-radius: 50%; box-shadow: 0 0 8px var(--rr-green); animation: statusPulse 1.5s infinite; }
+        @keyframes statusPulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+
+        .stat-row-item { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; font-weight: bold; }
+        .stat-row-item span:last-child { color: var(--rn-orange); }
+        
+        .stat-progress-bg { background: #151515; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 2px; margin-bottom: 10px; border: 1px solid #2d2d2d; }
+        .stat-progress-fill { background: var(--rn-orange); width: 24%; height: 100%; transition: width 0.4s ease; }
+        .stat-progress-fill.ram-color { background: var(--rn-btn-orange); width: 46%; }
+
+        /* 🎛️ NAVIGATION DES ONGLETS DE GRILLE */
         .grid-header-tabs {
             background-color: var(--rn-panel-bg);
             border-radius: 8px;
@@ -412,16 +148,17 @@
             border: 1px solid #333;
             margin-bottom: 15px;
         }
-        .grid-tab-item { font-size: 14px; opacity: 0.5; cursor: pointer; font-weight: bold; }
+        .grid-tab-item { font-size: 14px; opacity: 0.5; font-weight: bold; }
         .grid-tab-item.active { opacity: 1; color: var(--rn-orange); border-bottom: 2px solid var(--rn-orange); padding-bottom: 2px; }
 
-        .filter-bar { font-size: 12px; font-weight: 800; color: var(--text-muted); text-align: left; margin-bottom: 15px; cursor: pointer; }
+        .filter-bar { font-size: 12px; font-weight: 800; color: var(--text-muted); text-align: left; margin-bottom: 15px; }
 
-        /* 🖼️ SUPER GRILLE DE PHOTOS PHOTO FEED */
+        /* 🖼️ GRILLE DE PHOTOS PHOTO FEED */
         .photos-feed-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 12px;
+            padding-bottom: 40px;
         }
         .photo-grid-item {
             background-color: #151515;
@@ -429,7 +166,6 @@
             aspect-ratio: 16 / 10;
             overflow: hidden;
             border: 1px solid #2d2d2d;
-            cursor: pointer;
             transition: transform 0.2s;
         }
         .photo-grid-item:hover { transform: scale(1.02); border-color: var(--rn-orange); }
@@ -438,582 +174,64 @@
 </head>
 <body>
 
-    <!-- 👑 TOP BAR -->
+    <!-- 👑 TOP NAVBAR -->
     <nav class="top-navbar">
         <div class="logo-area">🟧 RECROOM <span>RecNet // Archive</span></div>
-        <div style="font-size: 18px; opacity: 0.7;">🔍 🔔 👤</div>
+        <div style="font-size: 16px; opacity: 0.7; display: flex; gap: 15px; cursor: pointer;">🔍 🔔 👤</div>
     </nav>
 
     <div class="app-layout">
         
-        <!-- 🎛️ SIDEBAR GAUCHE -->
-        <aside class="sidebar-left">
-            <div class="side-icon active">🏠</div>
-            <div class="side-icon">🌐</div>
-            <div class="side-icon">📷</div>
-            <div class="side-icon">🎨</div>
-            <div class="side-icon">⚙️</div>
-            <div class="side-icon" style="margin-top: auto; padding-bottom: 20px;">🚪</div>
-        </aside>
+        <!-- 🎆 BANNIÈRE -->
+        <div class="profile-banner"></div>
 
-        <!-- 📜 ZONE CENTRALE DÉFILANTE -->
-        <main class="main-scroll-content">
+        <!-- 👥 CONTENEUR CONTENU -->
+        <div class="profile-container">
             
-            <!-- BANNIÈRE -->
-            <div class="profile-banner"></div>
+            <!-- BLOC IDENTITÉ + MONITEUR SYSTÈME LOCAL -->
+            <div class="profile-sidebar-card">
+                <div class="pfp-circle"><img src="./DormRoom-2026-7-30-1-16-32.jpg" alt="Pfp"></div>
+                <h1 class="user-title-name">StuffedPuppy</h1>
+                <div class="user-tag">@DeterminedPuppy1265</div>
+                <div class="sub-count">30 Subscribers</div>
 
-            <!-- CONTENEUR GRILLE + INFOS -->
-            <div class="profile-container">
-                
-                <!-- GAUCHE : INFOS DU PROFIL -->
-                <div class="profile-sidebar-card">
-                    <div class="pfp-circle">👹</div>
-                    <h1 class="user-title-name">StuffedPuppy</h1>
-                    <div class="user-tag">@DeterminedPuppy1265</div>
-                    <div class="sub-count">30 Subscribers</div>
+                <button class="btn-sub-orange">Subscribe 30</button>
+                <button class="btn-friends">🤝 Friends</button>
 
-                    <button class="btn-sub-orange">Subscribe 30</button>
-                    <button class="btn-friends">🤝 Friends</button>
-
-                    <div class="info-box-stats" style="margin-top: 15px;">
-                        <div><span class="status-badge">Offline</span></div>
-                        <div class="date-badge">📅 Joined June 16th 2021</div>
+                <!-- 📊 MONITEUR DE SERVEUR NEBULON INTEGRÉ ICI -->
+                <div class="server-monitor-box">
+                    <div class="monitor-headline">
+                        <div class="pulse-light-status"></div>
+                        <span>Nebulon Server v2021</span>
                     </div>
-                </div>
-
-                <!-- DROITE : LA GRILLE DE PHOTOS -->
-                <div class="grid-content-area">
+                    <div class="stat-row-item"><span>Statut</span><span style="color:var(--rr-green);">EN LIGNE</span></div>
+                    <div class="stat-row-item"><span>Machine</span><span>localhost</span></div>
+                    <div class="stat-row-item"><span>Port Réseau</span><span>2056</span></div>
                     
-                    <div class="grid-header-tabs">
-                        <div class="grid-tab-item">☰</div>
-                        <div class="grid-tab-item active">📷</div>
-                        <div class="grid-tab-item">🏠</div>
-                        <div class="grid-tab-item">📅</div>
-                    </div>
+                    <div class="stat-row-item" style="margin-top:10px;"><span>Charge CPU</span><span id="liveCpu">24%</span></div>
+                    <div class="stat-progress-bg"><div class="stat-progress-fill" id="cpuBarFill"></div></div>
+                    
+                    <div class="stat-row-item"><span>Mémoire RAM</span><span id="liveRam">44%</span></div>
+                    <div class="stat-progress-bg"><div class="stat-progress-fill ram-color" id="ramBarFill"></div></div>
+                </div>
+            </div>
 
-                    <div class="filter-bar">🎛️ FILTER PHOTOS</div>
-
-                    <!-- LES CAPTURES DE TON GITHUB EN GRILLE -->
-                    <div class="photos-feed-grid">
-                        <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-16-32.jpg"></div>
-                        <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-20-12.jpg"></div>
-                        <div class="photo-grid-item"><img src="./DormRoom 2026 7 30 3 56 58.jpg"></div>
-                        <!-- Répétition des images pour créer l'effet de grille remplie comme ta photo -->
-                        <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-16-32.jpg"></div>
-                        <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-20-12.jpg"></div>
-                        <div class="photo-grid-item"><img src="./DormRoom 2026 7 30 3 56 58.jpg"></div>
-                        <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-16-32.jpg"></div>
-                        <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-20-12.jpg"></div>
-                        <div class="photo-grid-item"><img src="./DormRoom 2026 7 30 3 56 58.jpg"></div>
-                    </div>
-
+            <!-- LA GRILLE DES PHOTOS ÉTENDUE -->
+            <div class="grid-content-area">
+                
+                <div class="grid-header-tabs">
+                    <div class="grid-tab-item">☰ Flux</div>
+                    <div class="grid-tab-item active">📷 Photos</div>
+                    <div class="grid-tab-item">🏠 Rooms</div>
+                    <div class="grid-tab-item">📅 Events</div>
                 </div>
 
-            </div>
-        </main>
+                <div class="filter-bar">🎛️ FILTER PHOTOS</div>
 
-    </div>
-
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project RecNet Hub</title>
-    <style>
-        :root {
-            --rr-bg: #1a1e24;
-            --rr-dark-panel: #222831;
-            --rr-orange: #ff761b;
-            --rr-red-alert: #b83232;
-            --text-white: #ffffff;
-            --text-muted: #a0a6b2;
-        }
-
-        @import url('https://googleapis.com');
-
-        body {
-            background-color: var(--rr-bg);
-            color: var(--text-white);
-            font-family: 'Nunito', sans-serif;
-            margin: 0; padding: 0;
-            overflow-x: hidden;
-        }
-
-        /* 🏢 HEADER */
-        .rr-header {
-            background-color: #111419;
-            height: 65px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 40px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        .header-left { display: flex; align-items: center; gap: 25px; }
-        
-        .logo-title-custom {
-            font-family: 'Fredoka One', cursive;
-            color: var(--text-white);
-            font-size: 22px;
-            letter-spacing: 0.5px;
-            cursor: pointer;
-            background: linear-gradient(45deg, #ffffff, var(--rr-orange));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        
-        .nav-link-top { color: var(--text-white); text-decoration: none; font-weight: 700; font-size: 14px; opacity: 0.8; }
-        .nav-link-top:hover { opacity: 1; }
-        
-        .header-right { display: flex; align-items: center; gap: 15px; }
-        .btn-login { background: transparent; border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 20px; border-radius: 6px; font-weight: 700; cursor: pointer; }
-        .btn-download { background: var(--rr-orange); border: none; color: white; padding: 7px 20px; border-radius: 6px; font-weight: 900; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(255,118,27,0.3); }
-
-        /* 🚨 BANNIÈRE ROUGE D'ALERTE */
-        .alert-banner {
-            background-color: var(--rr-red-alert);
-            padding: 12px 60px;
-            font-size: 12px;
-            font-weight: 700;
-            text-align: center;
-            line-height: 1.5;
-            position: relative;
-            border-bottom: 2px solid rgba(0,0,0,0.2);
-        }
-        .alert-banner a { color: white; text-decoration: underline; }
-
-        /* 📂 CONTENEUR PRINCIPAL */
-        .main-container {
-            max-width: 1200px;
-            margin: 40px auto;
-            padding: 0 20px;
-        }
-
-        /* 🎴 GRILLE DES 3 AFFICHES */
-        .promo-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-            margin-bottom: 40px;
-        }
-        .promo-card-wrapper { display: flex; flex-direction: column; gap: 10px; }
-        .promo-card {
-            background-color: #2c323f;
-            border-radius: 12px;
-            height: 200px;
-            overflow: hidden;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-            transition: transform 0.2s, box-shadow 0.2s;
-            cursor: pointer;
-            position: relative;
-        }
-        .promo-card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px rgba(255,118,27,0.2); }
-        .promo-img { width: 100%; height: 100%; object-fit: cover; }
-        .promo-label { font-size: 13px; font-weight: 800; color: var(--text-white); text-decoration: none; display: flex; align-items: center; }
-        .promo-label:hover { color: var(--rr-orange); }
-
-        /* 🎛️ BARRE DE NAVIGATION CENTRALE */
-        .tabs-row {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin: 30px 0;
-        }
-        .tab-btn-orange {
-            background: #2c323f;
-            border: 1px solid rgba(255,118,27,0.3);
-            color: white;
-            padding: 8px 24px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 800;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .tab-btn-orange.active {
-            background: var(--rr-orange);
-            border-color: var(--rr-orange);
-        }
-
-        /* 🧩 DISPOSITION DU BAS */
-        .content-layout {
-            display: grid;
-            grid-template-columns: 320px 1fr;
-            gap: 25px;
-            align-items: start;
-            margin-top: 20px;
-        }
-
-        /* FEATURED ROOMS */
-        .side-panel {
-            background-color: var(--rr-dark-panel);
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
-        .panel-title { font-size: 18px; font-weight: 900; margin-top: 0; margin-bottom: 15px; }
-        .mini-room-card {
-            background: #1a1e24;
-            border-radius: 8px;
-            overflow: hidden;
-            margin-bottom: 15px;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-        .mini-img-box { height: 130px; background: #000; overflow: hidden; }
-        .mini-img-box img { width: 100%; height: 100%; object-fit: cover; }
-        .mini-info { padding: 10px; font-size: 12px; }
-        .mini-title { font-weight: 800; margin-bottom: 2px; }
-        .mini-author { color: var(--text-muted); }
-
-        /* CENTER FEED & PROFIL */
-        .center-feed-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        .feed-title { font-size: 16px; font-weight: 800; color: var(--text-muted); margin: 0; }
-        
-        /* CARTE PROFIL DE THOMAS */
-        .profile-card-hub {
-            background-color: #f3eff7;
-            border-radius: 12px;
-            overflow: hidden;
-            color: #222831;
-            display: flex;
-            flex-direction: column;
-            border: 1px solid rgba(0,0,0,0.1);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
-        .profile-banner-top {
-            background-image: url('https://githubusercontent.com');
-            background-size: 100px;
-            background-color: #bfaed3;
-            height: 60px;
-            opacity: 0.4;
-        }
-        .profile-body-content {
-            padding: 25px;
-            display: flex;
-            gap: 30px;
-            align-items: center;
-            position: relative;
-        }
-        .avatar-frame {
-            width: 140px; height: 140px;
-            border-radius: 50%;
-            border: 5px solid white;
-            box-shadow: 0 6px 15px rgba(0,0,0,0.15);
-            overflow: hidden;
-            background-color: #fff;
-            flex-shrink: 0;
-        }
-        .avatar-frame img { width: 100%; height: 100%; object-fit: cover; }
-        
-        .profile-details { display: flex; flex-direction: column; text-align: left; flex-grow: 1; }
-        .name-row { display: flex; align-items: center; gap: 10px; }
-        .user-main-name { font-size: 28px; font-weight: 900; margin: 0; color: #111419; }
-        .badge-ugc { background: #0076FF; color: white; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 800; }
-        .user-handle { color: #555e70; font-size: 15px; font-weight: 700; margin: 2px 0 12px 0; }
-        
-        .about-box { font-size: 14px; line-height: 1.5; color: #333d4f; }
-        .about-box b { color: #000; font-weight: 900; }
-
-        .level-badge-box {
-            background: #ff5050; color: white; padding: 10px 18px; border-radius: 8px;
-            font-size: 24px; font-weight: 900; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            border: 2px solid white; align-self: flex-start; margin-top: 5px; flex-shrink: 0;
-        }
-
-        /* CARD DISCORD ROUGE */
-        .discord-red-panel {
-            background-color: var(--rr-red-alert);
-            border-radius: 12px;
-            padding: 20px;
-            margin-top: 5px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            text-align: center;
-            border: 2px solid rgba(255,255,255,0.2);
-        }
-        .discord-title { font-size: 20px; font-weight: 900; color: white; margin: 0 0 5px 0; text-transform: uppercase; }
-        .discord-desc { font-size: 13px; color: rgba(255,255,255,0.8); margin: 0 0 15px 0; font-weight: bold; }
-        .btn-discord-click {
-            display: inline-block; background: white; color: var(--rr-red-alert);
-            padding: 10px 30px; border-radius: 8px; font-weight: 900; text-decoration: none;
-            font-size: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); transition: transform 0.2s;
-        }
-        .btn-discord-click:hover { transform: scale(1.05); }
-    </style>
-</head>
-<body>
-
-    <!-- 🏢 HEADER -->
-    <header class="rr-header">
-        <div class="header-left">
-            <div class="logo-title-custom">Project RecNet Hub</div>
-            <a href="#" class="nav-link-top" style="margin-left: 15px;">Shop</a>
-            <a href="#" class="nav-link-top">Creator Hub</a>
-        </div>
-        <div class="header-right">
-            <button class="btn-login">Login</button>
-            <button class="btn-download">📥 Download</button>
-        </div>
-    </header>
-
-    <!-- 🚨 BANNIÈRE ALERTE -->
-    <div class="alert-banner">
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project RecNet Hub</title>
-    <style>
-        :root {
-            --rr-bg: #1a1e24;
-            --rr-dark-panel: #222831;
-            --rr-orange: #ff761b;
-            --rr-red-alert: #b83232;
-            --text-white: #ffffff;
-            --text-muted: #a0a6b2;
-        }
-
-        @import url('https://googleapis.com');
-
-        body {
-            background-color: var(--rr-bg);
-            color: var(--text-white);
-            font-family: 'Nunito', sans-serif;
-            margin: 0; padding: 0;
-            overflow-x: hidden;
-        }
-
-        /* 🏢 HEADER AVEC TITRE MODIFIÉ */
-        .rr-header {
-            background-color: #111419;
-            height: 65px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 40px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        .header-left { display: flex; align-items: center; gap: 25px; }
-        
-        /* STYLE DU PROPRE NOM DU LOGO RECLAMÉ */
-        .logo-title-custom {
-            font-family: 'Fredoka One', cursive;
-            color: var(--text-white);
-            font-size: 22px;
-            letter-spacing: 0.5px;
-            cursor: pointer;
-            background: linear-gradient(45deg, #ffffff, var(--rr-orange));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        
-        .nav-link-top { color: var(--text-white); text-decoration: none; font-weight: 700; font-size: 14px; opacity: 0.8; }
-        .nav-link-top:hover { opacity: 1; }
-        
-        .header-right { display: flex; align-items: center; gap: 15px; }
-        .btn-login { background: transparent; border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 20px; border-radius: 6px; font-weight: 700; cursor: pointer; }
-        .btn-download { background: var(--rr-orange); border: none; color: white; padding: 7px 20px; border-radius: 6px; font-weight: 900; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(255,118,27,0.3); }
-
-        /* 🚨 BANNIÈRE ROUGE D'ALERTE */
-        .alert-banner {
-            background-color: var(--rr-red-alert);
-            padding: 12px 60px;
-            font-size: 12px;
-            font-weight: 700;
-            text-align: center;
-            line-height: 1.5;
-            position: relative;
-            border-bottom: 2px solid rgba(0,0,0,0.2);
-        }
-        .alert-banner a { color: white; text-decoration: underline; }
-
-        /* 📂 CONTENEUR PRINCIPAL */
-        .main-container {
-            max-width: 1200px;
-            margin: 40px auto;
-            padding: 0 20px;
-        }
-
-        /* 🎴 GRILLE DES 3 AFFICHES */
-        .promo-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-            margin-bottom: 40px;
-        }
-        .promo-card-wrapper { display: flex; flex-direction: column; gap: 10px; }
-        .promo-card {
-            background-color: #2c323f;
-            border-radius: 12px;
-            height: 200px;
-            overflow: hidden;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-            transition: transform 0.2s, box-shadow 0.2s;
-            cursor: pointer;
-            position: relative;
-        }
-        .promo-card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px rgba(255,118,27,0.2); }
-        .promo-img { width: 100%; height: 100%; object-fit: cover; }
-        .promo-label { font-size: 13px; font-weight: 800; color: var(--text-white); text-decoration: none; display: flex; align-items: center; }
-        .promo-label:hover { color: var(--rr-orange); }
-
-        /* 🎛️ BARRE DE NAVIGATION CENTRALE */
-        .tabs-row {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin: 30px 0;
-        }
-        .tab-btn-orange {
-            background: #2c323f;
-            border: 1px solid rgba(255,118,27,0.3);
-            color: white;
-            padding: 8px 24px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 800;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .tab-btn-orange.active {
-            background: var(--rr-orange);
-            border-color: var(--rr-orange);
-        }
-
-        /* 🧩 CONFIGURATION DE MISE EN PAGE DU BAS */
-        .content-layout {
-            display: grid;
-            grid-template-columns: 320px 1fr;
-            gap: 25px;
-            align-items: start;
-            margin-top: 20px;
-        }
-
-        /* FEATURED ROOMS */
-        .side-panel {
-            background-color: var(--rr-dark-panel);
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
-        .panel-title { font-size: 18px; font-weight: 900; margin-top: 0; margin-bottom: 15px; }
-        .mini-room-card {
-            background: #1a1e24;
-            border-radius: 8px;
-            overflow: hidden;
-            margin-bottom: 15px;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-        .mini-img-box { height: 130px; background: #000; overflow: hidden; }
-        .mini-img-box img { width: 100%; height: 100%; object-fit: cover; }
-        .mini-info { padding: 10px; font-size: 12px; }
-        .mini-title { font-weight: 800; margin-bottom: 2px; }
-        .mini-author { color: var(--text-muted); }
-
-        /* FLUX DE CONTENU */
-        .center-feed-panel {
-            background-color: var(--rr-dark-panel);
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        .feed-title { font-size: 16px; font-weight: 800; color: var(--text-muted); margin: 0; }
-        
-        /* CARTE DE THOMAS */
-        .profile-card-hub {
-            background-color: #f3eff7;
-            border-radius: 12px;
-            overflow: hidden;
-            color: #222831;
-            display: flex;
-            flex-direction: column;
-            border: 1px solid rgba(0,0,0,0.1);
-        }
-        .profile-banner-top {
-            background-image: url('https://githubusercontent.com');
-            background-size: 100px;
-            background-color: #bfaed3;
-            height: 60px;
-            opacity: 0.4;
-        }
-        .profile-body-content {
-            padding: 25px;
-            display: flex;
-            gap: 30px;
-            align-items: center;
-            position: relative;
-        }
-        .avatar-frame {
-            width: 140px; height: 140px;
-            border-radius: 50%;
-            border: 5px solid white;
-            box-shadow: 0 6px 15px rgba(0,0,0,0.15);
-            overflow: hidden;
-            background-color: #fff;
-        }
-        .avatar-frame img { width: 100%; height: 100%; object-fit: cover; }
-        
-        .profile-details { display: flex; flex-direction: column; text-align: left; flex-grow: 1; }
-        .name-row { display: flex; align-items: center; gap: 10px; }
-        .user-main-name { font-size: 28px; font-weight: 900; margin: 0; color: #111419; }
-        .badge-ugc { background: #0076FF; color: white; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 800; }
-        .user-handle { color: #555e70; font-size: 15px; font-weight: 700; margin: 2px 0 12px 0; }
-        
-        .about-box { font-size: 14px; line-height: 1.5; color: #333d4f; }
-        .about-box b { color: #000; font-weight: 900; }
-
-        .level-badge-box {
-            background: #ff5050; color: white; padding: 10px 18px; border-radius: 8px;
-            font-size: 24px; font-weight: 900; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            border: 2px solid white; align-self: flex-start; margin-top: 5px;
-        }
-
-        /* CARD DISCORD ROUGE */
-        .discord-red-panel {
-            background-color: var(--rr-red-alert);
-            border-radius: 12px;
-            padding: 20px;
-            margin-top: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            text-align: center;
-            border: 2px solid rgba(255,255,255,0.2);
-        }
-        .discord-title { font-size: 20px; font-weight: 900; color: white; margin: 0 0 5px 0; text-transform: uppercase; }
-        .discord-desc { font-size: 13px; color: rgba(255,255,255,0.8); margin: 0 0 15px 0; font-weight: bold; }
-        .btn-discord-click {
-            display: inline-block; background: white; color: var(--rr-red-alert);
-            padding: 10px 30px; border-radius: 8px; font-weight: 900; text-decoration: none;
-            font-size: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); transition: transform 0.2s;
-        }
-        .btn-discord-click:hover { transform: scale(1.05); }
-    </style>
-</head>
-<body>
-
-    <!-- 🏢 HEADER AVEC LE LOGO PROJECT RECNET HUB -->
-    <header class="rr-header">
-        <div class="header-left">
-            <div class="logo-title-custom">Project RecNet Hub</div>
-            <a href="#" class="nav-link-top" style="margin-left: 15px;">Shop</a>
-            <a href="#" class="nav-link-top">Creator Hub</a>
-        </div>
-        <div class="header-right">
-            <button class="btn-login">Login</button>
-            <button class="btn-download">📥 Download</button>
-        </div>
-    </header>
-
-    <!-- 🚨 BANNIÈRE ALERTE -->
-    <div class="alert-banner">
+                <div class="photos-feed-grid">
+                    <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-16-32.jpg"></div>
+                    <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-20-12.jpg"></div>
+                    <div class="photo-grid-item"><img src="./DormRoom 2026 7 30 3 56 58.jpg"></div>
+                    
+                    <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-16-32.jpg"></div>
+                    <div class="photo-grid-item"><img src="./DormRoom-2026-7-30-1-20-12.jpg"></div>
