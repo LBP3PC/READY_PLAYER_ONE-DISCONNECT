@@ -80,6 +80,187 @@
         .stat-line span:last-child { color: var(--rr-orange); }
         
         .progress-bar { background: #1e293b; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 4px; margin-bottom: 12px; }
+        .progress-fill { background: var(--rr-orange); width: 21%; height: 100%; transition: width 0.5s ease; }
+        .progress-fill.ram { background: var(--rr-blue-nav); width: 48%; }
+
+        .photo-display-container {
+            width: 100%; height: calc(100% - 95px); border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px; overflow: hidden; background-color: #151a24;
+            display: flex; justify-content: center; align-items: center; position: relative;
+        }
+        .server-photo-img { width: 100%; height: 100%; object-fit: contain; z-index: 2; }
+        .photo-overlay-info {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.9));
+            padding: 15px; font-size: 13px; color: #FFFFFF;
+            display: flex; justify-content: space-between; align-items: center; font-weight: bold; z-index: 3;
+        }
+        .btn-next-img {
+            background: var(--rr-orange); border: none; color: white; 
+            padding: 6px 14px; border-radius: 12px; cursor: pointer; 
+            font-family: 'Fredoka One', cursive; font-size: 12px; border-bottom: 3px solid #C46200;
+        }
+
+        .tab-content { display: none; height: 100%; flex-direction: column; }
+        .tab-content.active { display: flex; }
+        .content-home { justify-content: flex-start; gap: 15px; }
+
+        .grid-vakken { display: grid; grid-template-columns: 1fr; gap: 15px; margin-top: 10px; }
+        .box-vak { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,127,0,0.2); padding: 15px; border-radius: 12px; }
+        .box-vak h3 { margin: 0 0 8px 0; color: var(--rr-orange); font-family: 'Fredoka One'; }
+        
+        .btn-triche {
+            display: block; width: 100%; background: var(--rr-blue-nav); color: white; border: none;
+            padding: 10px; margin-top: 10px; border-radius: 8px; font-weight: 900; cursor: pointer;
+            text-align: center; border-bottom: 3px solid #005fd9; font-size: 13px;
+        }
+        .btn-triche:hover { background: #005fd9; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar-top">
+        <div class="nav-left">
+            <div class="profile-badge">👑 LBP3PC // ENGINE</div>
+        </div>
+        <div class="nav-right">
+            <button class="nav-btn active" onclick="switchTab('home', this)">Ga naar</button>
+            <button class="nav-btn" onclick="switchTab('vakken', this)">Vakken</button>
+            <button class="nav-btn" onclick="switchTab('links', this)">Links</button>
+            <button class="nav-btn" onclick="switchTab('resultaten', this)">Resultaten</button>
+        </div>
+    </nav>
+
+    <div class="dashboard-grid">
+        <div class="panel panel-left">
+            <div class="monitor-card">
+                <div class="monitor-title">
+                    <div class="pulse-light"></div>
+                    <span>Nebulon Server</span>
+                </div>
+                <div class="stat-line"><span>Statut</span><span style="color:var(--rr-green);">DISPONIBLE</span></div>
+                <div class="stat-line"><span>Canal Réseau</span><span>Localhost</span></div>
+                <!-- LES SÉLECTEURS D'ID CORRIGÉS ICI POUR L'ANIMATION -->
+                <div class="stat-line"><span>Charge CPU</span><span id="cpuVal">21%</span></div>
+                <div class="progress-bar"><div class="progress-fill" id="cpuBar"></div></div>
+                <div class="stat-line"><span>Mémoire RAM</span><span id="ramVal">48%</span></div>
+                <div class="progress-bar"><div class="progress-fill progress-fill ram" id="ramBar"></div></div>
+            </div>
+            
+            <div class="monitor-card" style="font-size: 13px; text-align: left; border-color: rgba(255,127,0,0.2);">
+                <b style="color: var(--rr-orange);">Liaison Machine</b><br>
+                • Adresse : localhost<br>
+                • Port : 2056<br>
+                • Cible : RecRoom 2021
+            </div>
+        </div>
+
+        <div class="panel panel-center" style="grid-column: span 2;">
+            <div id="tab-home" class="tab-content content-home active">
+                <div style="background: rgba(0,0,0,0.5); border-radius: 12px; padding: 15px; border-left: 4px solid var(--rr-orange); width: calc(100% - 30px); display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 style="margin:0; font-family:'Fredoka One'; color:var(--rr-orange);">RecNet // Photo Feed</h2>
+                        <p style="margin:5px 0 0 0; font-size:14px; color:var(--rr-text-muted);">Vos captures d'écran de dortoir défilent à l'écran.</p>
+                    </div>
+                </div>
+                
+                <div class="photo-display-container" style="margin-top:15px;">
+                    <img src="./DormRoom-2026-7-30-1-16-32.jpg" class="server-photo-img" id="mainPhotoImg" alt="RecRoom Content">
+                    <div class="photo-overlay-info">
+                        <span id="photoTitle">📷 Charge : DormRoom-2026-7-30-1-16-32.jpg</span>
+                        <button onclick="changeSamplePhoto()" class="btn-next-img">Suivante ➡️</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-vakken" class="tab-content">
+                <h2 style="font-family:'Fredoka One'; color:var(--rr-orange); margin-top:0;">Modules d'Outils (Vakken)</h2>
+                <div class="grid-vakken">
+                    <div class="box-vak">
+                        <h3>👑 Profil & Triche Avatar</h3>
+                        <p style="font-size:13px; color:var(--rr-text-muted);">Gestion des fichiers du serveur local :</p>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RecNet // Central Dashboard</title>
+    <style>
+        :root {
+            --rr-orange: #FF7F00;
+            --rr-blue-nav: #0076FF;
+            --rr-bg-dark: #121620;
+            --rr-panel-blur: rgba(33, 43, 61, 0.85);
+            --rr-text-white: #FFFFFF;
+            --rr-text-muted: #A0B2C6;
+            --rr-green: #00CC66;
+        }
+
+        @import url('https://googleapis.com');
+
+        body {
+            background-color: var(--rr-bg-dark);
+            color: var(--rr-text-white);
+            font-family: 'Nunito', sans-serif;
+            margin: 0; padding: 0;
+            min-height: 100vh;
+            display: flex; flex-direction: column;
+            position: relative; overflow-x: hidden;
+        }
+
+        body::before {
+            content: ""; position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url('https://githubusercontent.com');
+            background-size: 220px; opacity: 0.12; z-index: 0; pointer-events: none;
+            animation: scrollBackground 30s linear infinite;
+        }
+
+        @keyframes scrollBackground {
+            from { background-position: 0 0; }
+            to { background-position: 220px 220px; }
+        }
+
+        .navbar-top {
+            background-color: var(--rr-orange); width: 100%; height: 55px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); z-index: 10; position: fixed; top: 0; left: 0;
+        }
+        .nav-left { display: flex; align-items: center; gap: 10px; margin-left: 20px; }
+        .profile-badge { background-color: var(--rr-blue-nav); padding: 6px 16px; border-radius: 20px; font-family: 'Fredoka One', cursive; font-size: 15px; }
+        .nav-right { display: flex; align-items: center; gap: 8px; margin-right: 20px; }
+        .nav-btn {
+            background-color: var(--rr-blue-nav); color: white; text-decoration: none; padding: 6px 14px; border-radius: 15px;
+            font-size: 13px; font-weight: 800; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: background 0.2s;
+        }
+        .nav-btn:hover { background-color: #005fd9; }
+        .nav-btn.active { background-color: #ffffff; color: var(--rr-blue-nav); border: 1px solid var(--rr-blue-nav); }
+
+        .dashboard-grid {
+            margin-top: 75px; padding: 15px; display: grid; grid-template-columns: 240px 1fr 280px; gap: 15px;
+            height: calc(100vh - 105px); z-index: 1; width: calc(100% - 30px);
+        }
+        .panel {
+            background-color: var(--rr-panel-blur); backdrop-filter: blur(10px); border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.06); padding: 20px; display: flex; flex-direction: column;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3); overflow-y: auto;
+        }
+
+        .panel-left { gap: 15px; }
+        .monitor-card { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; border: 1px solid rgba(0,118,255,0.2); }
+        .monitor-title { font-family: 'Fredoka One', cursive; color: var(--rr-blue-nav); font-size: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .pulse-light { width: 10px; height: 10px; background: var(--rr-green); border-radius: 50%; box-shadow: 0 0 10px var(--rr-green); animation: pulse 1.5s infinite; }
+        
+        @keyframes pulse {
+            0% { opacity: 0.4; }
+            50% { opacity: 1; }
+            100% { opacity: 0.4; }
+        }
+
+        .stat-line { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; font-weight: bold; }
+        .stat-line span:last-child { color: var(--rr-orange); }
+        
+        .progress-bar { background: #1e293b; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 4px; margin-bottom: 12px; }
         .progress-fill { background: var(--rr-orange); width: 25%; height: 100%; transition: width 0.5s ease; }
         .progress-fill.ram { background: var(--rr-blue-nav); width: 48%; }
 
