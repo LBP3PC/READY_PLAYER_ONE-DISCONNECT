@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RecNet // Central Dashboard</title>
+    <title>RecNet // Custom Dashboard</title>
     <style>
         :root {
             --rr-orange: #FF7F00;
             --rr-blue-nav: #0076FF;
             --rr-bg-dark: #121620;
-            --rr-panel-blur: rgba(33, 43, 61, 0.75);
+            --rr-panel-blur: rgba(33, 43, 61, 0.85);
             --rr-text-white: #FFFFFF;
             --rr-text-muted: #A0B2C6;
             --rr-green: #00CC66;
@@ -27,7 +27,6 @@
             position: relative; overflow-x: hidden;
         }
 
-        /* Fond d'écran officiel Rec Room avec défilement */
         body::before {
             content: ""; position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -41,7 +40,7 @@
             to { background-position: 220px 220px; }
         }
 
-        /* 🟦 BARRE DE NAVIGATION SUPÉRIEURE (Comme sur ta photo) */
+        /* 🟦 MENU SUPÉRIEUR COMPLET (Réplique exacte de ta photo) */
         .navbar-top {
             background-color: var(--rr-orange);
             width: 100%; height: 55px;
@@ -67,13 +66,14 @@
             background-color: var(--rr-blue-nav); color: white;
             text-decoration: none; padding: 6px 14px; border-radius: 15px;
             font-size: 13px; font-weight: 800; border: 1px solid rgba(255,255,255,0.1);
-            transition: opacity 0.2s;
+            cursor: pointer; transition: background 0.2s;
         }
 
-        .nav-btn:hover { opacity: 0.9; }
+        .nav-btn:hover { background-color: #005fd9; }
+        .nav-btn.active { background-color: #ffffff; color: var(--rr-blue-nav); border: 1px solid var(--rr-blue-nav); }
         .nav-btn.logout { background-color: #334155; }
 
-        /* LAYOUT PRINCIPAL EN 3 COLONNES */
+        /* LAYOUT GENERAL */
         .dashboard-grid {
             margin-top: 75px; padding: 15px;
             display: grid; grid-template-columns: 240px 1fr 280px; gap: 15px;
@@ -84,130 +84,118 @@
             background-color: var(--rr-panel-blur);
             backdrop-filter: blur(10px);
             border-radius: 16px; border: 1px solid rgba(255,255,255,0.06);
-            padding: 15px; display: flex; flex-direction: column;
+            padding: 20px; display: flex; flex-direction: column;
             box-shadow: 0 8px 24px rgba(0,0,0,0.3);
             overflow-y: auto;
         }
 
-        /* 🔸 COLONNE GAUCHE : Application Plante */
+        /* GAUCHE : Mini-jeu de la plante */
         .panel-left { gap: 15px; }
         .plant-card {
-            background: rgba(0,0,0,0.2); border-radius: 12px; padding: 15px; text-align: center;
+            background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; text-align: center;
             border: 1px solid rgba(255,127,0,0.2);
         }
         .plant-title { font-family: 'Fredoka One', cursive; color: var(--rr-orange); font-size: 20px; }
-        .plant-img { font-size: 45px; margin: 10px 0; }
-        .water-bar {
-            background: #1e293b; height: 12px; border-radius: 6px; overflow: hidden; margin-top: 10px;
+        .plant-img { font-size: 55px; margin: 10px 0; transition: transform 0.2s; }
+        .water-bar { background: #1e293b; height: 12px; border-radius: 6px; overflow: hidden; margin: 15px 0 10px 0; }
+        .water-fill { background: #0076FF; width: 20%; height: 100%; transition: width 0.3s; }
+        .btn-water {
+            background: var(--rr-orange); border: none; color: white; padding: 6px 12px; 
+            border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px;
         }
-        .water-fill { background: #0076FF; width: 75%; height: 100%; }
 
-        /* 🔸 COLONNE CENTRALE : Flux de news / Rec Room logo */
+        /* CENTRE : Système d'onglets dynamiques */
         .panel-center {
-            background-image: linear-gradient(rgba(37, 47, 63, 0.4), rgba(37, 47, 63, 0.9)), url('https://githubusercontent.com');
-            background-size: 45%; background-repeat: no-repeat; background-position: center 40%;
+            position: relative;
+        }
+
+        .tab-content {
+            display: none;
+            height: 100%;
+            flex-direction: column;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        /* Onglet 1 : Accueil (Ga naar) */
+        .content-home {
+            background-image: linear-gradient(rgba(33, 43, 61, 0.6), rgba(33, 43, 61, 0.95)), url('https://githubusercontent.com');
+            background-size: 40%; background-repeat: no-repeat; background-position: center 45%;
             justify-content: space-between;
         }
 
-        .center-welcome {
-            background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px;
-            border-left: 4px solid var(--rr-orange);
-        }
-        .center-welcome h2 { margin: 0 0 5px 0; font-family: 'Fredoka One', cursive; color: var(--rr-orange); }
+        /* Onglet 2 : Cours / Tutos (Vakken) */
+        .grid-vakken { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 15px; }
+        .box-vak { background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; border-top: 4px solid var(--rr-orange); }
 
-        /* 🔸 COLONNE DROITE : Météo & Devoirs */
-        .weather-box {
-            text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 15px;
-        }
+        /* Onglet 3 : Liens Utiles (Links) */
+        .link-item { background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-link { background: var(--rr-blue-nav); color: white; text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
+
+        /* Onglet 5 : Vos Notes / Résultats (Resultaten) */
+        .score-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+
+        /* DROITE : Météo & Liste de Devoirs */
+        .weather-box { text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 15px; }
         .weather-city { font-family: 'Fredoka One', cursive; color: var(--rr-orange); font-size: 22px; }
         .weather-temp { font-size: 32px; font-weight: 900; color: #FFFFFF; margin: 5px 0; }
-
         .assignment-list { display: flex; flex-direction: column; gap: 8px; }
         .assignment-title { font-family: 'Fredoka One', cursive; font-size: 16px; margin-bottom: 5px; color: var(--rr-orange); }
-        .assign-item {
-            background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 10px;
-            font-size: 13px; border-left: 3px solid var(--rr-blue-nav);
-        }
+        .assign-item { background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 13px; border-left: 3px solid var(--rr-blue-nav); }
         .assign-item.today { border-left-color: var(--rr-green); }
         .assign-tag { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; }
-
-        /* 🎵 CONTROLE AUDIO NAV BAR */
-        .music-btn { background: rgba(0,0,0,0.2); border: none; color: white; padding: 4px 10px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 11px; }
     </style>
 </head>
 <body>
 
-    <!-- Lecteur audio masqué (Musique d'ambiance officielle Rec Room Lounge) -->
-    <audio id="rrAudio" loop>
-        <source src="https://githubusercontent.com" type="audio/mpeg">
-    </audio>
-
-    <!-- 🟦 BARRE DE NAVIGATION ORANGE ET BLEUE -->
+    <!-- 🟦 MENU DE NAVIGATION INTERACTIF -->
     <nav class="navbar-top">
         <div class="nav-left">
             <div class="profile-badge">👑 LBP3PC</div>
-            <button class="music-btn" onclick="toggleMusic()">🎵 AMBIANCE : OFF</button>
         </div>
         <div class="nav-right">
-            <a href="#" class="nav-btn">Ga naar</a>
-            <a href="#" class="nav-btn">Vakken</a>
-            <a href="#" class="nav-btn" onclick="alert('Lien d’accès serveur : 192.168.1.169'); return false;">Links</a>
-            <a href="https://discord.gg" target="_blank" class="nav-btn">Planner</a>
-            <a href="#" class="nav-btn">Resultaten</a>
-            <a href="#" class="nav-btn logout" onclick="alert('Fermeture du Hub...'); return false;">Log out →</a>
+            <button class="nav-btn active" onclick="switchTab('home', this)">Ga naar</button>
+            <button class="nav-btn" onclick="switchTab('vakken', this)">Vakken</button>
+            <button class="nav-btn" onclick="switchTab('links', this)">Links</button>
+            <a href="https://discord.gg" target="_blank" class="nav-btn">Planner (Discord)</a>
+            <button class="nav-btn" onclick="switchTab('resultaten', this)">Resultaten</button>
+            <button class="nav-btn logout" onclick="window.location.reload();">Log out →</button>
         </div>
     </nav>
 
-    <!-- 📐 GRILLE DE L'INTERFACE PRINCIPALE -->
+    <!-- 📐 ZONE PRINCIPALE DU DASHBOARD -->
     <div class="dashboard-grid">
         
-        <!-- PANNEAU GAUCHE : Application de la plante -->
+        <!-- PANNEAU GAUCHE : Application Plante Interactive -->
         <div class="panel panel-left">
             <div class="plant-card">
-                <div class="plant-title">1 Day</div>
-                <div class="plant-img">🌱</div>
-                <div style="font-size: 12px; color: var(--rr-text-muted);">Watered 2h ago</div>
-                <div class="water-bar"><div class="water-fill"></div></div>
+                <div class="plant-title" id="plantDay">1 Day</div>
+                <div class="plant-img" id="plantEmoji">🌱</div>
+                <div style="font-size: 12px; color: var(--rr-text-muted);" id="waterTime">Watered 2h ago</div>
+                <div class="water-bar"><div class="water-fill" id="waterFill"></div></div>
+                <button class="btn-water" onclick="waterPlant()">Arroser la Plante 💧</button>
             </div>
             <div class="plant-card" style="font-size: 13px; text-align: left;">
-                <b style="color: var(--rr-orange);">Server Tools</b><br>
+                <b style="color: var(--rr-orange);">Server Control</b><br>
                 • RebornRec Core active<br>
-                • Database synced<br>
-                • No Summer Error
+                • Base de données ok<br>
+                • Erreur Summer bloquée
             </div>
         </div>
 
-        <!-- PANNEAU CENTRAL : Zone principale transparente avec logo -->
+        <!-- PANNEAU CENTRAL : Onglets Dynamiques Réactifs -->
         <div class="panel panel-center">
-            <div class="center-welcome">
-                <h2>Project RecNet Hub // Interface Actve</h2>
-                <p style="margin: 0; font-size: 14px; color: var(--rr-text-muted);">Votre infrastructure réseau est centralisée avec succès. Le serveur local et l'interface web sont interconnectés sur votre machine.</p>
-            </div>
             
-            <!-- Bouton central géant style RecRoom -->
-            <a href="https://discord.gg" target="_blank" style="background: var(--rr-orange); color: white; text-align: center; text-decoration: none; font-family: 'Fredoka One', cursive; font-size: 18px; padding: 12px; border-radius: 25px; border-bottom: 4px solid #C46200; margin-bottom: 10px;">Ouvrir la Communauté Discord</a>
-        </div>
-
-        <!-- PANNEAU DROIT : Météo et Devoirs / Missions -->
-        <div class="panel panel-right">
-            <!-- Météo -->
-            <div class="weather-box">
-                <div class="weather-city">Antwerp Clouds</div>
-                <div class="weather-temp">25°C</div>
-                <div style="font-size: 13px; color: var(--rr-text-muted);">☀️ 5 km/h // 74%</div>
+            <!-- CONTENU 1 : ACCUEIL (Ga naar) -->
+            <div id="tab-home" class="tab-content content-home active">
+                <div style="background: rgba(0,0,0,0.4); border-radius: 12px; padding: 15px; border-left: 4px solid var(--rr-orange);">
+                    <h2 style="margin:0; font-family:'Fredoka One'; color:var(--rr-orange);">Central Station Hub</h2>
+                    <p style="margin:5px 0 0 0; font-size:14px; color:var(--rr-text-muted);">Bienvenue sur l'infrastructure de contrôle de votre serveur privé. Utilisez les boutons bleus du menu en haut pour naviguer dans vos outils.</p>
+                </div>
+                <a href="https://discord.gg" target="_blank" style="background: var(--rr-orange); color: white; text-align: center; text-decoration: none; font-family: 'Fredoka One', cursive; font-size: 18px; padding: 12px; border-radius: 25px; border-bottom: 4px solid #C46200; margin-bottom: 10px;">Rejoindre le Hub Discord</a>
             </div>
 
-            <!-- Missions / Devoirs -->
-            <div class="assignment-list">
-                <div class="assignment-title">Assignments</div>
-                
-                <div style="font-size: 12px; color: var(--rr-orange); font-weight: bold; margin-top: 5px;">Vandaag</div>
-                <div class="assign-item today">
-                    <span class="assign-tag">EX</span>
-                    <div>Vakken overzicht check</div>
-                </div>
-
-                <div style="font-size: 12px; color: var(--rr-text-muted); font-weight: bold; margin-top: 5px;">Morgen</div>
-                <div class="assign-item">
-                    <span class="assign-tag">EX</span>
-                    <div>Maker Pen script validation</div>
+            <!-- CONTENU 2 : COURS / TUTOS (Vakken) -->
+            <div id="tab-vakken" class="tab-content">
