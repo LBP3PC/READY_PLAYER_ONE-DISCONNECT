@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RecNet // Custom Dashboard</title>
+    <title>RecNet // Secure Dashboard Hub</title>
     <style>
         :root {
             --rr-orange: #FF7F00;
@@ -30,7 +30,7 @@
         body::before {
             content: ""; position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
-            background-image: url('https://squarespace-cdn.com');
+            background-image: url('https://githubusercontent.com');
             background-size: 220px; opacity: 0.12; z-index: 0; pointer-events: none;
             animation: scrollBackground 30s linear infinite;
         }
@@ -40,107 +40,93 @@
             to { background-position: 220px 220px; }
         }
 
-        /* 🟦 MENU SUPÉRIEUR COMPLET (Réplique exacte de ta photo) */
+        /* 🔒 INTERFACE ÉCRAN DE CONNEXION (LOGIN) */
+        #login-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--rr-bg-dark); z-index: 999;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        .login-box {
+            background-color: var(--rr-panel-blur); padding: 40px; border-radius: 20px;
+            width: 90%; max-width: 380px; text-align: center;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.5); border: 2px solid var(--rr-orange);
+        }
+
+        .login-box h2 { font-family: 'Fredoka One', cursive; color: var(--rr-orange); margin-bottom: 25px; }
+
+        .input-group { margin-bottom: 18px; text-align: left; }
+        .input-group label { display: block; font-size: 13px; font-weight: 800; color: var(--rr-text-muted); margin-bottom: 5px; }
+        .input-group input {
+            width: calc(100% - 24px); padding: 10px 12px; background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white;
+            font-family: 'Nunito', sans-serif; font-size: 15px; outline: none;
+        }
+        .input-group input:focus { border-color: var(--rr-orange); }
+
+        .btn-login {
+            width: 100%; background-color: var(--rr-orange); color: white; border: none;
+            padding: 12px; border-radius: 25px; font-family: 'Fredoka One', cursive;
+            font-size: 16px; cursor: pointer; margin-top: 10px; border-bottom: 4px solid #C46200;
+        }
+        .btn-login:active { transform: translateY(2px); border-bottom-width: 2px; }
+
+        .login-error { color: #ff4444; font-size: 13px; margin-top: 10px; font-weight: bold; display: none; }
+
+        /* 🟦 INTERFACE APPLICATION PRINCIPALE (CACHÉE AU BOOT) */
+        #main-application { display: none; flex-direction: column; width: 100%; }
+
         .navbar-top {
-            background-color: var(--rr-orange);
-            width: 100%; height: 55px;
+            background-color: var(--rr-orange); width: 100%; height: 55px;
             display: flex; align-items: center; justify-content: space-between;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            z-index: 10; position: fixed; top: 0; left: 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); z-index: 10; position: fixed; top: 0; left: 0;
         }
-
-        .nav-left {
-            display: flex; align-items: center; gap: 10px; margin-left: 20px;
-        }
-
-        .profile-badge {
-            background-color: var(--rr-blue-nav); padding: 6px 16px;
-            border-radius: 20px; font-family: 'Fredoka One', cursive; font-size: 15px;
-        }
-
-        .nav-right {
-            display: flex; align-items: center; gap: 8px; margin-right: 20px;
-        }
-
+        .nav-left { display: flex; align-items: center; gap: 10px; margin-left: 20px; }
+        .profile-badge { background-color: var(--rr-blue-nav); padding: 6px 16px; border-radius: 20px; font-family: 'Fredoka One', cursive; font-size: 15px; }
+        .nav-right { display: flex; align-items: center; gap: 8px; margin-right: 20px; }
         .nav-btn {
-            background-color: var(--rr-blue-nav); color: white;
-            text-decoration: none; padding: 6px 14px; border-radius: 15px;
-            font-size: 13px; font-weight: 800; border: 1px solid rgba(255,255,255,0.1);
-            cursor: pointer; transition: background 0.2s;
+            background-color: var(--rr-blue-nav); color: white; text-decoration: none; padding: 6px 14px; border-radius: 15px;
+            font-size: 13px; font-weight: 800; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: background 0.2s;
         }
-
         .nav-btn:hover { background-color: #005fd9; }
         .nav-btn.active { background-color: #ffffff; color: var(--rr-blue-nav); border: 1px solid var(--rr-blue-nav); }
         .nav-btn.logout { background-color: #334155; }
 
-        /* LAYOUT GENERAL */
         .dashboard-grid {
-            margin-top: 75px; padding: 15px;
-            display: grid; grid-template-columns: 240px 1fr 280px; gap: 15px;
+            margin-top: 75px; padding: 15px; display: grid; grid-template-columns: 240px 1fr 280px; gap: 15px;
             height: calc(100vh - 105px); z-index: 1; width: calc(100% - 30px);
         }
-
         .panel {
-            background-color: var(--rr-panel-blur);
-            backdrop-filter: blur(10px);
-            border-radius: 16px; border: 1px solid rgba(255,255,255,0.06);
-            padding: 20px; display: flex; flex-direction: column;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-            overflow-y: auto;
+            background-color: var(--rr-panel-blur); backdrop-filter: blur(10px); border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.06); padding: 20px; display: flex; flex-direction: column;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3); overflow-y: auto;
         }
 
-        /* GAUCHE : Mini-jeu de la plante */
+        /* COMPOSANTS INTERNES */
         .panel-left { gap: 15px; }
-        .plant-card {
-            background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; text-align: center;
-            border: 1px solid rgba(255,127,0,0.2);
-        }
+        .plant-card { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; text-align: center; border: 1px solid rgba(255,127,0,0.2); }
         .plant-title { font-family: 'Fredoka One', cursive; color: var(--rr-orange); font-size: 20px; }
         .plant-img { font-size: 55px; margin: 10px 0; transition: transform 0.2s; }
         .water-bar { background: #1e293b; height: 12px; border-radius: 6px; overflow: hidden; margin: 15px 0 10px 0; }
         .water-fill { background: #0076FF; width: 20%; height: 100%; transition: width 0.3s; }
-        .btn-water {
-            background: var(--rr-orange); border: none; color: white; padding: 6px 12px; 
-            border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px;
-        }
+        .btn-water { background: var(--rr-orange); border: none; color: white; padding: 6px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px; }
 
-        /* CENTRE : Système d'onglets dynamiques */
-        .panel-center {
-            position: relative;
-        }
-
-        .tab-content {
-            display: none;
-            height: 100%;
-            flex-direction: column;
-        }
-
-        .tab-content.active {
-            display: flex;
-        }
-
-        /* Onglet 1 : Accueil (Ga naar) */
+        .tab-content { display: none; height: 100%; flex-direction: column; }
+        .tab-content.active { display: flex; }
         .content-home {
             background-image: linear-gradient(rgba(33, 43, 61, 0.6), rgba(33, 43, 61, 0.95)), url('https://githubusercontent.com');
-            background-size: 40%; background-repeat: no-repeat; background-position: center 45%;
-            justify-content: space-between;
+            background-size: 40%; background-repeat: no-repeat; background-position: center 45%; justify-content: space-between;
         }
-
-        /* Onglet 2 : Cours / Tutos (Vakken) */
         .grid-vakken { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 15px; }
         .box-vak { background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; border-top: 4px solid var(--rr-orange); }
-
-        /* Onglet 3 : Liens Utiles (Links) */
         .link-item { background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
         .btn-link { background: var(--rr-blue-nav); color: white; text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
-
-        /* Onglet 5 : Vos Notes / Résultats (Resultaten) */
         .score-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
 
-        /* DROITE : Météo & Liste de Devoirs */
+        /* PANNEAU METEO DE PARIS */
         .weather-box { text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 15px; }
         .weather-city { font-family: 'Fredoka One', cursive; color: var(--rr-orange); font-size: 22px; }
-        .weather-temp { font-size: 32px; font-weight: 900; color: #FFFFFF; margin: 5px 0; }
+        .weather-temp { font-size: 36px; font-weight: 900; color: #FFFFFF; margin: 5px 0; }
         .assignment-list { display: flex; flex-direction: column; gap: 8px; }
         .assignment-title { font-family: 'Fredoka One', cursive; font-size: 16px; margin-bottom: 5px; color: var(--rr-orange); }
         .assign-item { background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 13px; border-left: 3px solid var(--rr-blue-nav); }
@@ -150,52 +136,42 @@
 </head>
 <body>
 
-    <!-- 🟦 MENU DE NAVIGATION INTERACTIF -->
-    <nav class="navbar-top">
-        <div class="nav-left">
-            <div class="profile-badge">👑 LBP3PC</div>
-        </div>
-        <div class="nav-right">
-            <button class="nav-btn active" onclick="switchTab('home', this)">Ga naar</button>
-            <button class="nav-btn" onclick="switchTab('vakken', this)">Vakken</button>
-            <button class="nav-btn" onclick="switchTab('links', this)">Links</button>
-            <a href="https://discord.gg" target="_blank" class="nav-btn">Planner (Discord)</a>
-            <button class="nav-btn" onclick="switchTab('resultaten', this)">Resultaten</button>
-            <button class="nav-btn logout" onclick="window.location.reload();">Log out →</button>
-        </div>
-    </nav>
-
-    <!-- 📐 ZONE PRINCIPALE DU DASHBOARD -->
-    <div class="dashboard-grid">
-        
-        <!-- PANNEAU GAUCHE : Application Plante Interactive -->
-        <div class="panel panel-left">
-            <div class="plant-card">
-                <div class="plant-title" id="plantDay">1 Day</div>
-                <div class="plant-img" id="plantEmoji">🌱</div>
-                <div style="font-size: 12px; color: var(--rr-text-muted);" id="waterTime">Watered 2h ago</div>
-                <div class="water-bar"><div class="water-fill" id="waterFill"></div></div>
-                <button class="btn-water" onclick="waterPlant()">Arroser la Plante 💧</button>
+    <!-- 🔒 ÉCRAN DE CONNEXION INITIAL -->
+    <div id="login-screen">
+        <div class="login-box">
+            <h2>RecNet Login</h2>
+            <div class="input-group">
+                <label>Nom de compte (Username)</label>
+                <input type="text" id="username" placeholder="Entrez LBP3PC" value="LBP3PC">
             </div>
-            <div class="plant-card" style="font-size: 13px; text-align: left;">
-                <b style="color: var(--rr-orange);">Server Control</b><br>
-                • RebornRec Core active<br>
-                • Base de données ok<br>
-                • Erreur Summer bloquée
+            <div class="input-group">
+                <label>Mot de passe (Password)</label>
+                <input type="password" id="password" placeholder="Choisis ton mot de passe">
             </div>
+            <button class="btn-login" onclick="checkLogin()">Se connecter</button>
+            <div class="login-error" id="loginError">Identifiants incorrects !</div>
         </div>
+    </div>
 
-        <!-- PANNEAU CENTRAL : Onglets Dynamiques Réactifs -->
-        <div class="panel panel-center">
-            
-            <!-- CONTENU 1 : ACCUEIL (Ga naar) -->
-            <div id="tab-home" class="tab-content content-home active">
-                <div style="background: rgba(0,0,0,0.4); border-radius: 12px; padding: 15px; border-left: 4px solid var(--rr-orange);">
-                    <h2 style="margin:0; font-family:'Fredoka One'; color:var(--rr-orange);">Central Station Hub</h2>
-                    <p style="margin:5px 0 0 0; font-size:14px; color:var(--rr-text-muted);">Bienvenue sur l'infrastructure de contrôle de votre serveur privé. Utilisez les boutons bleus du menu en haut pour naviguer dans vos outils.</p>
-                </div>
-                <a href="https://discord.gg" target="_blank" style="background: var(--rr-orange); color: white; text-align: center; text-decoration: none; font-family: 'Fredoka One', cursive; font-size: 18px; padding: 12px; border-radius: 25px; border-bottom: 4px solid #C46200; margin-bottom: 10px;">Rejoindre le Hub Discord</a>
+    <!-- 🟦 STRUCTURE COMPLETE DU DASHBOARD (CACHÉ AVANT LE LOGIN) -->
+    <div id="main-application">
+        <nav class="navbar-top">
+            <div class="nav-left">
+                <div class="profile-badge">👑 LBP3PC</div>
             </div>
+            <div class="nav-right">
+                <button class="nav-btn active" onclick="switchTab('home', this)">Ga naar</button>
+                <button class="nav-btn" onclick="switchTab('vakken', this)">Vakken</button>
+                <button class="nav-btn" onclick="switchTab('links', this)">Links</button>
+                <a href="https://discord.gg" target="_blank" class="nav-btn">Planner (Discord)</a>
+                <button class="nav-btn" onclick="switchTab('resultaten', this)">Resultaten</button>
+                <button class="nav-btn logout" onclick="logout()">Log out →</button>
+            </div>
+        </nav>
 
-            <!-- CONTENU 2 : COURS / TUTOS (Vakken) -->
-            <div id="tab-vakken" class="tab-content">
+        <div class="dashboard-grid">
+            <!-- GAUCHE -->
+            <div class="panel panel-left">
+                <div class="plant-card">
+                    <div class="plant-title" id="plantDay">1 Day</div>
+                    <div class="plant-img" id="plantEmoji">🌱</div>
