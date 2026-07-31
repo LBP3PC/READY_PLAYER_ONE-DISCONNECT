@@ -27,18 +27,19 @@
             position: relative; overflow-x: hidden;
         }
 
-        /* Arrière-plan animé officiel */
+        /* Le véritable arrière-plan animé de Rec Room */
         body::before {
             content: ""; position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
-            background-image: url('https://githubusercontent.com');
-            background-size: 220px; opacity: 0.25; z-index: 0; pointer-events: none;
+            /* Utilisation d'un motif transparent hébergé de manière stable */
+            background-image: url('https://squarespace-cdn.com');
+            background-size: 250px; opacity: 0.22; z-index: 0; pointer-events: none;
             animation: scrollBackground 25s linear infinite;
         }
 
         @keyframes scrollBackground {
             from { background-position: 0 0; }
-            to { background-position: 220px 220px; }
+            to { background-position: 250px 250px; }
         }
 
         /* Barre de navigation supérieure */
@@ -205,7 +206,7 @@
                 </div>
 
                 <!-- Ton invitation Discord officielle -->
-                <a href="https://discord.gg/GYKVe8GeP" target="_blank" class="recnet-btn">Rejoindre la Communauté</a>
+                <a href="https://discord.gg" target="_blank" class="recnet-btn">Rejoindre la Communauté</a>
             </div>
         </div>
     </main>
