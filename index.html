@@ -3,173 +3,136 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RecNet // Central Command Hub</title>
+    <title>RecNet // Central Dashboard</title>
     <style>
         :root {
             --rr-orange: #FF7F00;
-            --rr-dark: #1A212D;
-            --rr-card: #252F3F;
-            --rr-card-hover: #2F3B4E;
-            --rr-text: #FFFFFF;
-            --rr-text-muted: #8FA4B5;
-            --rr-green: #00E676;
+            --rr-blue-nav: #0076FF;
+            --rr-bg-dark: #121620;
+            --rr-panel-blur: rgba(33, 43, 61, 0.75);
+            --rr-text-white: #FFFFFF;
+            --rr-text-muted: #A0B2C6;
+            --rr-green: #00CC66;
         }
 
         @import url('https://googleapis.com');
 
         body {
-            background-color: #ff7f00;
-            color: var(--rr-text);
+            background-color: var(--rr-bg-dark);
+            color: var(--rr-text-white);
             font-family: 'Nunito', sans-serif;
             margin: 0; padding: 0;
+            min-height: 100vh;
             display: flex; flex-direction: column;
-            align-items: center; min-height: 100vh;
             position: relative; overflow-x: hidden;
         }
 
-        /* L'effet d'animation du fond */
+        /* Fond d'écran officiel Rec Room avec défilement */
         body::before {
             content: ""; position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
             background-image: url('https://squarespace-cdn.com');
-            background-size: 200px; 
-            opacity: 0.28;
-            z-index: 0; pointer-events: none;
-            animation: recroomLinearScroll 30s linear infinite;
+            background-size: 220px; opacity: 0.12; z-index: 0; pointer-events: none;
+            animation: scrollBackground 30s linear infinite;
         }
 
-        @keyframes recroomLinearScroll {
+        @keyframes scrollBackground {
             from { background-position: 0 0; }
-            to { background-position: 200px 200px; }
+            to { background-position: 220px 220px; }
         }
 
-        /* Barre de navigation supérieure */
-        .recnet-navbar {
-            background-color: var(--rr-dark); width: 100%; height: 70px;
+        /* 🟦 BARRE DE NAVIGATION SUPÉRIEURE (Comme sur ta photo) */
+        .navbar-top {
+            background-color: var(--rr-orange);
+            width: 100%; height: 55px;
             display: flex; align-items: center; justify-content: space-between;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-            position: fixed; top: 0; left: 0; z-index: 100;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            z-index: 10; position: fixed; top: 0; left: 0;
         }
 
-        .navbar-brand {
-            font-family: 'Fredoka One', cursive; font-size: 32px;
-            color: var(--rr-orange); margin-left: 30px;
-            text-shadow: 2px 2px 0px rgba(0,0,0,0.2); letter-spacing: 0.5px;
+        .nav-left {
+            display: flex; align-items: center; gap: 10px; margin-left: 20px;
         }
 
-        .nav-right-controls {
-            display: flex; align-items: center; gap: 15px; margin-right: 30px;
+        .profile-badge {
+            background-color: var(--rr-blue-nav); padding: 6px 16px;
+            border-radius: 20px; font-family: 'Fredoka One', cursive; font-size: 15px;
         }
 
-        /* Bouton Audio Style Rec Room */
-        .music-toggle-btn {
-            background-color: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.2);
-            color: white; padding: 8px 14px; border-radius: 20px; cursor: pointer;
-            font-family: 'Fredoka One', cursive; font-size: 13px; display: flex;
-            align-items: center; gap: 8px; transition: background 0.2s;
+        .nav-right {
+            display: flex; align-items: center; gap: 8px; margin-right: 20px;
         }
 
-        .music-toggle-btn:hover {
-            background-color: rgba(255, 255, 255, 0.2);
+        .nav-btn {
+            background-color: var(--rr-blue-nav); color: white;
+            text-decoration: none; padding: 6px 14px; border-radius: 15px;
+            font-size: 13px; font-weight: 800; border: 1px solid rgba(255,255,255,0.1);
+            transition: opacity 0.2s;
         }
 
-        .server-badge {
-            background-color: rgba(255, 255, 255, 0.08); padding: 8px 16px;
-            border-radius: 30px; font-size: 13px; font-weight: 900; letter-spacing: 1px;
-            display: flex; align-items: center; gap: 10px;
-            border: 1px solid rgba(255,255,255,0.05);
+        .nav-btn:hover { opacity: 0.9; }
+        .nav-btn.logout { background-color: #334155; }
+
+        /* LAYOUT PRINCIPAL EN 3 COLONNES */
+        .dashboard-grid {
+            margin-top: 75px; padding: 15px;
+            display: grid; grid-template-columns: 240px 1fr 280px; gap: 15px;
+            height: calc(100vh - 105px); z-index: 1; width: calc(100% - 30px);
         }
 
-        .pulse-dot {
-            width: 10px; height: 10px; background-color: var(--rr-green);
-            border-radius: 50%; box-shadow: 0 0 12px var(--rr-green);
+        .panel {
+            background-color: var(--rr-panel-blur);
+            backdrop-filter: blur(10px);
+            border-radius: 16px; border: 1px solid rgba(255,255,255,0.06);
+            padding: 15px; display: flex; flex-direction: column;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            overflow-y: auto;
         }
 
-        /* Conteneur principal */
-        .main-container {
-            margin-top: 110px; width: 90%; max-width: 620px;
-            display: flex; flex-direction: column; gap: 20px; padding-bottom: 5px; z-index: 1;
+        /* 🔸 COLONNE GAUCHE : Application Plante */
+        .panel-left { gap: 15px; }
+        .plant-card {
+            background: rgba(0,0,0,0.2); border-radius: 12px; padding: 15px; text-align: center;
+            border: 1px solid rgba(255,127,0,0.2);
+        }
+        .plant-title { font-family: 'Fredoka One', cursive; color: var(--rr-orange); font-size: 20px; }
+        .plant-img { font-size: 45px; margin: 10px 0; }
+        .water-bar {
+            background: #1e293b; height: 12px; border-radius: 6px; overflow: hidden; margin-top: 10px;
+        }
+        .water-fill { background: #0076FF; width: 75%; height: 100%; }
+
+        /* 🔸 COLONNE CENTRALE : Flux de news / Rec Room logo */
+        .panel-center {
+            background-image: linear-gradient(rgba(37, 47, 63, 0.4), rgba(37, 47, 63, 0.9)), url('https://githubusercontent.com');
+            background-size: 45%; background-repeat: no-repeat; background-position: center 40%;
+            justify-content: space-between;
         }
 
-        /* Onglets style Rec Room */
-        .recnet-tabs {
-            display: flex; gap: 10px; width: 100%; margin-bottom: 5px;
+        .center-welcome {
+            background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px;
+            border-left: 4px solid var(--rr-orange);
         }
+        .center-welcome h2 { margin: 0 0 5px 0; font-family: 'Fredoka One', cursive; color: var(--rr-orange); }
 
-        .tab-item {
-            background-color: var(--rr-dark); padding: 10px 22px;
-            border-radius: 20px 20px 0 0; font-family: 'Fredoka One', cursive;
-            font-size: 15px; color: var(--rr-text-muted); text-decoration: none;
-            box-shadow: 0 -4px 10px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.02);
+        /* 🔸 COLONNE DROITE : Météo & Devoirs */
+        .weather-box {
+            text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 15px;
         }
+        .weather-city { font-family: 'Fredoka One', cursive; color: var(--rr-orange); font-size: 22px; }
+        .weather-temp { font-size: 32px; font-weight: 900; color: #FFFFFF; margin: 5px 0; }
 
-        .tab-item.active {
-            background-color: var(--rr-card); color: var(--rr-orange);
-            border-bottom: 3px solid var(--rr-orange);
+        .assignment-list { display: flex; flex-direction: column; gap: 8px; }
+        .assignment-title { font-family: 'Fredoka One', cursive; font-size: 16px; margin-bottom: 5px; color: var(--rr-orange); }
+        .assign-item {
+            background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 10px;
+            font-size: 13px; border-left: 3px solid var(--rr-blue-nav);
         }
+        .assign-item.today { border-left-color: var(--rr-green); }
+        .assign-tag { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; }
 
-        /* Cartes d'affichage de contenu */
-        .recnet-card {
-            background-color: var(--rr-card); border-radius: 18px;
-            box-shadow: 0 12px 35px rgba(0,0,0,0.4); overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.05); margin-bottom: 5px;
-        }
-
-        .card-header {
-            padding: 20px; display: flex; align-items: center; gap: 15px;
-            border-bottom: 1px solid rgba(255,255,255,0.05); background-color: rgba(0,0,0,0.1);
-        }
-
-        .avatar-stub {
-            width: 50px; height: 50px; background: linear-gradient(45deg, var(--rr-orange), #FF9800);
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-family: 'Fredoka One', cursive; font-size: 22px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-        }
-
-        .header-info { display: flex; flex-direction: column; }
-
-        .username {
-            font-family: 'Fredoka One', cursive; font-size: 24px;
-            color: #FFFFFF; letter-spacing: 0.5px;
-        }
-
-        .timestamp {
-            font-size: 13px; color: var(--rr-text-muted); font-weight: 800;
-        }
-
-        .card-body { padding: 25px; font-size: 16px; line-height: 1.7; }
-
-        /* Grille des statistiques système */
-        .stats-grid {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 25px 0;
-        }
-
-        .stat-box {
-            background-color: rgba(0,0,0,0.15); padding: 12px; border-radius: 12px;
-            text-align: center; border: 1px solid rgba(255,255,255,0.02);
-        }
-
-        .stat-val {
-            font-family: 'Fredoka One', cursive; font-size: 20px; color: var(--rr-orange);
-        }
-
-        .stat-lbl {
-            font-size: 11px; color: var(--rr-text-muted); font-weight: 900; text-transform: uppercase;
-        }
-
-        /* Bouton d'action géant 3D */
-        .recnet-btn {
-            display: block; width: calc(100% - 10px); background-color: var(--rr-orange);
-            color: #FFFFFF; text-align: center; text-decoration: none;
-            font-family: 'Fredoka One', cursive; font-size: 20px; padding: 16px;
-            border-radius: 35px; margin: 15px auto 5px auto; border-bottom: 5px solid #D66A00;
-            box-shadow: 0 6px 16px rgba(255, 127, 0, 0.35); transition: all 0.1s ease;
-            text-transform: uppercase; letter-spacing: 0.5px;
-        }
-
-        .recnet-btn:hover { background-color: #FF8F1F; transform: translateY(-1px); }
-        .recnet-btn:active { transform: translateY(4px); border-bottom-width: 1px; }
+        /* 🎵 CONTROLE AUDIO NAV BAR */
+        .music-btn { background: rgba(0,0,0,0.2); border: none; color: white; padding: 4px 10px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 11px; }
     </style>
 </head>
 <body>
@@ -179,66 +142,72 @@
         <source src="https://githubusercontent.com" type="audio/mpeg">
     </audio>
 
-    <!-- Barre supérieure de l'application -->
-    <nav class="recnet-navbar">
-        <div class="navbar-brand">rec.net</div>
-        <div class="nav-right-controls">
-            <!-- Bouton pour couper/allumer le son -->
-            <button class="music-toggle-btn" id="audioBtn" onclick="toggleMusic()">🔈 MUSIC : OFF</button>
-            <div class="server-badge">
-                <div class="pulse-dot"></div>
-                <span>MASTER DATABASE</span>
-            </div>
+    <!-- 🟦 BARRE DE NAVIGATION ORANGE ET BLEUE -->
+    <nav class="navbar-top">
+        <div class="nav-left">
+            <div class="profile-badge">👑 LBP3PC</div>
+            <button class="music-btn" onclick="toggleMusic()">🎵 AMBIANCE : OFF</button>
+        </div>
+        <div class="nav-right">
+            <a href="#" class="nav-btn">Ga naar</a>
+            <a href="#" class="nav-btn">Vakken</a>
+            <a href="#" class="nav-btn" onclick="alert('Lien d’accès serveur : 192.168.1.169'); return false;">Links</a>
+            <a href="https://discord.gg" target="_blank" class="nav-btn">Planner</a>
+            <a href="#" class="nav-btn">Resultaten</a>
+            <a href="#" class="nav-btn logout" onclick="alert('Fermeture du Hub...'); return false;">Log out →</a>
         </div>
     </nav>
 
-    <main class="main-container">
-        <div class="recnet-tabs">
-            <a href="#" class="tab-item active">Feed</a>
-            <a href="#" class="tab-item" onclick="alert('Bientôt : Liste des pièces de dortoirs publiques.'); return false;">Rooms</a>
-            <a href="#" class="tab-item" onclick="alert('Base de données synchronisée sur 192.168.1.169 !'); return false;">Status</a>
+    <!-- 📐 GRILLE DE L'INTERFACE PRINCIPALE -->
+    <div class="dashboard-grid">
+        
+        <!-- PANNEAU GAUCHE : Application de la plante -->
+        <div class="panel panel-left">
+            <div class="plant-card">
+                <div class="plant-title">1 Day</div>
+                <div class="plant-img">🌱</div>
+                <div style="font-size: 12px; color: var(--rr-text-muted);">Watered 2h ago</div>
+                <div class="water-bar"><div class="water-fill"></div></div>
+            </div>
+            <div class="plant-card" style="font-size: 13px; text-align: left;">
+                <b style="color: var(--rr-orange);">Server Tools</b><br>
+                • RebornRec Core active<br>
+                • Database synced<br>
+                • No Summer Error
+            </div>
         </div>
 
-        <div class="recnet-card">
-            <div class="card-header">
-                <div class="avatar-stub">👑</div>
-                <div class="header-info">
-                    <span class="username">Project RecNet Hub</span>
-                    <span class="timestamp">Serveur de Préservation Dédié (v42y)</span>
-                </div>
+        <!-- PANNEAU CENTRAL : Zone principale transparente avec logo -->
+        <div class="panel panel-center">
+            <div class="center-welcome">
+                <h2>Project RecNet Hub // Interface Actve</h2>
+                <p style="margin: 0; font-size: 14px; color: var(--rr-text-muted);">Votre infrastructure réseau est centralisée avec succès. Le serveur local et l'interface web sont interconnectés sur votre machine.</p>
             </div>
-            <div class="card-body">
-                <p>Bienvenue sur le portail réseau officiel de préservation de l'écosystème Rec Room 2021.</p>
-                <p>Votre base de données locale gère actuellement les configurations système, supprime l'erreur summer à distance et prend en charge l'enregistrement natif du Maker Pen dans votre dortoir.</p>
+            
+            <!-- Bouton central géant style RecRoom -->
+            <a href="https://discord.gg" target="_blank" style="background: var(--rr-orange); color: white; text-align: center; text-decoration: none; font-family: 'Fredoka One', cursive; font-size: 18px; padding: 12px; border-radius: 25px; border-bottom: 4px solid #C46200; margin-bottom: 10px;">Ouvrir la Communauté Discord</a>
+        </div>
+
+        <!-- PANNEAU DROIT : Météo et Devoirs / Missions -->
+        <div class="panel panel-right">
+            <!-- Météo -->
+            <div class="weather-box">
+                <div class="weather-city">Antwerp Clouds</div>
+                <div class="weather-temp">25°C</div>
+                <div style="font-size: 13px; color: var(--rr-text-muted);">☀️ 5 km/h // 74%</div>
+            </div>
+
+            <!-- Missions / Devoirs -->
+            <div class="assignment-list">
+                <div class="assignment-title">Assignments</div>
                 
-                <div class="stats-grid">
-                    <div class="stat-box">
-                        <div class="stat-val">ONLINE</div>
-                        <div class="stat-lbl">Statut</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-val">v42y</div>
-                        <div class="stat-lbl">Version</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-val">LOCAL</div>
-                        <div class="stat-lbl">Région</div>
-                    </div>
+                <div style="font-size: 12px; color: var(--rr-orange); font-weight: bold; margin-top: 5px;">Vandaag</div>
+                <div class="assign-item today">
+                    <span class="assign-tag">EX</span>
+                    <div>Vakken overzicht check</div>
                 </div>
 
-                <a href="https://discord.gg" target="_blank" class="recnet-btn">Rejoindre la Communauté</a>
-            </div>
-        </div>
-    </main>
-
-    <!-- Script de gestion audio intelligent -->
-    <script>
-        const audio = document.getElementById('rrAudio');
-        const btn = document.getElementById('audioBtn');
-
-        function toggleMusic() {
-            if (audio.paused) {
-                audio.play().then(() => {
-                    btn.innerHTML = "🔊 MUSIC : ON";
-                    btn.style.borderColor = "var(--rr-green)";
-                }).catch(e => {
+                <div style="font-size: 12px; color: var(--rr-text-muted); font-weight: bold; margin-top: 5px;">Morgen</div>
+                <div class="assign-item">
+                    <span class="assign-tag">EX</span>
+                    <div>Maker Pen script validation</div>
