@@ -169,17 +169,18 @@
             buttonElement.classList.add('active');
         }
 
-        // 🖼️ FIX APPORTÉ SUR L'ECRITURE ET LES LIENS DES 3 CAPTURES GITHUB
+        // 🖼️ LES NOMS ONT ÉTÉ ENTIÈREMENT CORRIGÉS AVEC LES ESPACES POUR LE TROISIÈME FICHIER
         let currentPhotoIndex = 0;
         const photosList = [
             "DormRoom-2026-7-30-1-16-32.jpg",
             "DormRoom-2026-7-30-1-20-12.jpg",
-            "DormRoom-2026-7-30-3-56-58.jpg" // Correction : Utilisation des tirets comme sur ton dossier GitHub !
+            "DormRoom 2026 7 30 3 56 58.jpg" // L'écriture exacte avec les espaces !
         ];
 
         function changeSamplePhoto() {
             currentPhotoIndex = (currentPhotoIndex + 1) % photosList.length;
-            document.getElementById('mainPhotoImg').src = "./" + photosList[currentPhotoIndex];
+            // encodeURIComponent permet de traduire proprement les espaces pour le navigateur
+            document.getElementById('mainPhotoImg').src = "./" + encodeURIComponent(photosList[currentPhotoIndex]);
             document.getElementById('photoTitle').innerHTML = "📷 Charge : " + photosList[currentPhotoIndex];
         }
 
@@ -187,4 +188,3 @@
         function waterPlant() {
             if(waterLevel < 100) {
                 waterLevel += 20;
-                document.getElementById('waterFill').style.width = waterLevel + '%';
