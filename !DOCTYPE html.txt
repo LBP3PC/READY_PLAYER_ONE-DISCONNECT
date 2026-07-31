@@ -40,7 +40,7 @@
             to { background-position: 220px 220px; }
         }
 
-        /* 🟦 MENU SUPÉRIEUR COMPLET DE TA PHOTO */
+        /* 🟦 MENU SUPÉRIEUR */
         .navbar-top {
             background-color: var(--rr-orange); width: 100%; height: 55px;
             display: flex; align-items: center; justify-content: space-between;
@@ -80,9 +80,12 @@
         /* CENTRE */
         .tab-content { display: none; height: 100%; flex-direction: column; }
         .tab-content.active { display: flex; }
+        
         .content-home {
-            background-image: linear-gradient(rgba(33, 43, 61, 0.6), rgba(33, 43, 61, 0.95)), url('https://githubusercontent.com');
-            background-size: 40%; background-repeat: no-repeat; background-position: center 45%; justify-content: space-between;
+            justify-content: flex-start;
+            gap: 15px;
+            background-image: linear-gradient(rgba(33, 43, 61, 0.7), rgba(33, 43, 61, 0.95)), url('https://githubusercontent.com');
+            background-size: 45%; background-repeat: no-repeat; background-position: center 55%;
         }
         .grid-vakken { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 15px; }
         .box-vak { background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; border-top: 4px solid var(--rr-orange); }
@@ -90,7 +93,7 @@
         .btn-link { background: var(--rr-blue-nav); color: white; text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
         .score-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
 
-        /* DROITE : METEO DE PARIS */
+        /* DROITE : METEO */
         .weather-box { text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 15px; }
         .weather-city { font-family: 'Fredoka One', cursive; color: var(--rr-orange); font-size: 22px; }
         .weather-temp { font-size: 36px; font-weight: 900; color: #FFFFFF; margin: 5px 0; }
@@ -99,6 +102,19 @@
         .assign-item { background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 13px; border-left: 3px solid var(--rr-blue-nav); }
         .assign-item.today { border-left-color: var(--rr-green); }
         .assign-tag { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; }
+
+        .photo-display-container {
+            width: 100%; height: calc(100% - 95px); border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px; overflow: hidden; background-color: rgba(0, 0, 0, 0.4);
+            display: flex; justify-content: center; align-items: center; position: relative;
+        }
+        .server-photo { width: 100%; height: 100%; object-fit: cover; }
+        .photo-overlay-info {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            padding: 15px; font-size: 13px; color: var(--rr-text-muted);
+            display: flex; justify-content: space-between; align-items: center;
+        }
     </style>
 </head>
 <body>
@@ -140,21 +156,12 @@
         <!-- CENTRE -->
         <div class="panel panel-center">
             <div id="tab-home" class="tab-content content-home active">
-                <div style="background: rgba(0,0,0,0.4); border-radius: 12px; padding: 15px; border-left: 4px solid var(--rr-orange);">
-                    <h2 style="margin:0; font-family:'Fredoka One'; color:var(--rr-orange);">Central Station Hub</h2>
-                    <p style="margin:5px 0 0 0; font-size:14px; color:var(--rr-text-muted);">Bienvenue sur votre infrastructure de contrôle. Utilisez le menu bleu en haut pour tester les boutons.</p>
+                <div style="background: rgba(0,0,0,0.5); border-radius: 12px; padding: 15px; border-left: 4px solid var(--rr-orange); width: calc(100% - 30px); display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 style="margin:0; font-family:'Fredoka One'; color:var(--rr-orange);">RecNet // Photo Feed</h2>
+                        <p style="margin:5px 0 0 0; font-size:14px; color:var(--rr-text-muted);">Vos souvenirs de dortoir affichés directement sur votre serveur privé.</p>
+                    </div>
+                    <a href="https://google.com" target="_blank" style="background: var(--rr-orange); color: white; text-decoration: none; font-family: 'Fredoka One', cursive; font-size: 12px; padding: 8px 14px; border-radius: 15px; border-bottom: 3px solid #C46200;">Ouvrir le Drive 📁</a>
                 </div>
-                <a href="https://discord.gg" target="_blank" style="background: var(--rr-orange); color: white; text-align: center; text-decoration: none; font-family: 'Fredoka One', cursive; font-size: 18px; padding: 12px; border-radius: 25px; border-bottom: 4px solid #C46200; margin-bottom: 10px;">Rejoindre le Hub Discord</a>
-            </div>
-
-            <div id="tab-vakken" class="tab-content">
-                <h2 style="font-family:'Fredoka One'; color:var(--rr-orange); margin-top:0;">Vos Modules de Modding (Vakken)</h2>
-                <div class="grid-vakken">
-                    <div class="box-vak"><h3>🎮 Configuration Jeu</h3><p style="font-size:13px; color:var(--rr-text-muted);">Paramétrage des builds de la version 2021.</p></div>
-                    <div class="box-vak"><h3>🛠️ Maker Pen Master</h3><p style="font-size:13px; color:var(--rr-text-muted);">Outils pour forcer l'inventaire au maximum.</p></div>
-                    <div class="box-vak"><h3>📁 Fichiers JSON</h3><p style="font-size:13px; color:var(--rr-text-muted);">Gestion de la structure du dossier SaveData.</p></div>
-                    <div class="box-vak"><h3>⚙️ Gestion Réseau</h3><p style="font-size:13px; color:var(--rr-text-muted);">Suivi des adresses IP locales de ton PC.</p></div>
-                </div>
-            </div>
-
-            <div id="tab-links" class="tab-content">
+                
+                <div class="photo-display-container">
