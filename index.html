@@ -80,9 +80,10 @@
         /* CENTRE */
         .tab-content { display: none; height: 100%; flex-direction: column; }
         .tab-content.active { display: flex; }
+        
         .content-home {
-            background-image: linear-gradient(rgba(33, 43, 61, 0.6), rgba(33, 43, 61, 0.95)), url('https://githubusercontent.com');
-            background-size: 40%; background-repeat: no-repeat; background-position: center 45%; justify-content: space-between;
+            justify-content: flex-start;
+            gap: 15px;
         }
         .grid-vakken { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 15px; }
         .box-vak { background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; border-top: 4px solid var(--rr-orange); }
@@ -99,6 +100,15 @@
         .assign-item { background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 13px; border-left: 3px solid var(--rr-blue-nav); }
         .assign-item.today { border-left-color: var(--rr-green); }
         .assign-tag { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; }
+
+        /* Intégration du dossier Drive */
+        .drive-frame {
+            width: 100%;
+            height: calc(100% - 90px);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            background: rgba(0,0,0,0.2);
+        }
     </style>
 </head>
 <body>
@@ -137,14 +147,19 @@
             </div>
         </div>
 
-        <!-- CENTRE -->
+        <!-- CENTRE : LE FIL PHOTO SYNCHRONISÉ -->
         <div class="panel panel-center">
             <div id="tab-home" class="tab-content content-home active">
-                <div style="background: rgba(0,0,0,0.4); border-radius: 12px; padding: 15px; border-left: 4px solid var(--rr-orange);">
-                    <h2 style="margin:0; font-family:'Fredoka One'; color:var(--rr-orange);">Central Station Hub</h2>
-                    <p style="margin:5px 0 0 0; font-size:14px; color:var(--rr-text-muted);">Bienvenue sur votre infrastructure de contrôle. Utilisez le menu bleu en haut pour tester les boutons.</p>
+                <div style="background: rgba(0,0,0,0.4); border-radius: 12px; padding: 15px; border-left: 4px solid var(--rr-orange); display: flex; justify-content: space-between; align-items: center; width: calc(100% - 30px);">
+                    <div>
+                        <h2 style="margin:0; font-family:'Fredoka One'; color:var(--rr-orange);">RecNet // Photo Feed</h2>
+                        <p style="margin:5px 0 0 0; font-size:13px; color:var(--rr-text-muted);">Vos clichés de dortoirs synchronisés en direct.</p>
+                    </div>
+                    <a href="https://discord.gg" target="_blank" style="background: var(--rr-orange); color: white; text-decoration: none; font-family: 'Fredoka One', cursive; font-size: 14px; padding: 8px 16px; border-radius: 20px; border-bottom: 3px solid #C46200;">Discord</a>
                 </div>
-                <a href="https://discord.gg" target="_blank" style="background: var(--rr-orange); color: white; text-align: center; text-decoration: none; font-family: 'Fredoka One', cursive; font-size: 18px; padding: 12px; border-radius: 25px; border-bottom: 4px solid #C46200; margin-bottom: 10px;">Rejoindre le Hub Discord</a>
+                
+                <!-- La liseuse Google Drive incrustée en direct -->
+                <iframe src="https://google.com" class="drive-frame" allow="autoplay"></iframe>
             </div>
 
             <div id="tab-vakken" class="tab-content">
@@ -152,9 +167,3 @@
                 <div class="grid-vakken">
                     <div class="box-vak"><h3>🎮 Configuration Jeu</h3><p style="font-size:13px; color:var(--rr-text-muted);">Paramétrage des builds de la version 2021.</p></div>
                     <div class="box-vak"><h3>🛠️ Maker Pen Master</h3><p style="font-size:13px; color:var(--rr-text-muted);">Outils pour forcer l'inventaire au maximum.</p></div>
-                    <div class="box-vak"><h3>📁 Fichiers JSON</h3><p style="font-size:13px; color:var(--rr-text-muted);">Gestion de la structure du dossier SaveData.</p></div>
-                    <div class="box-vak"><h3>⚙️ Gestion Réseau</h3><p style="font-size:13px; color:var(--rr-text-muted);">Suivi des adresses IP locales de ton PC.</p></div>
-                </div>
-            </div>
-
-            <div id="tab-links" class="tab-content">
