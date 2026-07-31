@@ -13,6 +13,193 @@
             --rr-text-white: #FFFFFF;
             --rr-text-muted: #A0B2C6;
             --rr-green: #00CC66;
+            --rr-red: #FF3B30;
+        }
+
+        @import url('https://googleapis.com');
+
+        body {
+            background-color: var(--rr-bg-dark);
+            color: var(--rr-text-white);
+            font-family: 'Nunito', sans-serif;
+            margin: 0; padding: 0;
+            min-height: 100vh;
+            display: flex; flex-direction: column;
+            position: relative; overflow-x: hidden;
+        }
+
+        body::before {
+            content: ""; position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url('https://githubusercontent.com');
+            background-size: 220px; opacity: 0.12; z-index: 0; pointer-events: none;
+            animation: scrollBackground 30s linear infinite;
+        }
+
+        @keyframes scrollBackground {
+            from { background-position: 0 0; }
+            to { background-position: 220px 220px; }
+        }
+
+        .navbar-top {
+            background-color: var(--rr-orange); width: 100%; height: 55px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); z-index: 10; position: fixed; top: 0; left: 0;
+        }
+        .nav-left { display: flex; align-items: center; gap: 10px; margin-left: 20px; }
+        .profile-badge { background-color: var(--rr-blue-nav); padding: 6px 16px; border-radius: 20px; font-family: 'Fredoka One', cursive; font-size: 15px; }
+        .nav-right { display: flex; align-items: center; gap: 8px; margin-right: 20px; }
+        .nav-btn {
+            background-color: var(--rr-blue-nav); color: white; text-decoration: none; padding: 6px 14px; border-radius: 15px;
+            font-size: 13px; font-weight: 800; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: background 0.2s;
+        }
+        .nav-btn:hover { background-color: #005fd9; }
+        .nav-btn.active { background-color: #ffffff; color: var(--rr-blue-nav); border: 1px solid var(--rr-blue-nav); }
+
+        .dashboard-grid {
+            margin-top: 75px; padding: 15px; display: grid; grid-template-columns: 240px 1fr 280px; gap: 15px;
+            height: calc(100vh - 105px); z-index: 1; width: calc(100% - 30px);
+        }
+        .panel {
+            background-color: var(--rr-panel-blur); backdrop-filter: blur(10px); border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.06); padding: 20px; display: flex; flex-direction: column;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3); overflow-y: auto;
+        }
+
+        .panel-left { gap: 15px; }
+        .monitor-card { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; border: 1px solid rgba(0,118,255,0.2); }
+        .monitor-title { font-family: 'Fredoka One', cursive; color: var(--rr-blue-nav); font-size: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .pulse-light { width: 10px; height: 10px; background: var(--rr-red); border-radius: 50%; box-shadow: 0 0 10px var(--rr-red); }
+        .pulse-light.online { background: var(--rr-green); box-shadow: 0 0 10px var(--rr-green); animation: pulse 1.5s infinite; }
+        
+        @keyframes pulse {
+            0% { opacity: 0.4; }
+            50% { opacity: 1; }
+            100% { opacity: 0.4; }
+        }
+
+        .stat-line { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; font-weight: bold; }
+        .stat-line span:last-child { color: var(--rr-orange); }
+        
+        .progress-bar { background: #1e293b; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 4px; margin-bottom: 12px; }
+        .progress-fill { background: var(--rr-orange); width: 0%; height: 100%; transition: width 0.5s ease; }
+        .progress-fill.ram { background: var(--rr-blue-nav); width: 0%; }
+
+        .btn-refresh-stats {
+            width: 100%; background: var(--rr-orange); border: none; color: white; padding: 6px; 
+            border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px; border-bottom: 3px solid #C46200;
+        }
+
+        .tab-content { display: none; height: 100%; flex-direction: column; }
+        .tab-content.active { display: flex; }
+        .content-home { justify-content: flex-start; gap: 15px; }
+
+        .photo-display-container {
+            width: 100%; height: calc(100% - 95px); border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px; overflow: hidden; background-color: #151a24;
+            display: flex; justify-content: center; align-items: center; position: relative;
+        }
+        .server-photo-img { width: 100%; height: 100%; object-fit: contain; z-index: 2; }
+        .photo-overlay-info {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.9));
+            padding: 15px; font-size: 13px; color: #FFFFFF;
+            display: flex; justify-content: space-between; align-items: center; font-weight: bold; z-index: 3;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar-top">
+        <div class="nav-left">
+            <div class="profile-badge">👑 LBP3PC // HOST</div>
+        </div>
+        <div class="nav-right">
+            <button class="nav-btn active" onclick="switchTab('home', this)">Dashboard</button>
+            <button class="nav-btn" onclick="switchTab('links', this)">Statut Réseau</button>
+        </div>
+    </nav>
+
+    <div class="dashboard-grid">
+        <div class="panel panel-left">
+            <div class="monitor-card">
+                <div class="monitor-title">
+                    <div class="pulse-light" id="statusLight"></div>
+                    <span id="serverName">Analyse en cours...</span>
+                </div>
+                <div class="stat-line"><span>Ping local</span><span id="pingVal">--</span></div>
+                <div class="stat-line"><span>Charge CPU</span><span id="cpuVal">--</span></div>
+                <div class="progress-bar"><div class="progress-fill" id="cpuBar"></div></div>
+                <div class="stat-line"><span>Mémoire RAM</span><span id="ramVal">--</span></div>
+                <div class="progress-bar"><div class="progress-fill progress-fill ram" id="ramBar"></div></div>
+                <button class="btn-refresh-stats" onclick="checkNebulonServer()">Scanner le réseau 🔄</button>
+            </div>
+            
+            <div class="monitor-card" style="font-size: 13px; text-align: left; border-color: rgba(255,127,0,0.2);">
+                <b style="color: var(--rr-orange);">Liaison Machine</b><br>
+                • Adresse : localhost<br>
+                • Port Écoute : 2056<br>
+                • Cible : RecRoom 2021
+            </div>
+        </div>
+
+        <div class="panel panel-center" style="grid-column: span 2;">
+            <div id="tab-home" class="tab-content content-home active">
+                <div style="background: rgba(0,0,0,0.5); border-radius: 12px; padding: 15px; border-left: 4px solid var(--rr-orange); width: calc(100% - 30px); display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 style="margin:0; font-family:'Fredoka One'; color:var(--rr-orange);">RecNet // Flux d'activité</h2>
+                        <p style="margin:5px 0 0 0; font-size:14px; color:var(--rr-text-muted);">Console centrale interconnectée à l'architecture de préservation.</p>
+                    </div>
+                </div>
+                
+                <div class="photo-display-container">
+                    <img src="https://githubusercontent.com" class="server-photo-img" style="max-height:150px; object-fit:contain;" id="mainPhotoImg" alt="RecRoom Graphic">
+                    <div class="photo-overlay-info">
+                        <span id="photoTitle">🌐 Système connecté à l'instance locale</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-links" class="tab-content">
+                <h2 style="font-family:'Fredoka One'; color:var(--rr-orange); margin-top:0;">Diagnostic Réseau (Resultaten)</h2>
+                <div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; font-weight: bold;">
+                    <p>Adresse API ciblée : <span style="color:var(--rr-blue-nav);">http://localhost:2056/api/versioncheck</span></p>
+                    <p>Statut global : <span id="diagnosticText" style="color:var(--rr-red);">VÉRIFICATION...</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabId, buttonElement) {
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => content.classList.remove('active'));
+            const buttons = document.querySelectorAll('.nav-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            buttonElement.classList.add('active');
+        }
+
+        async function checkNebulonServer() {
+            const light = document.getElementById('statusLight');
+            const nameText = document.getElementById('serverName');
+            const diagText = document.getElementById('diagnosticText');
+            
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RecNet // Central Dashboard</title>
+    <style>
+        :root {
+            --rr-orange: #FF7F00;
+            --rr-blue-nav: #0076FF;
+            --rr-bg-dark: #121620;
+            --rr-panel-blur: rgba(33, 43, 61, 0.85);
+            --rr-text-white: #FFFFFF;
+            --rr-text-muted: #A0B2C6;
+            --rr-green: #00CC66;
         }
 
         @import url('https://googleapis.com');
