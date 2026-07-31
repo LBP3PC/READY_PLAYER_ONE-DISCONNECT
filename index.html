@@ -82,8 +82,11 @@
         .tab-content.active { display: flex; }
         
         .content-home {
-            justify-content: flex-start;
-            gap: 15px;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            background-image: linear-gradient(rgba(33, 43, 61, 0.7), rgba(33, 43, 61, 0.95)), url('https://githubusercontent.com');
+            background-size: 45%; background-repeat: no-repeat; background-position: center 40%;
         }
         .grid-vakken { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 15px; }
         .box-vak { background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; border-top: 4px solid var(--rr-orange); }
@@ -101,14 +104,14 @@
         .assign-item.today { border-left-color: var(--rr-green); }
         .assign-tag { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; }
 
-        /* Intégration du dossier Drive */
-        .drive-frame {
-            width: 100%;
-            height: calc(100% - 90px);
-            border: 2px solid rgba(255,255,255,0.1);
-            border-radius: 12px;
-            background: rgba(0,0,0,0.2);
+        /* Le gros bouton d'album */
+        .photo-hub-btn {
+            background-color: var(--rr-orange); color: white; text-decoration: none;
+            font-family: 'Fredoka One', cursive; font-size: 20px; padding: 15px 35px;
+            border-radius: 30px; border-bottom: 4px solid #C46200; box-shadow: 0 8px 20px rgba(255,127,0,0.3);
+            transition: transform 0.1s; display: inline-block; margin-top: 150px;
         }
+        .photo-hub-btn:active { transform: translateY(2px); border-bottom-width: 2px; }
     </style>
 </head>
 <body>
@@ -147,23 +150,19 @@
             </div>
         </div>
 
-        <!-- CENTRE : LE FIL PHOTO SYNCHRONISÉ -->
+        <!-- CENTRE : LE FIL PHOTO CORRIGÉ -->
         <div class="panel panel-center">
             <div id="tab-home" class="tab-content content-home active">
-                <div style="background: rgba(0,0,0,0.4); border-radius: 12px; padding: 15px; border-left: 4px solid var(--rr-orange); display: flex; justify-content: space-between; align-items: center; width: calc(100% - 30px);">
-                    <div>
-                        <h2 style="margin:0; font-family:'Fredoka One'; color:var(--rr-orange);">RecNet // Photo Feed</h2>
-                        <p style="margin:5px 0 0 0; font-size:13px; color:var(--rr-text-muted);">Vos clichés de dortoirs synchronisés en direct.</p>
-                    </div>
-                    <a href="https://discord.gg" target="_blank" style="background: var(--rr-orange); color: white; text-decoration: none; font-family: 'Fredoka One', cursive; font-size: 14px; padding: 8px 16px; border-radius: 20px; border-bottom: 3px solid #C46200;">Discord</a>
+                <div style="background: rgba(0,0,0,0.5); border-radius: 12px; padding: 15px; border-left: 4px solid var(--rr-orange); width: calc(100% - 30px); text-align: center;">
+                    <h2 style="margin:0; font-family:'Fredoka One'; color:var(--rr-orange);">RecNet // Photo Hub</h2>
+                    <p style="margin:5px 0 0 0; font-size:14px; color:var(--rr-text-muted);">Cliquez sur le bouton ci-dessous pour ouvrir l'album synchronisé de vos photos Rec Room.</p>
                 </div>
                 
-                <!-- La liseuse Google Drive incrustée en direct -->
-                <iframe src="https://google.com" class="drive-frame" allow="autoplay"></iframe>
+                <!-- Le bouton d'accès direct qui contourne l'erreur Firefox -->
+                <a href="https://google.com" target="_blank" class="photo-hub-btn">🖼️ ACCÉDER AUX PHOTOS</a>
             </div>
 
             <div id="tab-vakken" class="tab-content">
                 <h2 style="font-family:'Fredoka One'; color:var(--rr-orange); margin-top:0;">Vos Modules de Modding (Vakken)</h2>
                 <div class="grid-vakken">
                     <div class="box-vak"><h3>🎮 Configuration Jeu</h3><p style="font-size:13px; color:var(--rr-text-muted);">Paramétrage des builds de la version 2021.</p></div>
-                    <div class="box-vak"><h3>🛠️ Maker Pen Master</h3><p style="font-size:13px; color:var(--rr-text-muted);">Outils pour forcer l'inventaire au maximum.</p></div>
