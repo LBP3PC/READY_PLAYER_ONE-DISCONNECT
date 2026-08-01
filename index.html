@@ -3,6 +3,219 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project RecNet Hub // LBP3PC Profile</title>
+    <style>
+        :root {
+            --rn-bg: #1e1e1e;
+            --rn-nav-bg: #151515;
+            --rn-orange: #ff7f00;
+            --rn-panel-bg: #252525;
+            --rn-btn-orange: #ff6b3d;
+            --text-white: #ffffff;
+            --text-muted: #aaaaaa;
+            --rr-green: #00CC66;
+        }
+
+        @import url('https://googleapis.com');
+
+        body {
+            background-color: var(--rn-bg);
+            color: var(--text-white);
+            font-family: 'Nunito', sans-serif;
+            margin: 0; padding: 0;
+        }
+
+        .top-navbar {
+            background-color: var(--rn-nav-bg);
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            border-bottom: 1px solid #2d2d2d;
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+        }
+        .logo-area { font-size: 20px; font-weight: 900; color: var(--rn-orange); text-decoration: none; }
+
+        .app-layout {
+            padding-top: 50px;
+            max-width: 1100px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .profile-banner {
+            width: 100%;
+            height: 200px;
+            background-image: url('./DormRoom-2026-7-30-3-56-58.jpg');
+            background-size: cover;
+            background-position: center;
+            border-bottom: 4px solid var(--rn-orange);
+            border-radius: 0 0 12px 12px;
+        }
+
+        .main-content {
+            display: flex;
+            gap: 20px;
+            padding: 20px 0;
+        }
+
+        .sidebar {
+            width: 300px;
+            flex-shrink: 0;
+            text-align: center;
+        }
+
+        .pfp-container {
+            margin-top: -60px;
+            margin-bottom: 15px;
+        }
+
+        .pfp-circle {
+            width: 120px; height: 120px;
+            border-radius: 50%;
+            border: 6px solid var(--rn-bg);
+            background-color: #ff3b30;
+            display: inline-block;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+        }
+        .pfp-circle img { width: 100%; height: 100%; object-fit: cover; }
+
+        .user-name { font-size: 24px; font-weight: 900; margin: 5px 0; }
+        .user-tag { color: var(--text-muted); font-size: 14px; margin-bottom: 15px; }
+
+        .btn-orange {
+            background-color: var(--rn-btn-orange); color: white; border: none;
+            padding: 10px 20px; border-radius: 6px; font-weight: 900; width: 100%;
+            cursor: pointer; text-transform: uppercase; margin-bottom: 15px;
+        }
+
+        .monitor-box {
+            background-color: var(--rn-panel-bg);
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: left;
+        }
+
+        .monitor-title { font-family: 'Fredoka One', cursive; color: var(--rn-orange); margin-bottom: 10px; font-size: 14px; }
+        .status-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; font-weight: bold; }
+
+        .feed-area {
+            flex-grow: 1;
+        }
+
+        .tabs-header {
+            background-color: var(--rn-panel-bg);
+            border: 1px solid #333;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-around;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        .tab-active { color: var(--rn-orange); border-bottom: 2px solid var(--rn-orange); }
+
+        .photos-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        .photo-card {
+            background-color: #151515;
+            border: 1px solid #2d2d2d;
+            border-radius: 6px;
+            aspect-ratio: 16 / 10;
+            overflow: hidden;
+        }
+        .photo-card img { width: 100%; height: 100%; object-fit: cover; }
+    </style>
+</head>
+<body>
+
+    <!-- 👑 BARRE DU HAUT AVEC BOUTON DISCORD -->
+    <nav class="top-navbar">
+        <a class="logo-area" href="#">🟧 PROJECT RECNET HUB</a>
+        <a href="https://discord.gg" target="_blank" style="background-color: #5865F2; color: white; text-decoration: none; padding: 6px 14px; border-radius: 20px; font-weight: 900; font-size: 12px; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(88,101,242,0.3);">
+            REJOINDRE LE DISCORD
+        </a>
+    </nav>
+
+    <div class="app-layout">
+        <div class="profile-banner"></div>
+
+        <div class="main-content">
+            <!-- 👤 BLOC PROFIL (UN SEUL EXEMPLAIRE) -->
+            <div class="sidebar">
+                <div class="pfp-container">
+                    <div class="pfp-circle"><img src="./DormRoom-2026-7-30-1-16-32.jpg"></div>
+                </div>
+                <div class="user-name">LBP3PC</div>
+                <div class="user-tag">@LBP3PC</div>
+                <button class="btn-orange">SUBSCRIBE 5.9M</button>
+
+                <div class="monitor-box">
+                    <div class="monitor-title">📡 Rec.js Engine 2019</div>
+                    <div class="status-row"><span>Statut IP</span><span id="srvStatus" style="color:#ff7f00;">SCAN LOCAL 🕒</span></div>
+                    <div class="status-row"><span>Machine</span><span>localhost</span></div>
+                    <div class="status-row"><span>Port</span><span>2056</span></div>
+                </div>
+            </div>
+
+            <!-- 📷 GRILLE DE PHOTOS UNIQUE -->
+            <div class="feed-area">
+                <div class="tabs-header">
+                    <div>🏠 Rooms Saved (2)</div>
+                    <div class="tab-active">📷 Photos (13)</div>
+                    <div>🤝 Friends</div>
+                </div>
+
+                <div class="photos-grid">
+                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-44-53.jpg"></div>
+                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-44-59.jpg"></div>
+                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-45-53.jpg"></div>
+                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-46-18.jpg"></div>
+                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-49-21.jpg"></div>
+                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-52-24.jpg"></div>
+                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-53-0.jpg"></div>
+                    <div class="photo-card"><img src="./DormRoom-2026-7-29-4-2-47.jpg"></div>
+                    <div class="photo-card"><img src="./DormRoom-2026-7-29-4-3-59.jpg"></div>
+                    <div class="photo-card"><img src="./DormRoom-2026-7-29-4-6-13.jpg"></div>
+                    <div class="photo-card"><img src="./DormRoom-2026-7-30-1-16-32.jpg"></div>
+                    <div class="photo-card"><img src="./DormRoom-2026-7-30-1-20-12.jpg"></div>
+                    <div class="photo-card"><img src="./DormRoom-2026-7-30-3-56-58.jpg"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function checkServer() {
+            try {
+                const res = await fetch('http://localhost:2056/api/versioncheck');
+                if (res.ok) {
+                    document.getElementById('srvStatus').innerText = "CONNECTÉ ✅";
+                    document.getElementById('srvStatus').style.color = "#00CC66";
+                } else {
+                    document.getElementById('srvStatus').innerText = "SCAN LOCAL 🕒";
+                    document.getElementById('srvStatus').style.color = "#ff7f00";
+                }
+            } catch (e) {
+                document.getElementById('srvStatus').innerText = "SCAN LOCAL 🕒";
+                document.getElementById('srvStatus').style.color = "#ff7f00";
+            }
+        }
+        setInterval(checkServer, 2000);
+    </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project RecNet Hub // LBP3PC 2019 Profile</title>
     <style>
         :root {
