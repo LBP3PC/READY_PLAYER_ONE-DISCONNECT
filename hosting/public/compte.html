@@ -34,6 +34,14 @@
           <button class="btn" type="submit">Créer mon compte</button>
           <p class="note">Aucune adresse email n’est demandée. Les nouveaux comptes sont membres.</p>
         </form>
+        <form class="card" id="reset-request">
+          <h2>Mot de passe oublié ?</h2>
+          <p class="note">Un compte créé avec un pseudo n’a pas d’adresse email réelle : le lien automatique de récupération ne peut pas aboutir. Envoyez une demande, un administrateur réinitialisera votre mot de passe.</p>
+          <label>Votre pseudo<input id="reset-pseudo" required minlength="3" maxlength="20" pattern="[A-Za-z0-9_][A-Za-z0-9_\-]{2,19}" spellcheck="false" autocomplete="username"></label>
+          <label>Adresse email de contact (facultatif)<input id="reset-email" type="email" maxlength="254" placeholder="prenom@exemple.com" spellcheck="false"></label>
+          <label>Message (facultatif)<input id="reset-message" maxlength="200"></label>
+          <button class="btn" type="submit">Envoyer ma demande</button>
+        </form>
       </div>
     </section>
 
@@ -128,6 +136,10 @@
             <p class="note">Attribuer ou retirer les droits administrateur. Le dernier administrateur est protégé. Liste limitée aux 100 comptes les plus récents.</p>
             <button class="btn ghost" id="admin-refresh" type="button">Charger les comptes</button>
             <div id="admin-users"></div>
+            <h3 class="sub">Demandes de réinitialisation</h3>
+            <p class="note">Après avoir coché « Traité », réinitialisez le mot de passe du membre dans Supabase (Authentication → Users).</p>
+            <button class="btn ghost" id="reset-refresh" type="button">Charger les demandes</button>
+            <div id="reset-list"></div>
           </section>
         </div>
       </div>

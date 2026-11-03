@@ -274,6 +274,46 @@
   byId('music').addEventListener('change', () => { savePref('recblue.musicOff', String(!byId('music').checked)); say(byId('music').checked ? 'Musique activée sur ce navigateur.' : 'Musique désactivée sur ce navigateur.'); });
   byId('pings').addEventListener('change', () => { savePref('recblue.updatePings', String(byId('pings').checked)); say('Préférence de notifications enregistrée.'); });
 
+  byId('reset-request').addEventListener('submit', event => {
+    event.preventDefault();
+    guard(event.submitter, async () => {
+      const pseudo = byId('reset-pseudo').value.trim().toLowerCase();
+      const email = byId('reset-email').value.trim().toLowerCase();
+      const message = byId('reset-message').value.trim();
+      if (!PSEUDO_PATTERN.test(pseudo)) throw new Error('Pseudo invalide : 3 à 20 lettres, chiffres, tiret ou souligné.');
+      if (email && !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(email)) throw new Error('Adresse email de contact invalide.');
+      const { error } = await client.from('recblue_reset_requests').insert({ pseudo, contact_email: email || null, message: message || null });
+      if (error) throw new Error('Demande non envoyée : ' + (error.message || 'réessayez plus tard.'));
+      byId('reset-request').reset();
+      say('Demande envoyée : un administrateur réinitialisera votre mot de passe.');
+    });
+  });
+  async function loadResetRequests() {
+    const { data, error } = await client.from('recblue_reset_requests').select('id,pseudo,contact_email,message,created_at').eq('status', 'nouveau').order('created_at', { ascending: true }).limit(50);
+    if (error) throw error;
+    const list = byId('reset-list');
+    if (!data.length) { list.textContent = 'Aucune demande en attente.'; return; }
+    const fragment = document.createDocumentFragment();
+    data.forEach(request => {
+      const row = document.createElement('div'); row.className = 'user';
+      const info = document.createElement('span');
+      const meta = document.createElement('small');
+      info.textContent = request.pseudo;
+      meta.textContent = (request.contact_email || 'sans email') + ' · ' + formatDate(request.created_at) + (request.message ? ' · ' + request.message : '');
+      info.append(meta);
+      const done = document.createElement('button');
+      done.type = 'button'; done.className = 'btn ghost'; done.textContent = 'Traité';
+      done.addEventListener('click', () => guard(done, async () => {
+        const { error: updateError } = await client.from('recblue_reset_requests').update({ status: 'traite' }).eq('id', request.id);
+        if (updateError) throw new Error('Mise à jour impossible.');
+        say('Demande marquée comme traitée : réinitialisez le mot de passe dans Supabase.');
+        await loadResetRequests();
+      }));
+      row.append(info, done); fragment.append(row);
+    });
+    list.replaceChildren(fragment);
+  }
+  byId('reset-refresh').addEventListener('click', () => guard(byId('reset-refresh'), loadResetRequests));
   byId('mfa-alert-go').addEventListener('click', () => {
     byId('mfa-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
     byId('totp-start').focus();
