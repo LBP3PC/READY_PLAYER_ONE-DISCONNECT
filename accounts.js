@@ -138,6 +138,22 @@
     });
     byId('account-users').replaceChildren(fragment);
   }
+  const creditsForm = byId('admin-credits');
+  if (creditsForm) creditsForm.addEventListener('submit', event => {
+    event.preventDefault();
+    run(byId('admin-credits-submit'), async () => {
+      if (!profile || profile.role !== 'admin') throw new Error('Accès administrateur requis.');
+      const target = byId('admin-credits-target').value.trim();
+      const amount = Number(byId('admin-credits-amount').value);
+      if (!target) throw new Error('Indiquez un pseudo ou une adresse email.');
+      if (!Number.isInteger(amount) || amount < 1) throw new Error('Indiquez un nombre de crédits entier, au moins 1.');
+      const { data, error } = await client.rpc('recblue_grant_credits', { p_identifier: target, p_amount: amount });
+      if (error) throw error;
+      announce('Crédits ajoutés à ' + target + ' : nouveau solde ' + Number(data).toLocaleString('fr-FR') + '.');
+      byId('admin-credits-amount').value = '';
+      await refreshAccount();
+    });
+  });
   async function init() {
     if (!config?.supabaseUrl || !config?.publishableKey) return;
     try {
