@@ -52,3 +52,10 @@ code { font-family:ui-monospace,Consolas,monospace; background:#101012; border:1
 .mfa-alert p { margin:0 0 12px; font-size:13px; color:#f0e2c4; }
 body.mfa-required .stack > .card:not(#mfa-card) { opacity:.45; pointer-events:none; filter:grayscale(.35); }
 @media (max-width:760px) { .layout { grid-template-columns:1fr; } }
+
+.credits-balance { display:flex; align-items:baseline; gap:8px; margin:6px 0 4px; }
+.credits-balance strong { font-size:38px; line-height:1; color:#8fdcff; }
+.credits-balance span { font-size:13px; letter-spacing:1px; text-transform:uppercase; color:#9aa7c7; }
+.countdown { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; margin:8px 0 0; padding:10px 12px; border-radius:10px; background:rgba(8,16,40,.75); border:1px solid rgba(126,200,255,.3); }
+.countdown em { font-style:normal; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#9fb6d8; }
+.countdown-value { font-size:15px; color:#9ed6ff; }

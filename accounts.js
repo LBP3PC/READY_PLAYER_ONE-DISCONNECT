@@ -58,6 +58,8 @@
     byId('account-email').textContent = '';
     byId('account-role').textContent = '';
     byId('account-name').value = '';
+    const navCredits = byId('nav-credits');
+    if (navCredits) { navCredits.hidden = true; navCredits.textContent = ''; }
   }
   async function refreshAccount() {
     const current = ++revision;
@@ -74,11 +76,17 @@
     byId('account-profile').hidden = false;
     const pseudo = pseudoFromEmail(data.user.email);
     byId('account-email').textContent = pseudo ? '@' + pseudo : (data.user.email || '');
-    const result = await client.from('recblue_accounts').select('id,display_name,role,avatar_url').eq('id', data.user.id).single();
+    const result = await client.from('recblue_accounts').select('id,display_name,role,avatar_url,credits').eq('id', data.user.id).single();
     if (current !== revision) return;
     if (result.error) { announce('Profil inaccessible. Vérifiez la configuration SQL et réessayez.'); return; }
     profile = result.data;
     setNavLabel('@' + (pseudo || profile.display_name), profile.avatar_url);
+    const creditsBadge = byId('nav-credits');
+    if (creditsBadge) {
+      const total = Number(profile.credits) || 0;
+      creditsBadge.textContent = total.toLocaleString('fr-FR') + (total === 1 ? ' crédit' : ' crédits');
+      creditsBadge.hidden = false;
+    }
     byId('account-name').value = profile.display_name;
     byId('account-role').textContent = labels[profile.role] || 'Droit inconnu';
     byId('account-admin').hidden = profile.role !== 'admin';

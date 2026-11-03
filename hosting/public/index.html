@@ -331,9 +331,11 @@
     .shop-offer .shop-bucket { width:64px; }
     .shop-offer-tag { position:absolute; left:34px; bottom:16px; padding:1px 5px; border-radius:4px; background:#f2811f; color:#fff; font-size:9px; font-weight:800; }
     .news-art { position:relative; }
-    .news-countdown { position:absolute; left:0; right:0; bottom:0; display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:3px 8px; padding:8px 10px 7px; background:linear-gradient(to top,rgba(4,8,24,.9),rgba(4,8,24,.35)); color:#e9f1ff; font-size:10.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; text-align:center; }
+    .news-countdown { position:absolute; left:0; right:0; bottom:0; display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:3px 8px; padding:10px 10px 9px; background:linear-gradient(to top,rgba(3,7,22,.97),rgba(3,7,22,.78)); border-top:1px solid rgba(126,200,255,.35); color:#e9f1ff; font-size:10.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; text-align:center; }
     .news-countdown-label { font-style:normal; opacity:.85; }
     .news-countdown-value { font-size:12.5px; letter-spacing:.4px; color:#9ed6ff; }
+    .nav-credits { display:inline-flex; align-items:center; gap:6px; padding:5px 11px; border-radius:999px; background:rgba(88,214,255,.12); border:1px solid rgba(88,214,255,.38); color:#bde9ff; font-size:12px; font-weight:700; letter-spacing:.3px; white-space:nowrap; }
+    .nav-credits[hidden] { display:none; }
   </style>
 </head>
 <body id="accueil">
@@ -352,6 +354,7 @@
         <a class="nav-control icon-button" href="#parametres" data-dialog="parametres" aria-label="Paramètres"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 3-1 3-3 1 1 3-2 2 2 2-1 3 3 1 1 3h6l1-3 3-1-1-3 2-2-2-2 1-3-3-1-1-3z"/><circle cx="12" cy="12" r="3"/></svg></a>
         <a class="nav-control icon-button" href="#recherche" data-dialog="recherche" aria-label="Rechercher"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></svg></a>
         <button class="nav-control music-toggle" id="music-toggle" type="button" aria-pressed="false" aria-label="Activer la musique" hidden>♪</button>
+        <span class="nav-credits" id="nav-credits" hidden>0 crédit</span>
         <a class="nav-control account-pill" href="#connexion" data-dialog="connexion"><span class="account-bubble" id="nav-avatar" aria-hidden="true" hidden></span><span id="nav-account-label" data-i18n="login">Se connecter</span></a>
         <a class="button nav-cta" href="#telecharger" data-dialog="telecharger" data-i18n="download">Télécharger</a>
       </div>
@@ -652,6 +655,7 @@
   <audio id="site-music" src="music.mp3?v=2" loop preload="metadata"></audio>
   <script src="music.js" defer></script>
   <script src="notice.js" defer></script>
-  <script src="news-carousel.js?v=2" defer></script>
+  <script src="news-carousel.js?v=3" defer></script>
+  <script src="countdown.js?v=1" defer></script>
 </body>
 </html>

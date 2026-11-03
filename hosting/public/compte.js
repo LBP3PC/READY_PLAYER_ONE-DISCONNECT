@@ -139,7 +139,7 @@
       showGate();
       return;
     }
-    const result = await client.from('recblue_accounts').select('id,display_name,role,created_at,avatar_url,contact_email').eq('id', user.id).single();
+    const result = await client.from('recblue_accounts').select('id,display_name,role,created_at,avatar_url,contact_email,credits').eq('id', user.id).single();
     if (current !== revision) return;
     if (result.error) { showGuest(); say('Profil inaccessible. Vérifiez la configuration SQL.'); return; }
     profile = result.data;
@@ -148,6 +148,8 @@
     byId('member').hidden = false;
     applyAvatar();
     byId('side-name').textContent = profile.display_name;
+    const solde = byId('credits-balance');
+    if (solde) solde.textContent = (Number(profile.credits) || 0).toLocaleString('fr-FR');
     byId('side-login').textContent = pseudo ? '@' + pseudo : (user.email || '—');
     const role = byId('side-role');
     role.textContent = labels[profile.role] || 'Droit inconnu';

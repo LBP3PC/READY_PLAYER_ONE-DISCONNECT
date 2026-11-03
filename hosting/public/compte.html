@@ -82,6 +82,14 @@
         </aside>
         <div class="stack">
           <section class="card">
+          <section class="card" id="credits-card">
+            <h2>Mes crédits</h2>
+            <p class="credits-balance"><strong id="credits-balance">—</strong><span>crédits</span></p>
+            <p class="note">Votre solde de crédits REC BLUE. Les achats ne sont pas encore activés : le solde est géré par l’équipe.</p>
+            <h3 class="sub">Sortie du jeu</h3>
+            <p class="countdown" data-countdown="2027-03-02T00:00:00+01:00" role="timer" aria-label="Temps restant avant la sortie"><em>Sortie dans</em><strong class="countdown-value">…</strong></p>
+          </section>
+
             <h2>Profil</h2>
             <form id="profile">
               <label>Mon pseudo affiché<input id="name" required minlength="2" maxlength="40" autocomplete="nickname"></label>
@@ -147,6 +155,7 @@
   </main>
   <script src="account-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.js" integrity="sha384-3wY11tldQ5+yWqAvmTN4XtQvnjoTva0cV15O/O/O5NTtp0ivVopSzLOzsVXWZse9" crossorigin="anonymous" defer></script>
+  <script src="countdown.js?v=1" defer></script>
   <script src="compte.js" defer></script>
 </body>
 </html>
