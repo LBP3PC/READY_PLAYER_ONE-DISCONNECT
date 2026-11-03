@@ -64,6 +64,10 @@
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
   };
+  const isLifetime = value => {
+    const date = new Date(value);
+    return !Number.isNaN(date.getTime()) && date.getUTCFullYear() >= 9000;
+  };
   async function guard(button, action) {
     if (button) button.disabled = true;
     try { await action(); } catch (error) { say(error.message || 'Action impossible. Réessayez.'); }
@@ -168,7 +172,7 @@
     const plusBadge = byId('side-plus');
     if (plusBadge) {
       plusBadge.hidden = !plus;
-      if (plus) plusBadge.textContent = 'REC BLUE Plus · ' + formatDate(profile.plus_until);
+      if (plus) plusBadge.textContent = isLifetime(profile.plus_until) ? 'REC BLUE Plus · à vie' : 'REC BLUE Plus · ' + formatDate(profile.plus_until);
     }
     byId('side-created').textContent = formatDate(profile.created_at);
     byId('side-id').textContent = String(user.id).slice(0, 8) + '…';
