@@ -72,7 +72,7 @@
     if (!config?.supabaseUrl || !config?.publishableKey) return;
     try {
       const url = new URL(config.supabaseUrl);
-      if (url.protocol !== 'https:' || !config.publishableKey.startsWith('sb_publishable_')) throw new Error('Utilisez une URL HTTPS Supabase et sa clé publique sb_publishable_. Aucune clé secrète.');
+      if (url.protocol !== 'https:' || !/^[a-z0-9-]+\.supabase\.co$/i.test(url.hostname) || url.username || url.password || url.port || url.pathname !== '/' || url.search || url.hash || !config.publishableKey.startsWith('sb_publishable_')) throw new Error('Utilisez une URL HTTPS Supabase et sa clé publique sb_publishable_. Aucune clé secrète.');
       if (!window.supabase?.createClient) throw new Error('Impossible de charger le service de comptes.');
       // Sessions en mémoire uniquement : aucun jeton dans localStorage.
       client = window.supabase.createClient(url.href, config.publishableKey, {
@@ -92,8 +92,10 @@
   byId('account-login').addEventListener('submit', event => {
     event.preventDefault();
     run(byId('login-submit'), async () => {
-      const { error } = await client.auth.signInWithPassword({ email: byId('login-email').value.trim(), password: byId('login-password').value });
+      const email = byId('login-email').value.trim();
+      const password = byId('login-password').value;
       byId('login-password').value = '';
+      const { error } = await client.auth.signInWithPassword({ email, password });
       if (error) throw new Error('Connexion refusée. Vérifiez vos identifiants et la confirmation de votre email.');
       announce('Connexion réussie.'); await refreshAccount();
     });
@@ -101,8 +103,10 @@
   byId('account-signup').addEventListener('submit', event => {
     event.preventDefault();
     run(byId('signup-submit'), async () => {
-      const { data, error } = await client.auth.signUp({ email: byId('signup-email').value.trim(), password: byId('signup-password').value });
+      const email = byId('signup-email').value.trim();
+      const password = byId('signup-password').value;
       byId('signup-password').value = '';
+      const { data, error } = await client.auth.signUp({ email, password });
       if (error) throw new Error('Inscription impossible. Vérifiez votre email et les règles du mot de passe, puis réessayez.');
       announce(data.session ? 'Compte créé avec le rôle membre.' : 'Si cette adresse peut être inscrite, vous recevrez un email de confirmation.');
       await refreshAccount();

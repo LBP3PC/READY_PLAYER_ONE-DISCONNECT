@@ -41,10 +41,15 @@ insert into public.recblue_accounts(id) select id from auth.users on conflict (i
 create function private.recblue_set_role(target_id uuid, new_role text) returns void
 language plpgsql security definer set search_path = '' as $$
 begin
-  -- Sérialise les changements : deux admins ne peuvent supprimer simultanément
-  -- le dernier administrateur. La vérification consulte le rôle actuel en base.
-  lock table public.recblue_accounts in share row exclusive mode;
+  -- Rejeter les non-administrateurs AVANT de verrouiller la table, afin qu'un
+  -- membre ne puisse pas bloquer les opérations sur les comptes par cette RPC.
   if auth.uid() is null or not private.recblue_is_admin() then
+    raise exception 'Accès administrateur requis' using errcode = '42501';
+  end if;
+  -- Sérialiser les modifications puis revérifier le rôle : il a pu changer
+  -- pendant l'attente du verrou. Protège aussi le dernier administrateur.
+  lock table public.recblue_accounts in share row exclusive mode;
+  if not private.recblue_is_admin() then
     raise exception 'Accès administrateur requis' using errcode = '42501';
   end if;
   if new_role is null or new_role not in ('member', 'admin') then
