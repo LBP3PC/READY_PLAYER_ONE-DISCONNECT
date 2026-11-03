@@ -2,11 +2,27 @@
   const byId = id => document.getElementById(id);
   const message = byId('account-message');
   const config = window.RECBLUE_ACCOUNTS;
+  // Supabase a besoin d'un identifiant de type email. Les comptes créés avec un
+  // pseudo reçoivent une adresse technique réservée (.invalid, jamais délivrable).
+  const PSEUDO_DOMAIN = 'players.recblue.invalid';
+  const PSEUDO_PATTERN = /^[a-z0-9_][a-z0-9_-]{2,19}$/;
   let client;
   let profile = null;
   let revision = 0;
   const announce = text => { message.textContent = text; };
   const labels = { member: 'Membre', admin: 'Administrateur' };
+  const normalizePseudo = value => String(value || '').trim().toLowerCase();
+  const pseudoEmail = pseudo => pseudo + '@' + PSEUDO_DOMAIN;
+  const pseudoFromEmail = email => {
+    const value = String(email || '').toLowerCase();
+    const suffix = '@' + PSEUDO_DOMAIN;
+    return value.endsWith(suffix) ? value.slice(0, -suffix.length) : '';
+  };
+  function checkPseudo(value) {
+    const pseudo = normalizePseudo(value);
+    if (!PSEUDO_PATTERN.test(pseudo)) throw new Error('Pseudo invalide : 3 à 20 lettres, chiffres, tiret ou souligné.');
+    return pseudo;
+  }
   function clearPrivateUI() {
     profile = null;
     byId('account-profile').hidden = true;
@@ -28,7 +44,8 @@
     }
     byId('account-guest').hidden = true;
     byId('account-profile').hidden = false;
-    byId('account-email').textContent = data.user.email || '';
+    const pseudo = pseudoFromEmail(data.user.email);
+    byId('account-email').textContent = pseudo ? '@' + pseudo : (data.user.email || '');
     const result = await client.from('recblue_accounts').select('id,display_name,role').eq('id', data.user.id).single();
     if (current !== revision) return;
     if (result.error) { announce('Profil inaccessible. Vérifiez la configuration SQL et réessayez.'); return; }
@@ -92,23 +109,31 @@
   byId('account-login').addEventListener('submit', event => {
     event.preventDefault();
     run(byId('login-submit'), async () => {
-      const email = byId('login-email').value.trim();
+      const identifier = byId('login-identifier').value;
       const password = byId('login-password').value;
       byId('login-password').value = '';
+      // Un « @ » indique un ancien compte inscrit avec une adresse email.
+      const email = identifier.includes('@') ? identifier.trim() : pseudoEmail(checkPseudo(identifier));
       const { error } = await client.auth.signInWithPassword({ email, password });
-      if (error) throw new Error('Connexion refusée. Vérifiez vos identifiants et la confirmation de votre email.');
+      if (error) throw new Error('Connexion refusée. Vérifiez votre pseudo (ou email) et votre mot de passe.');
       announce('Connexion réussie.'); await refreshAccount();
     });
   });
   byId('account-signup').addEventListener('submit', event => {
     event.preventDefault();
     run(byId('signup-submit'), async () => {
-      const email = byId('signup-email').value.trim();
+      const pseudo = checkPseudo(byId('signup-pseudo').value);
       const password = byId('signup-password').value;
       byId('signup-password').value = '';
-      const { data, error } = await client.auth.signUp({ email, password });
-      if (error) throw new Error('Inscription impossible. Vérifiez votre email et les règles du mot de passe, puis réessayez.');
-      announce(data.session ? 'Compte créé avec le rôle membre.' : 'Si cette adresse peut être inscrite, vous recevrez un email de confirmation.');
+      const { data, error } = await client.auth.signUp({ email: pseudoEmail(pseudo), password });
+      if (error) {
+        if (error.code === 'user_already_exists' || /already/i.test(error.message || '')) throw new Error('Ce pseudo est déjà pris. Choisissez-en un autre.');
+        throw new Error('Inscription impossible. Vérifiez le mot de passe et réessayez.');
+      }
+      if (!data.session) throw new Error('Inscription non activée côté service : la confirmation email de Supabase doit être désactivée (Authentication, Sign In / Providers, Email).');
+      const { error: nameError } = await client.from('recblue_accounts')
+        .update({ display_name: pseudo }).eq('id', data.user.id).select('id').single();
+      announce(nameError ? 'Compte créé : vous êtes connecté, modifiez votre pseudo dans votre profil.' : 'Compte créé avec le rôle membre : vous êtes connecté.');
       await refreshAccount();
     });
   });
