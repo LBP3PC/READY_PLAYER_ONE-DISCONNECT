@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="compte.css">
 </head>
 <body>
+  <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute;left:-9999px;top:0"><symbol id="recblue-plus" viewBox="0 0 48 48"><defs><linearGradient id="plus-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffb648"/><stop offset="1" stop-color="#de7a0b"/></linearGradient></defs><rect x="2" y="2" width="44" height="44" rx="12" fill="url(#plus-gold)" stroke="#ffd27a" stroke-width="2"/><rect x="6" y="6" width="36" height="36" rx="9" fill="none" stroke="#ffe6b0" stroke-width="1.4" opacity=".7"/><text x="9" y="34" font-family="Futura,'Trebuchet MS',Arial,sans-serif" font-size="24" font-weight="800" fill="#ffd977">R</text><text x="21" y="34" font-family="Futura,'Trebuchet MS',Arial,sans-serif" font-size="24" font-weight="800" fill="#ffcf6b">R</text><g fill="#fff2c8"><rect x="33" y="10" width="9" height="3.2" rx="1.6"/><rect x="35.9" y="7" width="3.2" height="9" rx="1.6"/></g><path d="M35 44l5-5" stroke="#7ef2ff" stroke-width="3" stroke-linecap="round"/></symbol></svg>
   <header class="bar">
     <a href="index.html"><img src="rec-blue-logo.png" alt="REC BLUE" width="693" height="180"></a>
     <a class="back" href="index.html">← Retour au site</a>
@@ -77,7 +78,7 @@
             <label class="btn ghost small" for="avatar-file">Changer ma photo</label>
             <button class="btn ghost small" id="avatar-remove" type="button">Retirer</button>
           </div>
-          <strong id="side-name">—</strong>
+          <strong><span id="side-name">—</span><span class="plus-mark-wrap" id="side-plus-mark" hidden><svg class="plus-mark" aria-hidden="true"><use href="#recblue-plus"/></svg></span></strong>
           <small id="side-login">—</small>
           <span class="badge" id="side-role">—</span>
           <span class="badge plus" id="side-plus" hidden>REC BLUE Plus</span>

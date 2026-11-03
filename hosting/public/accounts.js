@@ -22,6 +22,8 @@
     if (navLabel) {
       navLabel.textContent = label;
       navLabel.classList.toggle('plus-name', !signedOut && plus);
+      const navMark = byId('nav-plus');
+      if (navMark) navMark.hidden = signedOut || !plus;
       if (signedOut) { navLabel.setAttribute('data-i18n', 'login'); navLabel.removeAttribute('data-no-translate'); }
       else { navLabel.removeAttribute('data-i18n'); navLabel.setAttribute('data-no-translate', ''); }
     } else {

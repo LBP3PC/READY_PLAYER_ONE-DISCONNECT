@@ -162,6 +162,8 @@
     role.className = 'badge' + (profile.role === 'admin' ? ' admin' : '');
     const plus = !!profile.plus_until && new Date(profile.plus_until).getTime() > Date.now();
     byId('side-name').classList.toggle('plus-name', plus);
+    const sideMark = byId('side-plus-mark');
+    if (sideMark) sideMark.hidden = !plus;
     byId('side-login').classList.toggle('plus-name', plus);
     const plusBadge = byId('side-plus');
     if (plusBadge) {
