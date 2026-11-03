@@ -12,12 +12,30 @@
   const announce = text => { message.textContent = text; };
   const labels = { member: 'Membre', admin: 'Administrateur' };
   const navLink = document.querySelector('a.nav-control[href="#connexion"]');
-  const setNavLabel = label => {
+  const navLabel = byId('nav-account-label');
+  const navBubble = byId('nav-avatar');
+  const AVATAR = /^data:image\/(png|jpeg|webp);base64,/;
+  // Affiche l’identité du membre dans la barre : bulle de profil + @pseudo.
+  const setNavLabel = (label, avatar) => {
     if (!navLink) return;
-    navLink.textContent = label;
+    const signedOut = label === 'Se connecter';
+    if (navLabel) {
+      navLabel.textContent = label;
+      if (signedOut) { navLabel.setAttribute('data-i18n', 'login'); navLabel.removeAttribute('data-no-translate'); }
+      else { navLabel.removeAttribute('data-i18n'); navLabel.setAttribute('data-no-translate', ''); }
+    } else {
+      navLink.textContent = label;
+    }
     // Empêche le traducteur de remplacer le pseudo du joueur.
-    if (label === 'Se connecter') navLink.removeAttribute('data-no-translate');
+    if (signedOut) navLink.removeAttribute('data-no-translate');
     else navLink.setAttribute('data-no-translate', '');
+    if (navBubble) {
+      const photo = typeof avatar === 'string' && AVATAR.test(avatar);
+      navBubble.hidden = signedOut;
+      navBubble.classList.toggle('has-photo', photo);
+      navBubble.style.backgroundImage = photo ? 'url("' + avatar + '")' : '';
+      navBubble.textContent = signedOut || photo ? '' : label.replace(/^@/, '').trim().slice(0, 2).toUpperCase();
+    }
   };
   const normalizePseudo = value => String(value || '').trim().toLowerCase();
   const pseudoEmail = pseudo => pseudo + '@' + PSEUDO_DOMAIN;
@@ -56,11 +74,11 @@
     byId('account-profile').hidden = false;
     const pseudo = pseudoFromEmail(data.user.email);
     byId('account-email').textContent = pseudo ? '@' + pseudo : (data.user.email || '');
-    const result = await client.from('recblue_accounts').select('id,display_name,role').eq('id', data.user.id).single();
+    const result = await client.from('recblue_accounts').select('id,display_name,role,avatar_url').eq('id', data.user.id).single();
     if (current !== revision) return;
     if (result.error) { announce('Profil inaccessible. Vérifiez la configuration SQL et réessayez.'); return; }
     profile = result.data;
-    setNavLabel(pseudo ? '@' + pseudo : profile.display_name);
+    setNavLabel('@' + (pseudo || profile.display_name), profile.avatar_url);
     byId('account-name').value = profile.display_name;
     byId('account-role').textContent = labels[profile.role] || 'Droit inconnu';
     byId('account-admin').hidden = profile.role !== 'admin';

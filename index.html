@@ -150,6 +150,10 @@
     .nav-actions { margin-left:auto; display:flex; align-items:center; gap:24px; }
     .nav-control { background:none; border:0; color:var(--muted); font:inherit; font-size:14px; padding:8px 0; cursor:pointer; }
     .nav-control:hover { color:white; }
+    .account-pill { display:inline-flex; align-items:center; gap:8px; }
+    .account-bubble { display:grid; place-items:center; width:26px; height:26px; border-radius:50%; background:linear-gradient(140deg,#2445b8,#63efff); color:#08122e; font-size:11px; letter-spacing:.5px; background-size:cover; background-position:center; }
+    .account-bubble[hidden] { display:none; }
+    .account-bubble.has-photo { color:transparent; }
     .icon-button { display:grid; place-items:center; width:30px; height:34px; padding:4px; }
     .icon-button svg { width:20px; height:20px; }
     .nav-cta { border-radius:10px; padding:13px 23px; }
@@ -302,7 +306,7 @@
         <a class="nav-control icon-button" href="#parametres" data-dialog="parametres" aria-label="Paramètres"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 3-1 3-3 1 1 3-2 2 2 2-1 3 3 1 1 3h6l1-3 3-1-1-3 2-2-2-2 1-3-3-1-1-3z"/><circle cx="12" cy="12" r="3"/></svg></a>
         <a class="nav-control icon-button" href="#recherche" data-dialog="recherche" aria-label="Rechercher"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></svg></a>
         <button class="nav-control music-toggle" id="music-toggle" type="button" aria-pressed="false" aria-label="Activer la musique" hidden>♪</button>
-        <a class="nav-control" href="#connexion" data-dialog="connexion" data-i18n="login">Se connecter</a>
+        <a class="nav-control account-pill" href="#connexion" data-dialog="connexion"><span class="account-bubble" id="nav-avatar" aria-hidden="true" hidden></span><span id="nav-account-label" data-i18n="login">Se connecter</span></a>
         <a class="button nav-cta" href="#telecharger" data-dialog="telecharger" data-i18n="download">Télécharger</a>
       </div>
     </nav>
