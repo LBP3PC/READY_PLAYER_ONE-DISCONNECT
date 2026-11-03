@@ -1,1494 +1,550 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project RecNet Hub // LBP3PC Profile</title>
-    <style>
-        :root {
-            --rn-bg: #1e1e1e;
-            --rn-nav-bg: #151515;
-            --rn-orange: #ff7f00;
-            --rn-panel-bg: #252525;
-            --rn-btn-orange: #ff6b3d;
-            --text-white: #ffffff;
-            --text-muted: #aaaaaa;
-            --rr-green: #00CC66;
-        }
-
-        @import url('https://googleapis.com');
-
-        body {
-            background-color: var(--rn-bg);
-            color: var(--text-white);
-            font-family: 'Nunito', sans-serif;
-            margin: 0; padding: 0;
-        }
-
-        .top-navbar {
-            background-color: var(--rn-nav-bg);
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-            border-bottom: 1px solid #2d2d2d;
-            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-        }
-        .logo-area { font-size: 20px; font-weight: 900; color: var(--rn-orange); text-decoration: none; }
-
-        .app-layout {
-            padding-top: 70px;
-            max-width: 1100px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        .profile-banner {
-            width: 100%;
-            height: 220px;
-            background-image: url('./DormRoom-2026-7-30-3-56-58.jpg');
-            background-size: cover;
-            background-position: center;
-            border-bottom: 4px solid var(--rn-orange);
-            border-radius: 12px;
-        }
-
-        .main-content {
-            display: flex;
-            gap: 20px;
-            padding: 20px 0;
-        }
-
-        .sidebar {
-            width: 300px;
-            flex-shrink: 0;
-            text-align: center;
-        }
-
-        .pfp-circle {
-            width: 120px; height: 120px;
-            border-radius: 50%;
-            border: 6px solid var(--rn-bg);
-            background-color: #ff3b30;
-            display: inline-block;
-            overflow: hidden;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-            margin-top: -60px;
-            margin-bottom: 15px;
-        }
-        .pfp-circle img { width: 100%; height: 100%; object-fit: cover; }
-
-        .user-name { font-size: 24px; font-weight: 900; margin: 5px 0; }
-        .user-tag { color: var(--text-muted); font-size: 14px; margin-bottom: 15px; }
-
-        .btn-orange {
-            background-color: var(--rn-btn-orange); color: white; border: none;
-            padding: 10px 20px; border-radius: 6px; font-weight: 900; width: 100%;
-            cursor: pointer; text-transform: uppercase; margin-bottom: 15px;
-        }
-
-        .monitor-box {
-            background-color: var(--rn-panel-bg);
-            border: 1px solid #333;
-            border-radius: 10px;
-            padding: 15px;
-            text-align: left;
-        }
-
-        .monitor-title { font-family: 'Fredoka One', cursive; color: var(--rn-orange); margin-bottom: 10px; font-size: 14px; }
-        .status-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; font-weight: bold; }
-
-        .feed-area {
-            flex-grow: 1;
-        }
-
-        .tabs-header {
-            background-color: var(--rn-panel-bg);
-            border: 1px solid #333;
-            border-radius: 8px;
-            display: flex;
-            justify-content: space-around;
-            padding: 12px;
-            margin-bottom: 15px;
-            font-weight: bold;
-        }
-        .tab-active { color: var(--rn-orange); border-bottom: 2px solid var(--rn-orange); }
-
-        .photos-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-        }
-        .photo-card {
-            background-color: #151515;
-            border: 1px solid #2d2d2d;
-            border-radius: 6px;
-            aspect-ratio: 16 / 10;
-            overflow: hidden;
-        }
-        .photo-card img { width: 100%; height: 100%; object-fit: cover; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#004cff">
+  <meta name="description" content="REC BLUE : découvre nos salles, les photos de LBP3PC et rejoins la communauté.">
+  <title>REC BLUE | Bienvenue dans le jeu !</title>
+  <link rel="icon" type="image/svg+xml" href="rec-blue-icon.svg">
+  <style>
+    @font-face { font-family:"Futura Extra Bold"; src:url("futura-extra-bold.ttf") format("truetype"); font-weight:800; font-display:swap; }
+    :root { color-scheme: dark; --bg:#242424; --surface:#1b1b1d; --hover:#2a2a2e; --muted:#bdbdbd; --blue:#2445b8; --link:#a9c3ff; }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; scroll-padding-top:96px; }
+    body { margin:0; background:var(--bg); color:#fff; font-family:"Futura Extra Bold","Trebuchet MS",Arial,sans-serif; font-weight:800; line-height:1.5; }
+    a { color:inherit; text-decoration:none; }
+    button { font:inherit; }
+    a:focus-visible, button:focus-visible { outline:3px solid var(--link); outline-offset:5px; }
+    .topbar { position:sticky; top:0; z-index:10; background:#1b1b1df5; border-bottom:1px solid #ffffff08; }
+    .announcement { background:#896a2f; text-align:center; padding:5px 20px 7px; font-size:10px; line-height:1.4; }
+    .announcement strong { display:block; font-size:12px; }
+    .nav-inner { width:74%; max-width:1120px; min-height:62px; margin:auto; padding:10px 24px; display:flex; align-items:center; gap:24px; }
+    .brand { display:flex; align-items:center; gap:10px; font-size:22px; font-weight:900; letter-spacing:-1px; white-space:nowrap; }
+    .brand-mark { display:grid; place-items:center; width:36px; height:36px; background:var(--blue); border-radius:11px; color:white; font-size:26px; letter-spacing:-3px; padding-right:3px; transform:rotate(-7deg); }
+    .brand-blue { color:var(--link); }
+    .header-logo { display:block; width:180px; max-width:35vw; height:auto; flex-shrink:0; }
+    .nav-links { display:flex; align-items:center; gap:22px; margin-left:auto; font-size:12px; font-weight:800; }
+    .nav-links a { color:var(--muted); }
+    .nav-links a:hover, .nav-links a.active { color:white; }
+    .button { display:inline-flex; justify-content:center; align-items:center; gap:10px; background:var(--blue); color:white; border:0; border-radius:999px; padding:11px 23px; font-size:14px; font-weight:800; cursor:pointer; }
+    .button:hover { background:#294ec7; }
+    .menu-toggle { display:none; background:var(--hover); color:white; border:0; border-radius:10px; padding:8px 12px; cursor:pointer; }
+    .hero { position:relative; isolation:isolate; overflow:hidden; width:74%; max-width:1120px; min-height:448px; margin:20px auto 58px; padding:62px 24px; border-radius:16px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; background:radial-gradient(ellipse at 50% 15%,#3157dc 0%,#2948bc 55%,#1d2c89 100%); }
+    .hero::before { content:""; position:absolute; inset:-45%; z-index:-1; opacity:.2; pointer-events:none; transform:rotate(-24deg) translate3d(0,0,0); background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='%235beaff' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='20' y='20' width='58' height='58' rx='9'/%3E%3Cpath d='M33 37h32M41 37v13m16-13v13M34 58q15 17 30 0'/%3E%3C/g%3E%3C/svg%3E"); background-size:165px 165px; will-change:transform; animation:hero-pattern-drift 6s linear infinite; }
+    @keyframes hero-pattern-drift {
+      from { transform:rotate(-24deg) translate3d(0,0,0); }
+      to { transform:rotate(-24deg) translate3d(-165px,165px,0); }
+    }
+    .hero::after { content:""; position:absolute; inset:-20%; z-index:-1; pointer-events:none; background:radial-gradient(ellipse at 28% 35%,#45baff45,transparent 48%),radial-gradient(ellipse at 75% 65%,#395bff55,transparent 55%); animation:hero-light-drift 14s ease-in-out infinite alternate; }
+    @keyframes hero-light-drift {
+      from { transform:translate3d(-3%,-2%,0) scale(1); opacity:.65; }
+      to { transform:translate3d(3%,2%,0) scale(1.08); opacity:1; }
+    }
+    .eyebrow { text-transform:uppercase; letter-spacing:4px; font-size:12px; font-weight:800; color:#c7d7ff; margin:0 0 16px; }
+    .hero-wordmark { font-family:"Futura Extra Bold","Arial Black",sans-serif; font-weight:800; font-size:clamp(66px,8vw,112px); line-height:.83; letter-spacing:-5px; color:#0632c9; -webkit-text-stroke:clamp(3px,.45vw,6px) #fff; paint-order:stroke fill; text-shadow:0 4px 0 #77eaff,0 8px 0 #08267f,0 14px 24px #03154e80; margin:0 0 42px; transform:rotate(-2deg); }
+    .hero h1 { text-shadow:0 4px 0 #10266d,0 8px 20px #06114380; }
+    .logo-top { display:flex; align-items:center; justify-content:center; gap:8px; }
+    .logo-bottom { display:block; }
+    .hero-emblem { width:.88em; height:.88em; margin-left:4px; flex-shrink:0; filter:drop-shadow(0 4px 0 #63efff); }
+    .release-date { font-family:"Arial Black",Arial,sans-serif; font-size:clamp(35px,6.5vw,76px); font-weight:1000; letter-spacing:-2px; line-height:1.15; color:white; text-shadow:0 3px 0 #54eeff,0 6px 12px #002386; margin:0; }
+    .early-access { display:flex; align-items:center; justify-content:center; gap:20px; color:white; font-size:clamp(15px,2.6vw,29px); font-weight:900; letter-spacing:8px; margin:8px 0 24px; text-shadow:0 0 12px #65eaff; }
+    .early-access::before,.early-access::after { content:""; width:45px; height:5px; background:#51fff5; box-shadow:0 0 12px #51fff5; border-radius:3px; }
+    .hero h1 { font-size:clamp(25px,3vw,42px); margin:0; letter-spacing:-.5px; }
+    h1 { font-size:clamp(28px,4.2vw,54px); line-height:1.15; margin:0 0 16px; font-weight:900; letter-spacing:-1.5px; text-shadow:0 3px 12px #0005; }
+    .hero-description { color:#d8e3ff; font-size:17px; margin:0; }
+    .wrap { width:63%; max-width:960px; margin:auto; }
+    .highlights { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; padding-top:14px; }
+    .tile { overflow:hidden; background:var(--surface); border-radius:20px; transition:transform .18s,background .18s; }
+    .tile:hover { transform:translateY(-4px); background:var(--hover); }
+    .tile-image { aspect-ratio:16/9; overflow:hidden; position:relative; }
+    .tile-image::after { content:""; position:absolute; inset:0; background:linear-gradient(transparent,#0003); }
+    .tile img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .35s; }
+    .tile:hover img { transform:scale(1.05); }
+    .tile-label { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:12px 16px; font-size:13px; font-weight:900; }
+    .arrow { color:#aaa; font-size:22px; }
+    .quick-links { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; padding:18px 0 8px; }
+    .quick-link { display:flex; align-items:center; gap:14px; background:var(--surface); border-radius:20px; padding:17px 20px; }
+    .quick-link:hover { background:var(--hover); }
+    .icon { width:26px; height:26px; flex-shrink:0; color:#fff; }
+    .quick-link strong { display:block; font-size:15px; font-weight:900; }
+    .quick-link small { display:block; color:var(--muted); font-size:10px; }
+    .columns { display:grid; grid-template-columns:27% minmax(0,1fr); gap:22px; padding:30px 0 8px; align-items:start; }
+    h2 { font-size:17px; letter-spacing:-.5px; margin:0 0 18px; line-height:1.25; }
+    .section-title { display:flex; align-items:center; gap:10px; }
+    .section-title::before { content:""; width:7px; height:7px; background:#537ded; border-radius:50%; flex-shrink:0; }
+    .featured { padding:17px; background:var(--surface); border-radius:20px; }
+    .room { display:block; overflow:hidden; border-radius:14px; background:var(--bg); margin-bottom:14px; }
+    .room:hover { background:var(--hover); }
+    .room img { width:100%; aspect-ratio:16/9; object-fit:cover; display:block; }
+    .room-info { display:block; padding:8px 10px; font-size:12px; }
+    .room-info small { font-size:10px; }
+    .room-info strong { display:block; }
+    .room-info small { color:var(--muted); }
+    .text-link { color:var(--link); font-size:12px; font-weight:800; }
+    .feed { min-width:0; }
+    .news-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:16px; }
+    .news-heading h3 { font-size:17px; margin:0; }
+    .news-card { display:block; width:190px; max-width:100%; background:var(--surface); border-radius:10px; overflow:hidden; margin-bottom:24px; }
+    .news-card>img { display:block; width:100%; aspect-ratio:16/10; object-fit:cover; }
+    .news-copy { padding:10px; }
+    .news-copy h3 { font-size:12px; }
+    .news-copy p { font-size:10px; }
+    .gallery-toggle { cursor:pointer; color:var(--link); font-size:12px; margin:8px 0 18px; }
+    .photo-gallery[open] .gallery-toggle { margin-bottom:24px; }
+    .tag { display:inline-block; color:var(--link); font-size:10px; font-weight:900; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:10px; }
+    h3 { margin:0 0 10px; font-size:22px; line-height:1.2; }
+    .news-copy p { color:var(--muted); font-size:14px; margin:0 0 18px; }
+    .gallery-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:30px 0 16px; }
+    .gallery-heading h2 { margin:0; }
+    .gallery-heading span { color:var(--muted); font-size:12px; white-space:nowrap; }
+    .photos { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+    .photo { padding:0; border:0; border-radius:14px; background:var(--surface); overflow:hidden; cursor:zoom-in; aspect-ratio:16/11; }
+    .photo img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .2s; }
+    .photo:hover img { transform:scale(1.06); }
+    .community { display:flex; justify-content:space-between; align-items:center; gap:24px; padding:28px 30px; margin:20px 0 58px; background:var(--surface); border-radius:24px; }
+    .community h2 { margin:0 0 7px; }
+    .community p { color:var(--muted); margin:0; font-size:11px; }
+    .discord { flex-shrink:0; background:#5865f2; }
+    .discord:hover { background:#4752c4; }
+    footer { background:var(--surface); padding:30px 28px; }
+    .footer-inner { max-width:1200px; margin:auto; display:flex; justify-content:space-between; align-items:center; gap:24px; }
+    footer p { color:var(--muted); font-size:12px; margin:10px 0 0; }
+    .footer-links { display:flex; gap:24px; color:var(--muted); font-size:13px; }
+    dialog { border:1px solid #444; background:var(--surface); color:white; border-radius:18px; padding:16px; width:min(1000px,94vw); max-height:94vh; }
+    dialog::backdrop { background:#000d; }
+    dialog img { display:block; max-width:100%; max-height:75vh; margin:auto; object-fit:contain; }
+    .dialog-head { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:12px; }
+    .close { border:0; background:var(--hover); color:white; border-radius:8px; padding:7px 13px; cursor:pointer; }
+    @media(max-width:1100px) { .nav-inner { gap:14px; padding-inline:12px; } .nav-links { gap:12px; font-size:10px; } .brand { font-size:18px; gap:6px; } .brand-mark { width:28px; height:28px; font-size:21px; } .nav-cta { font-size:11px; padding:9px 14px; } .quick-link { padding:14px 12px; gap:10px; } .quick-link strong { font-size:13px; } .quick-link small { font-size:9px; } .featured { padding:14px; } .featured h2 { font-size:14px; } .tile-label { font-size:11px; padding:10px 12px; } }
+    @media(max-width:760px) { .nav-inner { width:100%; min-height:68px; padding:12px 18px; flex-wrap:wrap; gap:12px; } .brand { font-size:19px; } .menu-toggle { display:block; margin-left:auto; } .nav-cta { display:none; } .nav-links { display:none; width:100%; margin:0; padding:10px 0; flex-wrap:wrap; gap:18px 26px; } .nav-links.open { display:flex; } .hero { width:calc(100% - 24px); margin:12px auto 24px; min-height:330px; padding:44px 18px; } .hero-wordmark { letter-spacing:-4px; margin-bottom:28px; } .hero-description { font-size:14px; max-width:280px; } .wrap { width:calc(100% - 24px); } .highlights { gap:12px; padding-top:10px; } .tile { border-radius:16px; } .tile-label { padding:12px; font-size:13px; gap:6px; } .quick-links { grid-template-columns:1fr; gap:10px; padding-top:16px; } .quick-link { border-radius:18px; padding:16px 20px; } .columns { grid-template-columns:1fr; padding-top:28px; } .featured { padding:18px; } .room-list { display:grid; grid-template-columns:1fr 1fr; gap:12px; } .room { margin-bottom:12px; } .community { padding:26px 22px; flex-direction:column; align-items:flex-start; margin-bottom:32px; } .footer-inner { align-items:flex-start; flex-direction:column; } }
+    @media(max-width:420px) { .highlights { grid-template-columns:1fr; } .tile { display:grid; grid-template-columns:120px minmax(0,1fr); align-items:center; } .tile-image { aspect-ratio:4/3; } .tile-label { font-size:16px; } .photos { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; } .room-list { grid-template-columns:1fr; } .room { display:grid; grid-template-columns:110px minmax(0,1fr); align-items:center; } .room img { height:100%; aspect-ratio:1; } .gallery-heading { align-items:flex-start; } }
+    .highlights { gap:20px; }
+    .tile { border-radius:22px; }
+    .tile-label { min-height:52px; padding:14px 18px; font-size:16px; }
+    .quick-links { gap:20px; padding-top:20px; }
+    .quick-link { min-height:78px; border-radius:22px; padding:18px 24px; gap:18px; }
+    .quick-link strong { font-size:20px; line-height:1.2; }
+    .quick-link small { margin-top:3px; font-size:12px; line-height:1.3; }
+    .icon { width:30px; height:30px; }
+    .content-dialog { width:min(650px,94vw); padding:24px; }
+    .content-dialog h2 { margin:0; font-size:25px; }
+    .content-dialog p { color:var(--muted); }
+    .content-dialog .dialog-head { margin-bottom:24px; }
+    .detail-banner { width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:12px; }
+    .detail-row { display:flex; justify-content:space-between; align-items:center; gap:16px; background:var(--bg); border-radius:12px; padding:15px; margin-top:12px; }
+    .detail-row small { display:block; color:var(--muted); }
+    .badge { flex-shrink:0; font-size:12px; color:#ffd184; background:#8f67202b; border-radius:999px; padding:6px 12px; }
+    .profile-photo { width:54px; height:54px; border-radius:50%; object-fit:cover; }
+    .profile-name { margin-right:auto; }
+    .detail-note { font-size:13px; }
+    @media(min-width:761px) and (max-width:1100px) { .wrap { width:80%; } .quick-link { padding:16px; gap:12px; } .quick-link strong { font-size:17px; } .quick-link small { font-size:10px; } .tile-label { font-size:14px; } }
+    @media(max-width:760px) { .tile-label { font-size:13px; padding:12px; } .quick-link strong { font-size:19px; } .quick-links { gap:12px; } .content-dialog { padding:18px; } .detail-row { flex-wrap:wrap; } }
+    .nav-inner { width:100%; max-width:1400px; padding:14px 32px; min-height:76px; gap:32px; }
+    .nav-links { margin-left:0; gap:28px; font-size:14px; }
+    .nav-actions { margin-left:auto; display:flex; align-items:center; gap:24px; }
+    .nav-control { background:none; border:0; color:var(--muted); font:inherit; font-size:14px; padding:8px 0; cursor:pointer; }
+    .nav-control:hover { color:white; }
+    .icon-button { display:grid; place-items:center; width:30px; height:34px; padding:4px; }
+    .icon-button svg { width:20px; height:20px; }
+    .nav-cta { border-radius:10px; padding:13px 23px; }
+    .rooms-menu { position:relative; }
+    .rooms-menu>summary { list-style:none; cursor:pointer; color:var(--muted); padding:10px 0; }
+    .rooms-menu>summary::-webkit-details-marker { display:none; }
+    .rooms-menu[open]>summary { color:white; text-decoration:underline; text-decoration-color:#466be0; text-underline-offset:12px; text-decoration-thickness:3px; }
+    .rooms-dropdown { position:absolute; left:-18px; top:100%; width:180px; padding:12px 0; background:var(--surface); border-radius:0 0 16px 16px; box-shadow:0 12px 20px #0003; }
+    .rooms-dropdown a { display:block; padding:12px 24px; }
+    .rooms-dropdown a:hover { background:var(--hover); }
+    .settings-dialog { margin:0 0 0 auto; height:100dvh; max-height:100dvh; width:min(380px,100vw); border:0; border-radius:0; padding:24px; }
+    .settings-dialog h3 { font-size:16px; margin:25px 0 12px; }
+    .settings-row { display:flex; justify-content:space-between; align-items:center; gap:15px; background:#222224; border-radius:10px; padding:17px 14px; font-size:13px; }
+    .language-picker { display:flex; align-items:center; gap:9px; }
+    .language-flag { display:block; width:24px; height:17px; object-fit:cover; border-radius:2px; box-shadow:0 0 0 1px #ffffff20; }
+    .language-select { background:var(--hover); color:white; font:inherit; font-size:13px; border:1px solid #444; border-radius:7px; padding:8px; max-width:165px; }
+    .switch-label { display:flex; align-items:center; gap:10px; font-size:12px; color:var(--muted); cursor:pointer; }
+    .switch-label input { appearance:none; width:36px; height:22px; border-radius:20px; background:#343438; margin:0; cursor:pointer; position:relative; }
+    .switch-label input::before { content:""; position:absolute; top:3px; left:3px; width:16px; height:16px; background:white; border-radius:50%; transition:transform .15s; }
+    .switch-label input:checked { background:#3055d9; }
+    .switch-label input:checked::before { transform:translateX(14px); }
+    .switch-label input:focus-visible { outline:2px solid var(--link); outline-offset:3px; }
+    .search-input { width:100%; padding:14px; border:1px solid #444; border-radius:10px; font:inherit; background:var(--bg); color:white; }
+    .search-input:focus-visible { outline:2px solid var(--link); }
+    .search-results { display:grid; gap:8px; margin-top:18px; }
+    .search-result { display:block; border-radius:10px; background:var(--bg); padding:14px; }
+    .search-result:hover { background:var(--hover); }
+    .faq-item { padding:15px 0; border-bottom:1px solid #333; }
+    .faq-item summary { cursor:pointer; }
+    @media(max-width:1100px) { .nav-inner { gap:18px; padding:12px 20px; } .header-logo { width:150px; } .nav-links { gap:18px; font-size:12px; } .nav-actions { gap:14px; } .nav-control { font-size:12px; } }
+    @media(max-width:760px) { .nav-inner { gap:12px; } .nav-actions { width:100%; justify-content:flex-end; margin:0; gap:20px; } .nav-actions .nav-cta { display:inline-flex; } .nav-links { order:3; } .rooms-dropdown { z-index:12; } }
+    .columns { grid-template-columns:28% minmax(0,1fr); gap:26px; padding-top:32px; }
+    .featured { padding:20px; border-radius:24px; }
+    .featured h2 { font-size:19px; }
+    .room { border-radius:15px; margin-bottom:14px; }
+    .room-info { padding:10px 12px; font-size:14px; }
+    .room-info small { font-size:12px; }
+    .news-card { position:relative; width:215px; }
+    .news-pin { position:absolute; top:7px; left:7px; background:#191919; padding:2px 7px; border-radius:6px; font-size:9px; }
+    .news-art { position:relative; aspect-ratio:16/9; background:radial-gradient(ellipse at center,#2558d4,#101e4a); display:grid; place-items:center; }
+    .news-art img { width:86%; height:auto; }
+    .news-copy .tag { font-size:9px; background:#2445b8; color:white; padding:2px 5px; letter-spacing:0; border-radius:3px; }
+    .news-copy h3 { font-size:14px; }
+    .community { padding:32px; margin-top:22px; margin-bottom:58px; border-radius:24px; }
+    .community h2 { font-size:23px; }
+    .community p { font-size:14px; }
+    footer { padding:32px max(28px,calc((100% - 1280px)/2)) 18px; }
+    .footer-inner { max-width:1280px; display:grid; grid-template-columns:2fr 1fr 1fr 2fr; gap:32px; align-items:start; }
+    .footer-brand img { width:120px; height:auto; display:block; }
+    .footer-brand p { max-width:240px; line-height:1.6; }
+    .footer-column h2 { font-size:13px; margin:0 0 16px; }
+    .footer-column a { display:block; font-size:12px; color:var(--muted); margin:0 0 12px; }
+    .footer-column a:hover { color:white; }
+    .footer-bottom { max-width:1280px; margin:28px auto 0; display:flex; justify-content:space-between; align-items:center; gap:20px; }
+    .footer-bottom p { margin:0; }
+    .footer-social { display:flex; flex-wrap:wrap; gap:18px; font-size:11px; color:var(--muted); }
+    .footer-social span { opacity:.65; }
+    @media(max-width:760px) { .columns { grid-template-columns:1fr; } .footer-inner { grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; } .footer-brand { grid-column:1/-1; } .footer-bottom { align-items:flex-start; flex-direction:column; } .community { padding:24px; } }
+    .account-form { display:grid; gap:12px; margin:18px 0; }
+    .account-form label { display:grid; gap:6px; font-size:14px; }
+    .account-form input { width:100%; padding:12px; background:var(--bg); border:1px solid #555; border-radius:9px; color:white; font:inherit; }
+    .account-form input:focus-visible { outline:2px solid var(--link); }
+    .account-fieldset { border:0; padding:0; margin:0; min-width:0; }
+    .account-fieldset:disabled { opacity:.5; }
+    .account-fieldset button:disabled, #connexion button:disabled { cursor:not-allowed; }
+    #account-message { color:var(--link); white-space:pre-wrap; }
+    #account-users .detail-row { flex-wrap:wrap; overflow-wrap:anywhere; }
+    [hidden] { display:none !important; }
+    [dir="rtl"] .hero-wordmark, [dir="rtl"] .brand { direction:ltr; }
+    [dir="rtl"] .settings-dialog { margin:0 auto 0 0; text-align:right; }
+    .download-dialog { width:100vw; max-width:100vw; height:100dvh; max-height:100dvh; margin:0; padding:0; border:0; border-radius:0; background:#1b1b1d; }
+    .download-header-logo { width:155px; height:auto; display:block; }
+    .download-heading { margin-inline-start:auto; margin-inline-end:18px; }
+    .download-dialog>.dialog-head { margin:0; padding:16px 24px; }
+    .download-dialog>.dialog-head h2 { font-size:18px; }
+    .download-scene { min-height:calc(100dvh - 70px); position:relative; isolation:isolate; overflow:hidden; background:radial-gradient(ellipse at 50% 10%,#2f60e8,#2345bc 60%,#1b348f); }
+    .download-scene::before { content:""; position:absolute; inset:-200px; z-index:-1; pointer-events:none; opacity:.14; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='165' height='165' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='%235beaff' stroke-width='3' transform='rotate(-24 50 50)'%3E%3Crect x='20' y='20' width='58' height='58' rx='9'/%3E%3Cpath d='M33 37h32M41 37v13m16-13v13M34 58q15 17 30 0'/%3E%3C/g%3E%3C/svg%3E"); animation:download-drift 6s linear infinite; }
+    @keyframes download-drift { from { transform:translate3d(0,0,0); } to { transform:translate3d(-165px,165px,0); } }
+    .download-brand { display:none; }
+    .download-brand img { width:min(320px,70%); height:auto; }
+    .download-brand p { color:white; font-size:24px; margin:16px 0; }
+    .platform-tabs { display:flex; justify-content:center; gap:12px; padding:20px; }
+    .platform-tab { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; width:140px; min-height:90px; border:0; border-radius:12px; background:transparent; color:white; font:inherit; cursor:pointer; }
+    .platform-tab svg { width:34px; height:34px; }
+    .platform-tab:hover { background:#ffffff12; }
+    .platform-tab[aria-selected="true"] { background:#102a965e; box-shadow:inset 0 0 0 1px #ffffff0d; }
+    .platform-panel { display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:center; min-height:calc(100dvh - 270px); max-width:1400px; margin:auto; padding:60px 8% 80px; }
+    .download-copy h3 { font-size:clamp(30px,4vw,54px); line-height:1.18; margin:10px 0 24px; }
+    .download-copy p { color:white; line-height:1.7; font-size:15px; }
+    .download-copy .tag { color:#dce8ff; }
+    .download-unavailable { margin-top:12px; border-radius:10px; padding:15px 22px; background:#142d9b; opacity:.75; cursor:not-allowed; }
+    .download-copy .download-availability,.download-copy .download-date { color:#d2dfff; font-size:12px; }
+    .download-visual { position:relative; display:grid; place-items:center; }
+    .download-room { display:block; width:100%; max-height:430px; aspect-ratio:1; object-fit:contain; filter:drop-shadow(0 18px 18px #08195050); }
+    .download-visual-logo { position:absolute; width:65%; height:auto; bottom:-20px; left:17.5%; filter:drop-shadow(0 5px 8px #051848); }
+    .download-guide { background:#1b1b1d; padding:24px; }
+    .download-guide summary { cursor:pointer; background:#2445b8; border-radius:10px; padding:14px 22px; width:fit-content; margin-inline-start:auto; }
+    .installation-content { max-width:690px; margin:24px auto; line-height:1.7; }
+    .installation-content li { padding:0 0 14px 5px; }
+    .installation-content p { color:var(--muted); }
+    .installation-content .installation-warning { border-inline-start:3px solid #f6c270; padding:12px 16px; background:#f6c2700a; color:#f6d9a9; }
+    @media(max-width:760px) { .platform-tabs { gap:4px; padding:12px 8px; } .platform-tab { width:20%; min-height:78px; font-size:11px; } .platform-tab svg { width:27px; height:27px; } .platform-panel { grid-template-columns:1fr; padding:28px 24px 52px; gap:28px; } .download-visual { max-width:400px; width:90%; margin:auto; } .download-brand p { font-size:20px; } .download-guide { padding:18px; } }
+    .contact-dialog { width:min(860px,94vw); background:var(--bg); border:0; padding:36px 48px; }
+    .contact-dialog>.dialog-head { position:relative; justify-content:center; margin-bottom:12px; }
+    .contact-dialog>.dialog-head h2 { font-size:34px; text-align:center; }
+    .contact-dialog>.dialog-head .close { position:absolute; inset-inline-end:-26px; top:-20px; background:transparent; }
+    .contact-intro { text-align:center; font-size:14px; line-height:1.8; margin:0 0 30px; }
+    .contact-card { background:var(--surface); border-radius:18px; padding:28px; margin:0 0 20px; }
+    .contact-owner,.contact-admin { text-align:center; }
+    .contact-logo { display:block; width:200px; max-width:75%; height:auto; margin:0 auto 20px; }
+    .contact-owner h3,.contact-admin h3 { font-size:21px; text-transform:uppercase; color:var(--muted); }
+    .contact-email { display:block; font-size:clamp(17px,3vw,25px); color:var(--link); overflow-wrap:anywhere; margin:16px 0 20px; }
+    .contact-actions { display:flex; justify-content:center; align-items:center; gap:22px; flex-wrap:wrap; }
+    .contact-actions .button { border-radius:9px; text-transform:uppercase; font-size:12px; }
+    .contact-copy { background:transparent; border:0; color:var(--link); font:inherit; text-transform:uppercase; font-size:12px; cursor:pointer; padding:10px; }
+    .contact-feedback { margin:10px 0 0; font-size:12px; }
+    .contact-feedback:empty { margin:0; }
+    .contact-admin-icon { display:block; width:48px; height:48px; margin:0 auto 16px; }
+    .contact-admin p { font-size:23px; margin:15px 0 0; }
+    .contact-help h3 { font-size:17px; }
+    .contact-help p,.contact-help ul { font-size:14px; line-height:1.8; margin:12px 0 0; color:var(--muted); }
+    .contact-help ul { padding-inline-start:20px; }
+    .contact-help a { color:var(--link); text-decoration:underline; }
+    @media(max-width:600px) { .contact-dialog { padding:30px 18px 18px; } .contact-dialog>.dialog-head h2 { font-size:27px; } .contact-dialog>.dialog-head .close { inset-inline-end:0; top:-23px; } .contact-card { padding:22px 18px; } .contact-actions { gap:10px; } }
+    @media(prefers-reduced-motion:reduce) { .download-scene::before { animation:none; } }
+    @media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } .hero::before,.hero::after { animation:none; will-change:auto; } *, *::before, *::after { transition:none !important; } }
+  </style>
 </head>
-<body>
-
-    <nav class="top-navbar">
-        <a class="logo-area" href="#">🟧 PROJECT RECNET HUB</a>
-        <a href="https://discord.gg" target="_blank" style="background-color: #5865F2; color: white; text-decoration: none; padding: 6px 14px; border-radius: 20px; font-weight: 900; font-size: 12px; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(88,101,242,0.3);">
-            REJOINDRE LE DISCORD
-        </a>
+<body id="accueil">
+  <div class="announcement"><strong>REC BLUE · Accès anticipé</strong>Rendez-vous le 02/03/2027 pour l’Early Access. En attendant, découvrez notre univers et rejoignez la communauté.</div>
+  <header class="topbar">
+    <nav class="nav-inner" aria-label="Navigation principale">
+      <a class="brand" href="#accueil" aria-label="REC BLUE, accueil"><img class="header-logo" src="rec-blue-logo.png" alt="REC BLUE" width="693" height="180"></a>
+      <button class="menu-toggle" aria-expanded="false" aria-controls="navigation" type="button">Menu ☰</button>
+      <div class="nav-links" id="navigation">
+        <a href="#boutique" data-dialog="boutique" data-i18n="shop">Boutique</a>
+        <details class="rooms-menu"><summary data-i18n="rooms">Chambres</summary><div class="rooms-dropdown"><a href="#salons" data-i18n="rooms">Chambres</a><a href="#inventions" data-dialog="inventions" data-i18n="inventions">Inventions</a></div></details>
+        <a href="#communaute" data-i18n="community">Communauté</a><a href="#aide" data-dialog="aide" data-i18n="help">Aide</a>
+      </div>
+      <div class="nav-actions">
+        <a class="nav-control icon-button" href="#parametres" data-dialog="parametres" aria-label="Paramètres"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 3-1 3-3 1 1 3-2 2 2 2-1 3 3 1 1 3h6l1-3 3-1-1-3 2-2-2-2 1-3-3-1-1-3z"/><circle cx="12" cy="12" r="3"/></svg></a>
+        <a class="nav-control icon-button" href="#recherche" data-dialog="recherche" aria-label="Rechercher"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></svg></a>
+        <a class="nav-control" href="#connexion" data-dialog="connexion" data-i18n="login">Se connecter</a>
+        <a class="button nav-cta" href="#telecharger" data-dialog="telecharger" data-i18n="download">Télécharger</a>
+      </div>
     </nav>
-
-    <div class="app-layout">
-        <div class="profile-banner"></div>
-
-        <div class="main-content">
-            <!-- PROFIL À GAUCHE -->
-            <div class="sidebar">
-                <div class="pfp-circle">
-                    <img src="./DormRoom-2026-7-30-1-16-32.jpg" alt="Profil">
-                </div>
-                <div class="user-name">LBP3PC</div>
-                <div class="user-tag">@LBP3PC</div>
-                <button class="btn-orange">SUBSCRIBE 5.9M</button>
-
-                <div class="monitor-box">
-                    <div class="monitor-title">📡 Rec.js Engine 2019</div>
-                    <div class="status-row"><span>Statut IP</span><span id="srvStatus" style="color:#ff7f00;">SCAN LOCAL 🕒</span></div>
-                    <div class="status-row"><span>Port</span><span style="color:var(--rn-orange);">2056</span></div>
-                </div>
+  </header>
+  <main>
+    <section class="hero" aria-labelledby="welcome">
+      <div class="hero-wordmark" aria-label="REC BLUE" role="img"><span class="logo-top">REC<svg class="hero-emblem" viewBox="0 0 100 100" fill="none" aria-hidden="true"><rect x="5" y="5" width="90" height="90" rx="20" fill="#0019b8" stroke="white" stroke-width="7"/><rect x="17" y="17" width="66" height="66" rx="12" stroke="white" stroke-width="5"/><path d="M31 34h38M40 35v17m20-17v17" stroke="white" stroke-width="7" stroke-linecap="round"/><path d="M27 59Q50 79 73 59Q65 84 50 80Q35 80 27 59" fill="#4ffff2"/></svg></span><span class="logo-bottom">BLUE</span></div>
+      <h1 id="welcome">Bienvenue sur REC BLUE</h1>
+    </section>
+    <div class="wrap">
+      <section class="highlights" id="decouvrir" aria-label="À découvrir">
+        <a class="tile" href="#actualites"><div class="tile-image"><img src="news-banner.png" alt="Salle de loisirs avec une cabine bleue au centre"></div><span class="tile-label">Nouvelles</span></a>
+        <a class="tile" href="#communaute"><span class="tile-label">Rejoignez la communauté</span></a>
+        <a class="tile" href="#mises-a-jour" data-dialog="mises-a-jour"><div class="tile-image"><img src="updates-banner.png" alt="Des joueurs créent ensemble dans une salle de jeu"></div><span class="tile-label">Mises à jour</span></a>
+      </section>
+      <nav class="quick-links" aria-label="Accès rapides">
+        <a class="quick-link" href="#inventions" data-dialog="inventions"><svg class="icon" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="m7 19 10-10 6 6-10 10H7zm13-13 3-3 6 6-3 3zM4 25h10v3H4zM22 18l6 8-3 2-6-8z"/></svg><span><strong>Inventions</strong><small>Découvrez les créations des joueurs</small></span></a>
+        <a class="quick-link" href="#statut" data-dialog="statut"><svg class="icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="16" cy="16" r="14"/><ellipse cx="16" cy="16" rx="6" ry="14"/><path d="M2 16h28M5 8h22M5 24h22"/></svg><span><strong>Statut</strong><small>Vérifiez si tout est en ligne</small></span></a>
+        <a class="quick-link" href="#joueurs" data-dialog="joueurs"><svg class="icon" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><circle cx="16" cy="7" r="4"/><circle cx="5" cy="12" r="3"/><circle cx="27" cy="12" r="3"/><rect x="11" y="13" width="10" height="16" rx="5"/><rect x="1" y="17" width="8" height="12" rx="4"/><rect x="23" y="17" width="8" height="12" rx="4"/></svg><span><strong>Joueurs</strong><small>Joueurs en ligne : non disponible</small></span></a>
+      </nav>
+      <div class="columns">
+        <aside class="featured" id="salons" aria-labelledby="rooms-title">
+          <h2 class="section-title" id="rooms-title">Chambres vedettes</h2>
+          <div class="room-list">
+            <a class="room" href="#photos"><img loading="lazy" src="DormRoom-2026-7-29-3-44-53.jpg" alt="Vue du DormRoom"><span class="room-info"><strong>^DormRoom</strong><small>Les souvenirs de LBP3PC</small></span></a>
+            <a class="room" href="#photos"><img loading="lazy" src="DormRoom-2026-7-30-1-20-12.jpg" alt="Autre perspective du DormRoom"><span class="room-info"><strong>^DormRoom · Autre regard</strong><small>@LBP3PC</small></span></a>
+            <a class="room" href="#photos"><img loading="lazy" src="DormRoom-2026-7-29-4-6-13.jpg" alt="Troisième aperçu du DormRoom"><span class="room-info"><strong>^DormRoom · Les souvenirs</strong><small>@LBP3PC</small></span></a>
+          </div>
+          <a class="text-link" href="#photos">Voir toutes les chambres →</a>
+        </aside>
+        <div class="feed">
+          <section id="actualites" aria-labelledby="news-title">
+            <h2 class="section-title" id="news-title">Que se passe-t-il en ce moment ?</h2>
+            <div class="news-heading"><h3>Latest News</h3><a class="text-link" href="#mises-a-jour" data-dialog="mises-a-jour">Tout voir →</a></div>
+            <article class="news-card">
+              <a href="#mises-a-jour" data-dialog="mises-a-jour" aria-label="Lire : Bienvenue sur REC BLUE"><div class="news-art"><img loading="lazy" src="rec-blue-logo.png" alt="REC BLUE"></div><span class="news-pin">ÉPINGLÉ</span><div class="news-copy"><span class="tag">LATEST NEWS</span><h3>Bienvenue sur REC BLUE</h3></div></a>
+            </article>
+          </section>
+          <details class="photo-gallery" id="photos">
+            <summary class="gallery-toggle">Ouvrir la galerie · 13 photos de LBP3PC</summary>
+            <div class="gallery-heading"><h2 class="section-title" id="photos-title">Les photos de LBP3PC</h2><span>13 photos</span></div>
+            <div class="photos">
+              <button class="photo" type="button" aria-label="Agrandir la photo 1 du DormRoom"><img loading="lazy" src="DormRoom-2026-7-29-3-44-53.jpg" alt="DormRoom — souvenir 1"></button>
+              <button class="photo" type="button" aria-label="Agrandir la photo 2 du DormRoom"><img loading="lazy" src="DormRoom-2026-7-29-3-44-59.jpg" alt="DormRoom — souvenir 2"></button>
+              <button class="photo" type="button" aria-label="Agrandir la photo 3 du DormRoom"><img loading="lazy" src="DormRoom-2026-7-29-3-45-53.jpg" alt="DormRoom — souvenir 3"></button>
+              <button class="photo" type="button" aria-label="Agrandir la photo 4 du DormRoom"><img loading="lazy" src="DormRoom-2026-7-29-3-46-18.jpg" alt="DormRoom — souvenir 4"></button>
+              <button class="photo" type="button" aria-label="Agrandir la photo 5 du DormRoom"><img loading="lazy" src="DormRoom-2026-7-29-3-49-21.jpg" alt="DormRoom — souvenir 5"></button>
+              <button class="photo" type="button" aria-label="Agrandir la photo 6 du DormRoom"><img loading="lazy" src="DormRoom-2026-7-29-3-52-24.jpg" alt="DormRoom — souvenir 6"></button>
+              <button class="photo" type="button" aria-label="Agrandir la photo 7 du DormRoom"><img loading="lazy" src="DormRoom-2026-7-29-3-53-0.jpg" alt="DormRoom — souvenir 7"></button>
+              <button class="photo" type="button" aria-label="Agrandir la photo 8 du DormRoom"><img loading="lazy" src="DormRoom-2026-7-29-4-2-47.jpg" alt="DormRoom — souvenir 8"></button>
+              <button class="photo" type="button" aria-label="Agrandir la photo 9 du DormRoom"><img loading="lazy" src="DormRoom-2026-7-29-4-3-59.jpg" alt="DormRoom — souvenir 9"></button>
+              <button class="photo" type="button" aria-label="Agrandir la photo 10 du DormRoom"><img loading="lazy" src="DormRoom-2026-7-29-4-6-13.jpg" alt="DormRoom — souvenir 10"></button>
+              <button class="photo" type="button" aria-label="Agrandir la photo 11 du DormRoom"><img loading="lazy" src="DormRoom-2026-7-30-1-16-32.jpg" alt="DormRoom — souvenir 11"></button>
+              <button class="photo" type="button" aria-label="Agrandir la photo 12 du DormRoom"><img loading="lazy" src="DormRoom-2026-7-30-1-20-12.jpg" alt="DormRoom — souvenir 12"></button>
+              <button class="photo" type="button" aria-label="Agrandir la photo 13 du DormRoom"><img loading="lazy" src="DormRoom-2026-7-30-3-56-58.jpg" alt="DormRoom — souvenir 13"></button>
             </div>
-
-            <!-- PHOTOS À DROITE -->
-            <div class="feed-area">
-                <div class="tabs-header">
-                    <div>🏠 Rooms Saved (2)</div>
-                    <div class="tab-active">📷 Photos (13)</div>
-                    <div>🤝 Friends</div>
-                </div>
-
-                <div class="photos-grid">
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-44-53.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-44-59.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-45-53.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-46-18.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-49-21.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-52-24.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-53-0.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-4-2-47.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-4-3-59.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-4-6-13.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-30-1-16-32.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-30-1-20-12.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-30-3-56-58.jpg"></div>
-                </div>
-            </div>
+          </details>
         </div>
+      </div>
+      <section class="community" id="communaute" aria-labelledby="community-title"><div><h2 id="community-title">Rejoignez notre communauté</h2><p>Discutez avec les joueurs, partagez des idées et soyez informés des mises à jour en avant-première.</p></div><a class="button discord" href="https://discord.com/" target="_blank" rel="noopener noreferrer">Rejoindre Discord</a></section>
     </div>
-
-    <script>
-        async function checkServer() {
-            try {
-                const res = await fetch('http://localhost:2056/api/versioncheck');
-                if (res.ok) {
-                    document.getElementById('srvStatus').innerText = "CONNECTÉ ✅";
-                    document.getElementById('srvStatus').style.color = "#00CC66";
-                } else {
-                    document.getElementById('srvStatus').innerText = "SCAN LOCAL 🕒";
-                    document.getElementById('srvStatus').style.color = "#ff7f00";
-                }
-            } catch (e) {
-                document.getElementById('srvStatus').innerText = "SCAN LOCAL 🕒";
-                document.getElementById('srvStatus').style.color = "#ff7f00";
-            }
-        }
-        setInterval(checkServer, 2000);
-    </script>
+  </main>
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-brand"><a href="#accueil" aria-label="REC BLUE, accueil"><img src="rec-blue-logo.png" alt="REC BLUE" width="693" height="180"></a><p>Partagez des moments et créez des souvenirs.</p></div>
+      <nav class="footer-column" aria-label="Aide"><h2>Aide</h2><a href="#aide" data-dialog="aide">FAQ</a><a href="#statut" data-dialog="statut">État des services</a></nav>
+      <nav class="footer-column" aria-label="Entreprise"><h2>Entreprise</h2><a href="#contact" data-dialog="contact">Contact</a><a href="#credits" data-dialog="credits">Crédits</a></nav>
+      <nav class="footer-column" aria-label="Légal"><h2>Légal</h2><a href="#conditions" data-dialog="conditions">Conditions d’utilisation</a><a href="#confidentialite" data-dialog="confidentialite">Politique de confidentialité</a></nav>
+    </div>
+    <div class="footer-bottom"><p>© 2026 REC BLUE · LBP3PC</p><div class="footer-social" aria-label="Réseaux sociaux non configurés"><span title="Lien à configurer">YouTube</span><span title="Lien à configurer">TikTok</span><span title="Lien à configurer">Instagram</span><a href="#communaute">Communauté</a></div></div>
+  </footer>
+  <dialog class="content-dialog contact-dialog" id="contact" aria-labelledby="contact-title">
+    <div class="dialog-head"><h2 id="contact-title">Contactez-nous</h2><button class="close" data-close type="button" aria-label="Fermer le contact">✕</button></div>
+    <p class="contact-intro">Besoin d’aide pour REC BLUE ? Envoyez-nous un email et nous examinerons votre demande.</p>
+    <section class="contact-card contact-owner" aria-labelledby="owner-title"><img class="contact-logo" src="rec-blue-logo.png" alt="REC BLUE" width="693" height="180"><h3 id="owner-title">Propriétaire de REC BLUE</h3><a class="contact-email" href="mailto:zaninnathan96@gmail.com" data-no-translate>zaninnathan96@gmail.com</a><div class="contact-actions"><a class="button" href="mailto:zaninnathan96@gmail.com">Envoyer un email</a><button class="contact-copy" id="copy-contact-email" type="button">Copier l’adresse</button></div><p class="contact-feedback" id="contact-copy-status" role="status" aria-live="polite"></p></section>
+    <section class="contact-card contact-admin" aria-labelledby="contact-admin-title"><svg class="contact-admin-icon" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4" aria-hidden="true"><rect x="7" y="5" width="50" height="54" rx="12"/><path d="M18 20h28M25 20v12m14-12v12M17 39q15 16 30-2"/></svg><h3 id="contact-admin-title">Administrateur</h3><p>Indisponible</p></section>
+    <section class="contact-card contact-help" aria-labelledby="contact-before-title"><h3 id="contact-before-title">Avant d’envoyer un email</h3><p>Votre question a peut-être déjà une réponse. Consultez la <a href="#aide" data-dialog="aide">FAQ</a> et vérifiez les services sur la <a href="#statut" data-dialog="statut">page d’état</a>. Retrouvez aussi notre <a href="#communaute">communauté</a>.</p></section>
+    <section class="contact-card contact-help" aria-labelledby="contact-include-title"><h3 id="contact-include-title">Que faut-il inclure ?</h3><ul><li>Votre nom d’utilisateur</li><li>Votre appareil : PC, Meta Quest, iOS ou Android</li><li>Ce qui s’est passé et à quel moment</li><li>Des captures d’écran ou messages d’erreur, si vous en avez</li></ul></section>
+  </dialog>
+  <dialog class="content-dialog" id="credits" aria-labelledby="credits-title"><div class="dialog-head"><h2 id="credits-title">Crédits</h2><button class="close" data-close type="button" aria-label="Fermer les crédits">✕</button></div><p>REC BLUE · LBP3PC</p><p>Galerie : 13 captures du DormRoom fournies dans le projet.</p><p>Présentation inspirée du site RecQuiem. Certains visuels et la police proviennent de ce site de référence.</p></dialog>
+  <dialog class="content-dialog" id="conditions" aria-labelledby="terms-title"><div class="dialog-head"><h2 id="terms-title">Conditions d’utilisation</h2><button class="close" data-close type="button" aria-label="Fermer les conditions">✕</button></div><p>Les conditions officielles de REC BLUE n’ont pas encore été fournies par le responsable du projet.</p><p>Ce site présente actuellement le projet et ses images. Aucun achat, compte ou téléchargement du jeu n’est disponible ici.</p></dialog>
+  <dialog class="content-dialog" id="confidentialite" aria-labelledby="privacy-title"><div class="dialog-head"><h2 id="privacy-title">Confidentialité</h2><button class="close" data-close type="button" aria-label="Fermer la confidentialité">✕</button></div><p>Ce site mémorise dans votre navigateur la langue choisie et votre préférence de notifications avec les clés <code>recblue.language</code> et <code>recblue.updatePings</code>. Vous pouvez les effacer dans les données de site de votre navigateur.</p><p>Lorsque les comptes sont configurés, Supabase traite votre email, votre mot de passe via son service sécurisé et votre profil (pseudo, rôle et date de création). Votre email n’est pas affiché aux autres membres. Les administrateurs du site peuvent consulter les pseudos, identifiants et rôles des comptes. Les jetons de session restent uniquement en mémoire dans cette page.</p><p>Aucun paiement ni suivi d’audience n’est intégré. Les liens externes, notamment Discord, ont leurs propres politiques. Contactez le responsable du projet pour toute demande relative à votre compte.</p><p>La politique officielle, les coordonnées du responsable et les informations relatives aux journaux de l’hébergeur restent à compléter avant publication.</p></dialog>
+  <dialog class="content-dialog" id="mises-a-jour" aria-labelledby="updates-title"><div class="dialog-head"><h2 id="updates-title">Mises à jour</h2><button class="close" data-close type="button" aria-label="Fermer les mises à jour">Fermer ✕</button></div><img class="detail-banner" src="updates-banner.png" alt="Création entre joueurs"><p class="tag">REC BLUE · Accès anticipé</p><h3>Rendez-vous le 2 mars 2027</h3><p>L’accès anticipé est annoncé pour le <time datetime="2027-03-02">02/03/2027</time>. Les notes de version du jeu seront affichées ici lorsqu’elles seront disponibles.</p><div class="detail-row"><span>Site communautaire<small>Actualités, chambres et galerie de 13 photos</small></span><span class="badge">Disponible</span></div></dialog>
+  <dialog class="content-dialog" id="inventions" aria-labelledby="inventions-title"><div class="dialog-head"><h2 id="inventions-title">Inventions</h2><button class="close" data-close type="button" aria-label="Fermer les inventions">Fermer ✕</button></div><p>Découvrez les créations des joueurs de REC BLUE.</p><div class="detail-row"><span>Aucune invention publiée<small>Le catalogue n’est pas encore connecté au jeu.</small></span><span class="badge">À venir</span></div><p class="detail-note">Les créations pourront être présentées ici lorsque le catalogue sera disponible. Aucune invention fictive n’est affichée.</p></dialog>
+  <dialog class="content-dialog" id="statut" aria-labelledby="status-title"><div class="dialog-head"><h2 id="status-title">Statut des services</h2><button class="close" data-close type="button" aria-label="Fermer le statut">Fermer ✕</button></div><p>État des services REC BLUE. Aucun serveur de jeu n’est surveillé pour le moment.</p><div class="detail-row"><span>Site web<small>Cette page est accessible depuis votre navigateur.</small></span><span class="badge">Accessible</span></div><div class="detail-row"><span>Serveurs de jeu<small>Aucune API de statut configurée</small></span><span class="badge">Non vérifié</span></div><div class="detail-row"><span>Comptes et présence<small>Aucun service de joueurs connecté</small></span><span class="badge">Non connecté</span></div><p class="detail-note">Ces indications ne constituent pas une mesure en temps réel de la disponibilité du jeu.</p></dialog>
+  <dialog class="content-dialog" id="joueurs" aria-labelledby="players-title"><div class="dialog-head"><h2 id="players-title">Joueurs</h2><button class="close" data-close type="button" aria-label="Fermer les joueurs">Fermer ✕</button></div><p>Retrouvez les membres présentés sur le site.</p><div class="detail-row"><img class="profile-photo" src="DormRoom-2026-7-30-1-16-32.jpg" alt="Photo de profil de LBP3PC"><span class="profile-name">LBP3PC<small>@LBP3PC · 13 photos partagées</small></span><a class="text-link" href="#photos" data-gallery>Voir les photos →</a></div><p class="detail-note">Le nombre de joueurs en ligne est indisponible : aucun service de présence n’est connecté. Cette fiche n’indique pas que LBP3PC est actuellement en ligne.</p></dialog>
+  <dialog class="content-dialog settings-dialog" id="parametres" aria-labelledby="settings-title"><div class="dialog-head"><h2 id="settings-title" data-i18n="settings">Paramètres</h2><button class="close" data-close type="button" aria-label="Fermer les paramètres">✕</button></div><h3 data-i18n="language">Langue</h3><div class="settings-row"><label for="language-select" data-i18n="language">Langue</label><div class="language-picker"><img class="language-flag" id="language-flag" src="flags/fr.svg" alt="" width="24" height="17"><select class="language-select" id="language-select"><option value="en">🇬🇧 English</option><option value="fr" selected>🇫🇷 Français</option><option value="es">🇪🇸 Español</option><option value="ru">🇷🇺 Русский</option><option value="de">🇩🇪 Deutsch</option><option value="ar">🇸🇦 العربية</option><option value="zh">🇨🇳 中文</option><option value="it">🇮🇹 Italiano</option><option value="ro">🇷🇴 Română</option><option value="hu">🇭🇺 Magyar</option></select></div></div><h3 data-i18n="notifications">Notifications</h3><div class="settings-row"><span data-i18n="updatePings">Pings de mise à jour</span><label class="switch-label"><span id="ping-state">Désactivé</span><input id="update-pings" type="checkbox" role="switch" aria-label="Pings de mise à jour"></label></div><p class="detail-note" data-i18n="localNotice">Préférence enregistrée sur cet appareil. Aucun envoi de notifications n’est encore connecté.</p><p class="detail-note" data-i18n="languageNotice">La langue choisie s’applique aux textes du site.</p><p class="detail-note" id="storage-warning" role="status" hidden>Le navigateur bloque l’enregistrement des préférences : elles seront perdues à la fermeture.</p></dialog>
+  <dialog class="content-dialog" id="recherche" aria-labelledby="search-title"><div class="dialog-head"><h2 id="search-title" data-i18n="search">Rechercher</h2><button class="close" data-close type="button" aria-label="Fermer la recherche">✕</button></div><label for="site-search">Rechercher sur REC BLUE</label><input class="search-input" id="site-search" type="search" placeholder="Chambres, photos, joueurs…" autocomplete="off"><div class="search-results" id="search-results" aria-live="polite"></div></dialog>
+  <dialog class="content-dialog" id="boutique" aria-labelledby="shop-title"><div class="dialog-head"><h2 id="shop-title" data-i18n="shop">Boutique</h2><button class="close" data-close type="button" aria-label="Fermer la boutique">✕</button></div><p>La boutique REC BLUE n’est pas encore ouverte.</p><div class="detail-row"><span>Aucun article disponible<small>Aucun achat ni paiement n’est proposé actuellement.</small></span><span class="badge">À venir</span></div></dialog>
+  <dialog class="content-dialog" id="connexion" aria-labelledby="login-title"><div class="dialog-head"><h2 id="login-title">Mon compte REC BLUE</h2><button class="close" data-close type="button" aria-label="Fermer le compte">✕</button></div>
+    <p id="account-setup" class="detail-note">Configuration requise : connectez le projet Supabase et installez le schéma de comptes. Les formulaires restent désactivés tant que le service n’est pas configuré.</p>
+    <p id="account-message" role="status" aria-live="polite"></p>
+    <div id="account-guest"><fieldset class="account-fieldset" id="account-controls" disabled>
+      <form id="account-login" class="account-form"><h3>Se connecter</h3><label>Email<input id="login-email" type="email" autocomplete="username" required maxlength="254"></label><label>Mot de passe<input id="login-password" type="password" autocomplete="current-password" required maxlength="128"></label><button class="button" id="login-submit" type="submit">Se connecter</button></form>
+      <details><summary>Créer un compte</summary><form id="account-signup" class="account-form"><label>Email<input id="signup-email" type="email" autocomplete="email" required maxlength="254"></label><label>Mot de passe · 12 caractères minimum<input id="signup-password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label><p class="detail-note">Les nouveaux comptes sont membres. Confirmez votre adresse email avant de vous connecter. Ces comptes concernent le site, pas encore le jeu.</p><button class="button" id="signup-submit" type="submit">Créer mon compte</button></form></details>
+    </fieldset></div>
+    <div id="account-profile" hidden><div class="detail-row"><span id="account-email" data-no-translate></span><span class="badge" id="account-role"></span></div><fieldset id="profile-controls" class="account-fieldset" disabled><form class="account-form" id="account-profile-form"><label>Mon pseudo<input id="account-name" minlength="2" maxlength="40" required autocomplete="nickname"></label><button class="button" id="profile-submit" type="submit">Enregistrer mon pseudo</button></form></fieldset><button class="close" id="account-logout" type="button">Se déconnecter</button><p class="detail-note">La session reste uniquement en mémoire et se termine au rechargement de la page.</p></div>
+    <section id="account-admin" hidden><h3>Administration des comptes</h3><p class="detail-note">Les administrateurs peuvent attribuer ou retirer les droits administrateur. Le dernier administrateur est protégé. Liste limitée aux 100 comptes les plus récents.</p><button class="button" id="accounts-refresh" type="button">Charger les comptes</button><div id="account-users"></div></section>
+  </dialog>
+  <dialog class="content-dialog download-dialog" id="telecharger" aria-labelledby="download-title">
+    <div class="dialog-head"><img class="download-header-logo" src="rec-blue-logo.png" alt="REC BLUE" width="693" height="180"><h2 class="download-heading" id="download-title">Télécharger REC BLUE</h2><button class="close" data-close type="button" aria-label="Fermer les téléchargements">✕</button></div>
+    <div class="download-scene">
+      <div class="download-brand"><img src="rec-blue-logo.png" alt="REC BLUE" width="693" height="180"><p>Bienvenue sur REC BLUE</p></div>
+      <div class="platform-tabs" role="tablist" aria-label="Plateformes">
+        <button class="platform-tab" id="platform-android" type="button" role="tab" aria-selected="false" aria-controls="platform-panel" tabindex="-1" data-platform="android"><svg viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="m8 7-3-4 1-1 4 5a14 14 0 0 1 12 0l4-5 1 1-3 4c4 3 6 7 6 11H2c0-4 2-8 6-11zM3 20h26v9H3z"/><circle cx="10" cy="12" r="1.5" fill="#2445b8"/><circle cx="22" cy="12" r="1.5" fill="#2445b8"/></svg>Android</button>
+        <button class="platform-tab" id="platform-ios" type="button" role="tab" aria-selected="false" aria-controls="platform-panel" tabindex="-1" data-platform="ios"><svg viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="M18 8c0-4 2-6 6-7 0 4-2 7-6 7zM16 10c-6-5-13 0-12 8 1 8 6 14 10 11 2-1 3-1 5 0 4 3 8-3 10-8-6-3-6-8-1-11-5-4-8-2-12 0z"/></svg>iOS</button>
+        <button class="platform-tab" id="platform-quest" type="button" role="tab" aria-selected="false" aria-controls="platform-panel" tabindex="-1" data-platform="quest"><svg viewBox="0 0 40 32" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 17C8-10-2 8 3 23s15-12 20-15 13 1 14 12-8 12-17-3z"/></svg>Meta Quest</button>
+        <button class="platform-tab" id="platform-pc" type="button" role="tab" aria-selected="true" aria-controls="platform-panel" tabindex="0" data-platform="pc"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><rect x="3" y="3" width="26" height="19" rx="2"/><path d="M16 23v6M9 29h14"/></svg>PC</button>
+        <button class="platform-tab" id="platform-steam" type="button" role="tab" aria-selected="false" aria-controls="platform-panel" tabindex="-1" data-platform="steam"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="23" cy="9" r="7"/><circle cx="23" cy="9" r="3"/><circle cx="10" cy="23" r="5"/><path d="m12 18 5-11M15 24l12-9M1 17l10 5"/></svg>Steam</button>
+      </div>
+      <section class="platform-panel" id="platform-panel" role="tabpanel" aria-labelledby="platform-pc" tabindex="0">
+        <div class="download-copy"><span class="tag">REC BLUE · Early Access</span><h3 id="platform-title" aria-live="polite">REC BLUE pour Windows</h3><p id="platform-description">Créez et jouez ensemble sur PC. Retrouvez vos amis et découvrez de nouvelles aventures.</p><button class="button download-unavailable" type="button" disabled id="platform-download">Téléchargement indisponible</button><p class="download-availability" id="platform-availability" role="status">Aucun fichier d’installation officiel n’a encore été ajouté.</p><p class="download-date">Accès anticipé annoncé pour le <time datetime="2027-03-02">2 mars 2027</time>.</p></div>
+        <div class="download-visual"><img class="download-room" id="platform-graphic" src="download/pc.webp" alt="PC" width="640" height="640"></div>
+      </section>
+      <div class="download-guide"><details id="installation-guide"><summary>Comment installer REC BLUE ?</summary><div class="installation-content"><h3>Installation sur PC</h3><p>Le guide sera à confirmer avec le lanceur officiel. Aucun téléchargement n’est disponible pour le moment.</p><ol><li>Téléchargez le lanceur depuis le lien officiel lorsqu’il sera disponible.</li><li>Vérifiez l’éditeur du fichier et analysez-le avec votre antivirus avant de l’ouvrir.</li><li>Ouvrez le lanceur et suivez les instructions d’installation.</li><li>Si plusieurs modes sont proposés, sélectionnez le mode écran ou réalité virtuelle compatible avec votre matériel.</li><li>Lancez le jeu depuis le lanceur officiel.</li></ol><p class="installation-warning">Gardez votre antivirus actif. Si un fichier est bloqué, ne contournez pas l’alerte : vérifiez sa provenance auprès de l’équipe.</p><p>Aucun injecteur ni exécutable non vérifié n’est proposé sur cette page.</p></div></details></div>
+    </div>
+  </dialog>
+  <dialog class="content-dialog" id="aide" aria-labelledby="help-title"><div class="dialog-head"><h2 id="help-title" data-i18n="help">Aide</h2><button class="close" data-close type="button" aria-label="Fermer l’aide">✕</button></div><details class="faq-item"><summary>Quand sort REC BLUE ?</summary><p>L’accès anticipé est annoncé pour le 02/03/2027.</p></details><details class="faq-item"><summary>Comment consulter les photos ?</summary><p>Ouvrez la galerie depuis les chambres ou la fiche Joueurs, puis cliquez sur une photo pour l’agrandir.</p></details><details class="faq-item"><summary>Comment changer la langue ?</summary><p>Ouvrez l’engrenage en haut du site. La langue de navigation est mémorisée sur cet appareil.</p></details><details class="faq-item"><summary>Comment fonctionnent les comptes et les droits ?</summary><p>Une fois le service configuré, créez un compte, confirmez votre email et connectez-vous. Les membres peuvent modifier leur pseudo. Les administrateurs peuvent gérer les droits des comptes. Le téléchargement du jeu reste à configurer.</p></details></dialog>
+  <dialog id="photo-viewer" aria-labelledby="viewer-title"><div class="dialog-head"><strong id="viewer-title">Photo du DormRoom</strong><button class="close" type="button" aria-label="Fermer la photo">Fermer ✕</button></div><img id="full-photo" alt=""></dialog>
+  <script src="translations.js"></script>
+  <script src="contact-translations.js"></script>
+  <script src="download-translations.js"></script>
+  <script src="i18n.js"></script>
+  <script>
+    const toggle = document.querySelector('.menu-toggle');
+    const navigation = document.getElementById('navigation');
+    toggle.addEventListener('click', () => {
+      const open = toggle.getAttribute('aria-expanded') !== 'true';
+      toggle.setAttribute('aria-expanded', String(open));
+      navigation.classList.toggle('open', open);
+    });
+    navigation.querySelectorAll('a').forEach(link => link.addEventListener('click', () => {
+      toggle.setAttribute('aria-expanded', 'false');
+      navigation.classList.remove('open');
+      navigation.querySelectorAll('a').forEach(item => item.classList.toggle('active', item === link));
+    }));
+    document.querySelectorAll('.rooms-dropdown a').forEach(link => link.addEventListener('click', () => document.querySelector('.rooms-menu').open = false));
+    document.addEventListener('click', event => { if (!event.target.closest('.rooms-menu')) document.querySelector('.rooms-menu').open = false; });
+    document.addEventListener('keydown', event => { if (event.key === 'Escape') document.querySelector('.rooms-menu').open = false; });
+    const languageSelect = document.getElementById('language-select');
+    const updatePings = document.getElementById('update-pings');
+    const storageWarning = document.getElementById('storage-warning');
+    function readPreference(key) { try { return localStorage.getItem(key); } catch (error) { storageWarning.hidden = false; return null; } }
+    function savePreference(key, value) { try { localStorage.setItem(key, value); } catch (error) { storageWarning.hidden = false; } }
+    const languageFlags = { en:'gb', fr:'fr', es:'es', ru:'ru', de:'de', ar:'sa', zh:'cn', it:'it', ro:'ro', hu:'hu' };
+    const savedLanguage = readPreference('recblue.language');
+    languageSelect.value = Object.hasOwn(languageFlags, savedLanguage) ? savedLanguage : 'fr';
+    updatePings.checked = readPreference('recblue.updatePings') === 'true';
+    function applyLanguage() {
+      document.getElementById('language-flag').src = 'flags/' + languageFlags[languageSelect.value] + '.svg';
+      document.getElementById('ping-state').textContent = updatePings.checked ? 'Activé' : 'Désactivé';
+      window.recblueApplyLanguage();
+    }
+    languageSelect.addEventListener('change', () => { savePreference('recblue.language', languageSelect.value); applyLanguage(); });
+    updatePings.addEventListener('change', () => { savePreference('recblue.updatePings', String(updatePings.checked)); applyLanguage(); });
+    applyLanguage();
+    const searchEntries = [
+      ['Nouvelles et actualités','#actualites'],['Chambres · DormRoom','#salons'],['Galerie · 13 photos de LBP3PC','#photos'],['Communauté','#communaute'],['Inventions','#inventions'],['Statut des services','#statut'],['Joueurs · LBP3PC','#joueurs'],['Mises à jour · Early Access','#mises-a-jour'],['Boutique','#boutique'],['Aide','#aide'],['Télécharger REC BLUE','#telecharger']
+    ];
+    const searchInput = document.getElementById('site-search');
+    function normalizeSearch(value) { return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+    function renderSearch() {
+      const results = document.getElementById('search-results');
+      results.replaceChildren();
+      const query = normalizeSearch(searchInput.value.trim());
+      const matches = searchEntries.filter(([name]) => (normalizeSearch(name).includes(query) || normalizeSearch(window.recblueTranslate(name)).includes(query)));
+      matches.forEach(([name, href]) => {
+        const link = document.createElement('a'); link.className = 'search-result'; link.textContent = window.recblueTranslate(name); link.href = href;
+        link.addEventListener('click', () => { document.getElementById('recherche').close(); if (href === '#photos') document.getElementById('photos').open = true; });
+        results.append(link);
+      });
+      if (!matches.length) { const empty = document.createElement('p'); empty.textContent = 'Aucun résultat.'; results.append(empty); }
+    }
+    searchInput.addEventListener('input', renderSearch);
+    renderSearch();
+    document.addEventListener('recblue:language', renderSearch);
+    const dialogLinks = document.querySelectorAll('[data-dialog]');
+    function openLinkedDialog() {
+      const id = location.hash.slice(1);
+      const dialog = document.getElementById(id);
+      document.querySelectorAll('.content-dialog[open]').forEach(item => { if (item !== dialog) item.close(); });
+      if (dialog && dialog.classList.contains('content-dialog') && !dialog.open) dialog.showModal();
+    }
+    dialogLinks.forEach(link => link.addEventListener('click', () => { if (location.hash === link.getAttribute('href')) openLinkedDialog(); }));
+    window.addEventListener('hashchange', openLinkedDialog);
+    document.querySelectorAll('.content-dialog').forEach(dialog => {
+      dialog.querySelector('[data-close]').addEventListener('click', () => dialog.close());
+      dialog.addEventListener('close', () => { if (location.hash === '#' + dialog.id) history.replaceState(null, '', location.pathname + location.search); });
+    });
+    document.querySelector('[data-gallery]').addEventListener('click', () => document.getElementById('joueurs').close());
+    openLinkedDialog();
+    const platformButtons = [...document.querySelectorAll('[data-platform]')];
+    const platformNames = { android:'REC BLUE pour Android', ios:'REC BLUE pour iOS', quest:'REC BLUE pour Meta Quest', pc:'REC BLUE pour Windows', steam:'REC BLUE sur Steam' };
+    const platformDetails = {
+      android: { image:'android', description:'Emportez REC BLUE sur votre appareil Android et retrouvez la communauté où que vous soyez.', action:'Télécharger pour Android' },
+      ios: { image:'ios', description:'Retrouvez REC BLUE sur iPhone et iPad et emportez vos aventures avec vous.', action:'Télécharger pour iOS' },
+      quest: { image:'quest', description:'Découvrez REC BLUE en réalité virtuelle immersive avec Meta Quest.', action:'Télécharger pour Meta Quest' },
+      pc: { image:'pc', description:'Créez et jouez ensemble sur PC. Retrouvez vos amis et découvrez de nouvelles aventures.', action:'Jouer sur PC' },
+      steam: { image:'pc', description:'Retrouvez REC BLUE sur Steam et partagez de nouvelles aventures avec vos amis.', action:'Voir sur Steam' }
+    };
+    function selectPlatform(button) {
+      platformButtons.forEach(item => { item.setAttribute('aria-selected', String(item === button)); item.tabIndex = item === button ? 0 : -1; });
+      document.getElementById('platform-panel').setAttribute('aria-labelledby', button.id);
+      document.getElementById('platform-title').textContent = platformNames[button.dataset.platform];
+      const details = platformDetails[button.dataset.platform];
+      document.getElementById('platform-description').textContent = details.description;
+      document.getElementById('platform-download').textContent = details.action;
+      const graphic = document.getElementById('platform-graphic');
+      graphic.src = 'download/' + details.image + '.webp';
+      graphic.alt = button.textContent.trim();
+      document.getElementById('platform-availability').textContent = button.dataset.platform === 'pc' ? 'Aucun fichier d’installation officiel n’a encore été ajouté.' : 'Aucune version officielle disponible pour cette plateforme.';
+      window.recblueApplyLanguage();
+    }
+    platformButtons.forEach((button, index) => {
+      button.addEventListener('click', () => selectPlatform(button));
+      button.addEventListener('keydown', event => {
+        let next;
+        const rtl = document.documentElement.dir === 'rtl';
+        if (event.key === 'ArrowRight') next = index + (rtl ? -1 : 1);
+        if (event.key === 'ArrowLeft') next = index + (rtl ? 1 : -1);
+        if (event.key === 'Home') next = 0;
+        if (event.key === 'End') next = platformButtons.length - 1;
+        if (next === undefined) return;
+        event.preventDefault();
+        const target = platformButtons[(next + platformButtons.length) % platformButtons.length];
+        selectPlatform(target); target.focus();
+      });
+    });
+    selectPlatform(document.getElementById('platform-pc'));
+    document.getElementById('copy-contact-email').addEventListener('click', async () => {
+      const status = document.getElementById('contact-copy-status');
+      try {
+        if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+        await navigator.clipboard.writeText('zaninnathan96@gmail.com');
+        status.textContent = 'Adresse copiée !';
+      } catch (error) {
+        status.textContent = 'Copie impossible. Sélectionnez l’adresse pour la copier manuellement.';
+      }
+    });
+    document.querySelector('#contact a[href="#communaute"]').addEventListener('click', () => document.getElementById('contact').close());
+    const viewer = document.getElementById('photo-viewer');
+    const fullPhoto = document.getElementById('full-photo');
+    document.querySelectorAll('.photo').forEach(button => button.addEventListener('click', () => {
+      const photo = button.querySelector('img');
+      fullPhoto.src = photo.getAttribute('src');
+      fullPhoto.alt = photo.alt;
+      document.getElementById('viewer-title').textContent = photo.alt;
+      viewer.showModal();
+    }));
+    document.querySelectorAll('a[href="#photos"]').forEach(link => link.addEventListener('click', () => {
+      document.getElementById('photos').open = true;
+    }));
+    viewer.querySelector('.close').addEventListener('click', () => viewer.close());
+    viewer.addEventListener('click', event => { if (event.target === viewer) { const rect = viewer.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) viewer.close(); } });
+  </script>
+  <script src="account-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.js" defer></script>
+  <script src="accounts.js" defer></script>
 </body>
 </html>
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project RecNet Hub // LBP3PC Profile</title>
-    <style>
-        :root {
-            --rn-bg: #1e1e1e;
-            --rn-nav-bg: #151515;
-            --rn-orange: #ff7f00;
-            --rn-panel-bg: #252525;
-            --rn-btn-orange: #ff6b3d;
-            --text-white: #ffffff;
-            --text-muted: #aaaaaa;
-            --rr-green: #00CC66;
-        }
-
-        @import url('https://googleapis.com');
-
-        body {
-            background-color: var(--rn-bg);
-            color: var(--text-white);
-            font-family: 'Nunito', sans-serif;
-            margin: 0; padding: 0;
-        }
-
-        .top-navbar {
-            background-color: var(--rn-nav-bg);
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-            border-bottom: 1px solid #2d2d2d;
-            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-        }
-        .logo-area { font-size: 20px; font-weight: 900; color: var(--rn-orange); text-decoration: none; }
-
-        .app-layout {
-            padding-top: 70px;
-            max-width: 1100px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        .main-content {
-            display: flex;
-            gap: 20px;
-            padding: 20px;
-        }
-
-        .sidebar {
-            width: 300px;
-            flex-shrink: 0;
-            text-align: center;
-        }
-
-        .pfp-circle {
-            width: 120px; height: 120px;
-            border-radius: 50%;
-            border: 6px solid var(--rn-panel-bg);
-            background-color: #ff3b30;
-            display: inline-block;
-            overflow: hidden;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-            margin-bottom: 15px;
-        }
-        .pfp-circle img { width: 100%; height: 100%; object-fit: cover; }
-
-        .user-name { font-size: 24px; font-weight: 900; margin: 5px 0; }
-        .user-tag { color: var(--text-muted); font-size: 14px; margin-bottom: 15px; }
-
-        .btn-orange {
-            background-color: var(--rn-btn-orange); color: white; border: none;
-            padding: 10px 20px; border-radius: 6px; font-weight: 900; width: 100%;
-            cursor: pointer; text-transform: uppercase; margin-bottom: 15px;
-        }
-
-        .monitor-box {
-            background-color: var(--rn-panel-bg);
-            border: 1px solid #333;
-            border-radius: 10px;
-            padding: 15px;
-            text-align: left;
-        }
-
-        .monitor-title { font-family: 'Fredoka One', cursive; color: var(--rn-orange); margin-bottom: 10px; font-size: 14px; }
-        .status-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; font-weight: bold; }
-
-        .feed-area {
-            flex-grow: 1;
-        }
-
-        .tabs-header {
-            background-color: var(--rn-panel-bg);
-            border: 1px solid #333;
-            border-radius: 8px;
-            display: flex;
-            justify-content: space-around;
-            padding: 12px;
-            margin-bottom: 15px;
-            font-weight: bold;
-        }
-        .tab-active { color: var(--rn-orange); border-bottom: 2px solid var(--rn-orange); }
-
-        .photos-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-        }
-        .photo-card {
-            background-color: #151515;
-            border: 1px solid #2d2d2d;
-            border-radius: 6px;
-            aspect-ratio: 16 / 10;
-            overflow: hidden;
-        }
-        .photo-card img { width: 100%; height: 100%; object-fit: cover; }
-    </style>
-</head>
-<body>
-
-    <nav class="top-navbar">
-        <a class="logo-area" href="#">🟧 PROJECT RECNET HUB</a>
-        <a href="https://discord.gg" target="_blank" style="background-color: #5865F2; color: white; text-decoration: none; padding: 6px 14px; border-radius: 20px; font-weight: 900; font-size: 12px; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(88,101,242,0.3);">
-            REJOINDRE LE DISCORD
-        </a>
-    </nav>
-
-    <div class="app-layout">
-        <div class="main-content">
-            
-            <!-- PROFIL À GAUCHE -->
-            <div class="sidebar">
-                <div class="pfp-circle">
-                    <img src="./DormRoom-2026-7-30-1-16-32.jpg" alt="Profil">
-                </div>
-                <div class="user-name">LBP3PC</div>
-                <div class="user-tag">@LBP3PC</div>
-                <button class="btn-orange">SUBSCRIBE 5.9M</button>
-
-                <div class="monitor-box">
-                    <div class="monitor-title">📡 Rec.js Engine 2019</div>
-                    <div class="status-row"><span>Statut IP</span><span id="srvStatus" style="color:#ff7f00;">SCAN LOCAL 🕒</span></div>
-                    <div class="stat-row-item" style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:8px; font-weight:bold;"><span>Port</span><span style="color:var(--rn-orange);">2056</span></div>
-                </div>
-            </div>
-
-            <!-- PHOTOS À DROITE -->
-            <div class="feed-area">
-                <div class="tabs-header">
-                    <div>🏠 Rooms Saved (2)</div>
-                    <div class="tab-active">📷 Photos (13)</div>
-                    <div>🤝 Friends</div>
-                </div>
-
-                <div class="photos-grid">
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-44-53.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-44-59.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-45-53.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-46-18.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-49-21.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-52-24.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-53-0.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-4-2-47.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-4-3-59.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-4-6-13.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-30-1-16-32.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-30-1-20-12.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-30-3-56-58.jpg"></div>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-    <script>
-        async function checkServer() {
-            try {
-                const res = await fetch('http://localhost:2056/api/versioncheck');
-                if (res.ok) {
-                    document.getElementById('srvStatus').innerText = "CONNECTÉ ✅";
-                    document.getElementById('srvStatus').style.color = "#00CC66";
-                } else {
-                    document.getElementById('srvStatus').innerText = "SCAN LOCAL 🕒";
-                    document.getElementById('srvStatus').style.color = "#ff7f00";
-                }
-            } catch (e) {
-                document.getElementById('srvStatus').innerText = "SCAN LOCAL 🕒";
-                document.getElementById('srvStatus').style.color = "#ff7f00";
-            }
-        }
-        setInterval(checkServer, 2000);
-    </script>
-</body>
-</html>
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project RecNet Hub // LBP3PC Profile</title>
-    <style>
-        :root {
-            --rn-bg: #1e1e1e;
-            --rn-nav-bg: #151515;
-            --rn-orange: #ff7f00;
-            --rn-panel-bg: #252525;
-            --rn-btn-orange: #ff6b3d;
-            --text-white: #ffffff;
-            --text-muted: #aaaaaa;
-            --rr-green: #00CC66;
-        }
-
-        @import url('https://googleapis.com');
-
-        body {
-            background-color: var(--rn-bg);
-            color: var(--text-white);
-            font-family: 'Nunito', sans-serif;
-            margin: 0; padding: 0;
-        }
-
-        .top-navbar {
-            background-color: var(--rn-nav-bg);
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-            border-bottom: 1px solid #2d2d2d;
-            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-        }
-        .logo-area { font-size: 20px; font-weight: 900; color: var(--rn-orange); text-decoration: none; }
-
-        .app-layout {
-            padding-top: 50px;
-            max-width: 1100px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        .profile-banner {
-            width: 100%;
-            height: 200px;
-            background-image: url('./DormRoom-2026-7-30-3-56-58.jpg');
-            background-size: cover;
-            background-position: center;
-            border-bottom: 4px solid var(--rn-orange);
-            border-radius: 0 0 12px 12px;
-        }
-
-        .main-content {
-            display: flex;
-            gap: 20px;
-            padding: 20px 0;
-        }
-
-        .sidebar {
-            width: 300px;
-            flex-shrink: 0;
-            text-align: center;
-        }
-
-        .pfp-container {
-            margin-top: -60px;
-            margin-bottom: 15px;
-        }
-
-        .pfp-circle {
-            width: 120px; height: 120px;
-            border-radius: 50%;
-            border: 6px solid var(--rn-bg);
-            background-color: #ff3b30;
-            display: inline-block;
-            overflow: hidden;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-        }
-        .pfp-circle img { width: 100%; height: 100%; object-fit: cover; }
-
-        .user-name { font-size: 24px; font-weight: 900; margin: 5px 0; }
-        .user-tag { color: var(--text-muted); font-size: 14px; margin-bottom: 15px; }
-
-        .btn-orange {
-            background-color: var(--rn-btn-orange); color: white; border: none;
-            padding: 10px 20px; border-radius: 6px; font-weight: 900; width: 100%;
-            cursor: pointer; text-transform: uppercase; margin-bottom: 15px;
-        }
-
-        .monitor-box {
-            background-color: var(--rn-panel-bg);
-            border: 1px solid #333;
-            border-radius: 10px;
-            padding: 15px;
-            text-align: left;
-        }
-
-        .monitor-title { font-family: 'Fredoka One', cursive; color: var(--rn-orange); margin-bottom: 10px; font-size: 14px; }
-        .status-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; font-weight: bold; }
-
-        .feed-area {
-            flex-grow: 1;
-        }
-
-        .tabs-header {
-            background-color: var(--rn-panel-bg);
-            border: 1px solid #333;
-            border-radius: 8px;
-            display: flex;
-            justify-content: space-around;
-            padding: 12px;
-            margin-bottom: 15px;
-            font-weight: bold;
-        }
-        .tab-active { color: var(--rn-orange); border-bottom: 2px solid var(--rn-orange); }
-
-        .photos-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-        }
-        .photo-card {
-            background-color: #151515;
-            border: 1px solid #2d2d2d;
-            border-radius: 6px;
-            aspect-ratio: 16 / 10;
-            overflow: hidden;
-        }
-        .photo-card img { width: 100%; height: 100%; object-fit: cover; }
-    </style>
-</head>
-<body>
-
-    <!-- 👑 BARRE DU HAUT AVEC BOUTON DISCORD -->
-    <nav class="top-navbar">
-        <a class="logo-area" href="#">🟧 PROJECT RECNET HUB</a>
-        <a href="https://discord.gg" target="_blank" style="background-color: #5865F2; color: white; text-decoration: none; padding: 6px 14px; border-radius: 20px; font-weight: 900; font-size: 12px; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(88,101,242,0.3);">
-            REJOINDRE LE DISCORD
-        </a>
-    </nav>
-
-    <div class="app-layout">
-        <div class="profile-banner"></div>
-
-        <div class="main-content">
-            <!-- 👤 BLOC PROFIL (UN SEUL EXEMPLAIRE) -->
-            <div class="sidebar">
-                <div class="pfp-container">
-                    <div class="pfp-circle"><img src="./DormRoom-2026-7-30-1-16-32.jpg"></div>
-                </div>
-                <div class="user-name">LBP3PC</div>
-                <div class="user-tag">@LBP3PC</div>
-                <button class="btn-orange">SUBSCRIBE 5.9M</button>
-
-                <div class="monitor-box">
-                    <div class="monitor-title">📡 Rec.js Engine 2019</div>
-                    <div class="status-row"><span>Statut IP</span><span id="srvStatus" style="color:#ff7f00;">SCAN LOCAL 🕒</span></div>
-                    <div class="status-row"><span>Machine</span><span>localhost</span></div>
-                    <div class="status-row"><span>Port</span><span>2056</span></div>
-                </div>
-            </div>
-
-            <!-- 📷 GRILLE DE PHOTOS UNIQUE -->
-            <div class="feed-area">
-                <div class="tabs-header">
-                    <div>🏠 Rooms Saved (2)</div>
-                    <div class="tab-active">📷 Photos (13)</div>
-                    <div>🤝 Friends</div>
-                </div>
-
-                <div class="photos-grid">
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-44-53.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-44-59.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-45-53.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-46-18.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-49-21.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-52-24.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-3-53-0.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-4-2-47.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-4-3-59.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-29-4-6-13.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-30-1-16-32.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-30-1-20-12.jpg"></div>
-                    <div class="photo-card"><img src="./DormRoom-2026-7-30-3-56-58.jpg"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        async function checkServer() {
-            try {
-                const res = await fetch('http://localhost:2056/api/versioncheck');
-                if (res.ok) {
-                    document.getElementById('srvStatus').innerText = "CONNECTÉ ✅";
-                    document.getElementById('srvStatus').style.color = "#00CC66";
-                } else {
-                    document.getElementById('srvStatus').innerText = "SCAN LOCAL 🕒";
-                    document.getElementById('srvStatus').style.color = "#ff7f00";
-                }
-            } catch (e) {
-                document.getElementById('srvStatus').innerText = "SCAN LOCAL 🕒";
-                document.getElementById('srvStatus').style.color = "#ff7f00";
-            }
-        }
-        setInterval(checkServer, 2000);
-    </script>
-</body>
-</html>
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project RecNet Hub // LBP3PC 2019 Profile</title>
-    <style>
-        :root {
-            --rn-bg: #1e1e1e;
-            --rn-nav-bg: #151515;
-            --rn-orange: #ff7f00;
-            --rn-panel-bg: #252525;
-            --rn-btn-orange: #ff6b3d;
-            --text-white: #ffffff;
-            --text-muted: #aaaaaa;
-            --rr-green: #00CC66;
-        }
-
-        @import url('https://googleapis.com');
-
-        body {
-            background-color: var(--rn-bg);
-            color: var(--text-white);
-            font-family: 'Nunito', sans-serif;
-            margin: 0; padding: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-
-        .top-navbar {
-            background-color: var(--rn-nav-bg);
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-            border-bottom: 1px solid #2d2d2d;
-            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-        }
-        .logo-area { font-size: 20px; font-weight: 900; color: var(--rn-orange); display: flex; align-items: center; gap: 5px; text-decoration: none; }
-
-        .app-layout {
-            margin-top: 50px;
-            height: calc(100vh - 50px);
-            width: 100%;
-            overflow-y: auto;
-        }
-
-        .profile-banner {
-            width: 100%;
-            height: 240px;
-            background-image: url('./DormRoom-2026-7-30-3-56-58.jpg');
-            background-size: cover;
-            background-position: center;
-            border-bottom: 4px solid var(--rn-orange);
-        }
-
-        .profile-container {
-            display: grid;
-            grid-template-columns: 300px 1fr;
-            gap: 30px;
-            padding: 20px;
-            max-width: 1300px;
-            margin: 0 auto;
-            width: calc(100% - 40px);
-        }
-
-        .profile-sidebar-card {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-top: -90px;
-            z-index: 10;
-        }
-        
-        .pfp-circle {
-            width: 130px; height: 130px;
-            border-radius: 50%;
-            border: 6px solid var(--rn-bg);
-            background-color: #ff3b30;
-            overflow: hidden;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-        }
-        .pfp-circle img { width: 100%; height: 100%; object-fit: cover; }
-        
-        .user-title-name { font-size: 22px; font-weight: 900; margin: 12px 0 2px 0; color: #fff; }
-        .user-tag { color: var(--text-muted); font-size: 13px; margin-bottom: 5px; }
-        .sub-count { font-size: 12px; color: var(--text-muted); margin-bottom: 15px; font-weight: 800; }
-
-        .btn-sub-orange {
-            width: 100%; background-color: var(--rn-btn-orange); color: white;
-            border: none; padding: 10px; border-radius: 6px;
-            font-weight: 900; font-size: 13px; cursor: pointer; text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-        .btn-friends {
-            width: 100%; background-color: #333; color: white;
-            border: none; padding: 8px; border-radius: 6px;
-            font-weight: 700; font-size: 12px; cursor: pointer;
-        }
-
-        .server-monitor-box {
-            background-color: var(--rn-panel-bg);
-            width: 100%;
-            border-radius: 10px;
-            padding: 15px;
-            box-sizing: border-box;
-            border: 1px solid #3d3d3d;
-            margin-top: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            text-align: left;
-        }
-        .monitor-headline {
-            font-family: 'Fredoka One', cursive;
-            color: var(--rn-orange);
-            font-size: 14px;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .pulse-light-status { width: 9px; height: 10px; background: var(--rr-green); border-radius: 50%; box-shadow: 0 0 8px var(--rr-green); }
-        .pulse-light-status.scanning { background: #ff7f00; box-shadow: 0 0 8px #ff7f00; animation: statusPulse 1.5s infinite; }
-        @keyframes statusPulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
-
-        .stat-row-item { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; font-weight: bold; }
-        .stat-row-item span:last-child { color: var(--rn-orange); }
-        
-        .stat-progress-bg { background: #151515; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 2px; margin-bottom: 10px; border: 1px solid #2d2d2d; }
-        .stat-progress-fill { background: var(--rn-orange); width: 24%; height: 100%; transition: width 0.4s ease; }
-        .stat-progress-fill.ram-color { background: var(--rn-btn-orange); width: 46%; }
-
-        .grid-header-tabs {
-            background-color: var(--rn-panel-bg);
-            border-radius: 8px;
-            height: 45px;
-            display: flex;
-            align-items: center;
-            justify-content: space-around;
-            border: 1px solid #333;
-            margin-bottom: 15px;
-        }
-        .grid-tab-item { font-size: 14px; opacity: 0.5; font-weight: bold; }
-        .grid-tab-item.active { opacity: 1; color: var(--rn-orange); border-bottom: 2px solid var(--rn-orange); padding-bottom: 2px; }
-
-        .filter-bar { font-size: 12px; font-weight: 800; color: var(--text-muted); text-align: left; margin-bottom: 15px; }
-
-        .photos-feed-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            padding-bottom: 40px;
-        }
-        .photo-grid-item {
-            background-color: #151515;
-            border-radius: 6px;
-            aspect-ratio: 16 / 10;
-            overflow: hidden;
-            border: 1px solid #2d2d2d;
-        }
-        .photo-grid-item img { width: 100%; height: 100%; object-fit: cover; }
-    </style>
-</head>
-<body>
-
-    <nav class="top-navbar">
-        <div class="logo-area">🟧 PROJECT RECNET HUB <span>Live Dashboard</span></div>
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <a href="https://discord.gg" target="_blank" style="background-color: #5865F2; color: white; text-decoration: none; padding: 6px 14px; border-radius: 20px; font-weight: 900; font-size: 12px; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(88,101,242,0.3); border-bottom: 3px solid #404eed;">
-                <svg width="14" height="14" viewBox="0 0 127.14 96.36" fill="white"><path d="M107.7,8.07A105.15,105.15,0,0,0,77.26,0a77.19,77.19,0,0,0-3.3,6.83A96.67,96.67,0,0,0,53.22,6.83,77.19,77.19,0,0,0,49.88,0,105.15,105.15,0,0,0,19.44,8.07C3.66,31.58-1.86,54.65,1,77.53A105.73,105.73,0,0,0,32,96.36a74.37,74.37,0,0,0,6.72-11A68.36,68.36,0,0,1,28.12,79.9a52.44,52.44,0,0,0,4.24-3.32,75.46,75.46,0,0,0,72.6,0,52.44,52.44,0,0,0,4.24,3.32,68.36,68.36,0,0,1-10.63,5.43,74.37,74.37,0,0,0,6.72,11,105.73,105.73,0,0,0,31.06-18.83C129.47,49.37,123.53,26.54,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53S36.18,40.36,42.45,40.36,53.83,46,53.83,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.24,60,73.24,53S78.41,40.36,84.69,40.36,96.07,46,96.07,53,91,65.69,84.69,65.69Z"/></svg>
-                REJOINDRE LE DISCORD
-            </a>
-            <div style="font-size: 16px; opacity: 0.7; display: flex; gap: 15px; cursor: pointer;">🔍 🔔 👤</div>
-        </div>
-    </nav>
-
-    <div class="app-layout">
-        <div class="profile-banner"></div>
-
-        <div class="profile-container">
-            <!-- COLONNE SIDEBAR UNIQUE -->
-            <div class="profile-sidebar-card">
-                <div class="pfp-circle"><img src="./DormRoom-2026-7-30-1-16-32.jpg" alt="Pfp"></div>
-                <h1 class="user-title-name">LBP3PC</h1>
-                <div class="user-tag">@LBP3PC</div>
-                <div class="sub-count">5.9M Subscribers</div>
-
-                <button class="btn-sub-orange">SUBSCRIBE 5.9M</button>
-                <button class="btn-friends">🤝 Friends</button>
-
-                <!-- 🎛️ MONITEUR RECNET DE LA VERSION 2019 COMPATIBLE -->
-                <div class="server-monitor-box">
-                    <div class="monitor-headline">
-                        <div class="pulse-light-status scanning" id="light19"></div>
-                        <span>Rec.js Engine 2019 (Open)</span>
-                    </div>
-                    <div class="stat-row-item"><span>Statut IP</span><span style="color:#ff7f00;" id="srvStatus19">OFFLINE 🕒</span></div>
-                    <div class="stat-row-item"><span>Machine</span><span>localhost</span></div>
-                    <div class="stat-row-item"><span>Port Actif</span><span>2056</span></div>
-                    
-                    <div class="stat-row-item" style="margin-top:10px;"><span>Charge CPU</span><span id="liveCpu">12%</span></div>
-                    <div class="stat-progress-bg"><div class="stat-progress-fill" id="cpuBarFill"></div></div>
-                    
-                    <div class="stat-row-item"><span>Mémoire RAM</span><span id="liveRam">40%</span></div>
-                    <div class="stat-progress-bg"><div class="stat-progress-fill ram-color" id="ramBarFill"></div></div>
-                </div>
-            </div>
-
-            <!-- GRILLE RECENTRÉE DES 13 IMAGES -->
-            <div class="grid-content-area">
-                <div class="grid-header-tabs">
-                    <div class="grid-tab-item">🏠 Rooms Saved (2)</div>
-                    <div class="grid-tab-item active">📷 Photos (13)</div>
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project RecNet Hub // LBP3PC 2019 Profile</title>
-    <style>
-        :root {
-            --rn-bg: #1e1e1e;
-            --rn-nav-bg: #151515;
-            --rn-orange: #ff7f00;
-            --rn-panel-bg: #252525;
-            --rn-btn-orange: #ff6b3d;
-            --text-white: #ffffff;
-            --text-muted: #aaaaaa;
-            --rr-green: #00CC66;
-        }
-
-        @import url('https://googleapis.com');
-
-        body {
-            background-color: var(--rn-bg);
-            color: var(--text-white);
-            font-family: 'Nunito', sans-serif;
-            margin: 0; padding: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-
-        .top-navbar {
-            background-color: var(--rn-nav-bg);
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-            border-bottom: 1px solid #2d2d2d;
-            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-        }
-        .logo-area { font-size: 20px; font-weight: 900; color: var(--rn-orange); display: flex; align-items: center; gap: 5px; text-decoration: none; }
-
-        .app-layout {
-            margin-top: 50px;
-            height: calc(100vh - 50px);
-            width: 100%;
-            overflow-y: auto;
-        }
-
-        .profile-banner {
-            width: 100%;
-            height: 240px;
-            background-image: url('./DormRoom-2026-7-30-3-56-58.jpg');
-            background-size: cover;
-            background-position: center;
-            border-bottom: 4px solid var(--rn-orange);
-        }
-
-        .profile-container {
-            display: grid;
-            grid-template-columns: 300px 1fr;
-            gap: 30px;
-            padding: 20px;
-            max-width: 1300px;
-            margin: 0 auto;
-            width: calc(100% - 40px);
-        }
-
-        .profile-sidebar-card {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-top: -90px;
-            z-index: 10;
-        }
-        
-        .pfp-circle {
-            width: 130px; height: 130px;
-            border-radius: 50%;
-            border: 6px solid var(--rn-bg);
-            background-color: #ff3b30;
-            overflow: hidden;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-        }
-        .pfp-circle img { width: 100%; height: 100%; object-fit: cover; }
-        
-        .user-title-name { font-size: 22px; font-weight: 900; margin: 12px 0 2px 0; color: #fff; }
-        .user-tag { color: var(--text-muted); font-size: 13px; margin-bottom: 5px; }
-        .sub-count { font-size: 12px; color: var(--text-muted); margin-bottom: 15px; font-weight: 800; }
-
-        .btn-sub-orange {
-            width: 100%; background-color: var(--rn-btn-orange); color: white;
-            border: none; padding: 10px; border-radius: 6px;
-            font-weight: 900; font-size: 13px; cursor: pointer; text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-        .btn-friends {
-            width: 100%; background-color: #333; color: white;
-            border: none; padding: 8px; border-radius: 6px;
-            font-weight: 700; font-size: 12px; cursor: pointer;
-        }
-
-        .server-monitor-box {
-            background-color: var(--rn-panel-bg);
-            width: 100%;
-            border-radius: 10px;
-            padding: 15px;
-            box-sizing: border-box;
-            border: 1px solid #3d3d3d;
-            margin-top: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            text-align: left;
-        }
-        .monitor-headline {
-            font-family: 'Fredoka One', cursive;
-            color: var(--rn-orange);
-            font-size: 15px;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .pulse-light-status { width: 9px; height: 10px; background: var(--rr-green); border-radius: 50%; box-shadow: 0 0 8px var(--rr-green); animation: statusPulse 1.5s infinite; }
-        @keyframes statusPulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
-
-        .stat-row-item { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; font-weight: bold; }
-        .stat-row-item span:last-child { color: var(--rn-orange); }
-        
-        .stat-progress-bg { background: #151515; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 2px; margin-bottom: 10px; border: 1px solid #2d2d2d; }
-        .stat-progress-fill { background: var(--rn-orange); width: 24%; height: 100%; transition: width 0.4s ease; }
-        .stat-progress-fill.ram-color { background: var(--rn-btn-orange); width: 46%; }
-
-        .grid-header-tabs {
-            background-color: var(--rn-panel-bg);
-            border-radius: 8px;
-            height: 45px;
-            display: flex;
-            align-items: center;
-            justify-content: space-around;
-            border: 1px solid #333;
-            margin-bottom: 15px;
-        }
-        .grid-tab-item { font-size: 14px; opacity: 0.5; font-weight: bold; }
-        .grid-tab-item.active { opacity: 1; color: var(--rn-orange); border-bottom: 2px solid var(--rn-orange); padding-bottom: 2px; }
-
-        .filter-bar { font-size: 12px; font-weight: 800; color: var(--text-muted); text-align: left; margin-bottom: 15px; }
-
-        .photos-feed-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            padding-bottom: 40px;
-        }
-        .photo-grid-item {
-            background-color: #151515;
-            border-radius: 6px;
-            aspect-ratio: 16 / 10;
-            overflow: hidden;
-            border: 1px solid #2d2d2d;
-        }
-        .photo-grid-item img { width: 100%; height: 100%; object-fit: cover; }
-    </style>
-</head>
-<body>
-
-    <nav class="top-navbar">
-        <div class="logo-area">🟧 PROJECT RECNET HUB <span>Live Dashboard</span></div>
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <a href="https://discord.gg" target="_blank" style="background-color: #5865F2; color: white; text-decoration: none; padding: 6px 14px; border-radius: 20px; font-weight: 900; font-size: 12px; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(88,101,242,0.3); border-bottom: 3px solid #404eed;">
-                <svg width="14" height="14" viewBox="0 0 127.14 96.36" fill="white"><path d="M107.7,8.07A105.15,105.15,0,0,0,77.26,0a77.19,77.19,0,0,0-3.3,6.83A96.67,96.67,0,0,0,53.22,6.83,77.19,77.19,0,0,0,49.88,0,105.15,105.15,0,0,0,19.44,8.07C3.66,31.58-1.86,54.65,1,77.53A105.73,105.73,0,0,0,32,96.36a74.37,74.37,0,0,0,6.72-11A68.36,68.36,0,0,1,28.12,79.9a52.44,52.44,0,0,0,4.24-3.32,75.46,75.46,0,0,0,72.6,0,52.44,52.44,0,0,0,4.24,3.32,68.36,68.36,0,0,1-10.63,5.43,74.37,74.37,0,0,0,6.72,11,105.73,105.73,0,0,0,31.06-18.83C129.47,49.37,123.53,26.54,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53S36.18,40.36,42.45,40.36,53.83,46,53.83,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.24,60,73.24,53S78.41,40.36,84.69,40.36,96.07,46,96.07,53,91,65.69,84.69,65.69Z"/></svg>
-                REJOINDRE LE DISCORD
-            </a>
-            <div style="font-size: 16px; opacity: 0.7; display: flex; gap: 15px; cursor: pointer;">🔍 🔔 👤</div>
-        </div>
-    </nav>
-
-    <div class="app-layout">
-        <div class="profile-banner"></div>
-
-        <div class="profile-container">
-            <!-- COLONNE SIDEBAR PROPRE (SANS DOUBLE) -->
-            <div class="profile-sidebar-card">
-                <div class="pfp-circle"><img src="./DormRoom-2026-7-30-1-16-32.jpg" alt="Pfp"></div>
-                <h1 class="user-title-name">LBP3PC</h1>
-                <div class="user-tag">@LBP3PC</div>
-                <div class="sub-count">5.9M Subscribers</div>
-
-                <button class="btn-sub-orange">SUBSCRIBE 5.9M</button>
-                <button class="btn-friends">🤝 Friends</button>
-
-                <div class="server-monitor-box">
-                    <div class="monitor-headline">
-                        <div class="pulse-light-status"></div>
-                        <span>Rec.js Engine 2019</span>
-                    </div>
-                    <div class="stat-row-item"><span>Statut IP</span><span style="color:#ff7f00;" id="srvStatus">SCAN LOCAL 🕒</span></div>
-                    <div class="stat-row-item"><span>Machine</span><span>localhost</span></div>
-                    <div class="stat-row-item"><span>Port API</span><span>2056</span></div>
-                    
-                    <div class="stat-row-item" style="margin-top:10px;"><span>Charge CPU</span><span id="liveCpu">14%</span></div>
-                    <div class="stat-progress-bg"><div class="stat-progress-fill" id="cpuBarFill"></div></div>
-                    
-                    <div class="stat-row-item"><span>Mémoire RAM</span><span id="liveRam">41%</span></div>
-                    <div class="stat-progress-bg"><div class="stat-progress-fill ram-color" id="ramBarFill"></div></div>
-                </div>
-            </div>
-
-            <!-- GRILLE DE VOS 13 PHOTOS RECENTRÉE ET PROPRE -->
-            <div class="grid-content-area">
-                <div class="grid-header-tabs">
-                    <div class="grid-tab-item">🏠 Rooms Saved</div>
-                    <div class="grid-tab-item active">📷 Photos (13)</div>
-                    <div class="grid-tab-item">🤝 Subscriptions</div>
-                </div>
-
-                <div class="filter-bar">🎛️ CODES MAPS COMPATIBLES : DormRoom // SDF</div>
-
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project RecNet Hub // LBP3PC 2019 Profile</title>
-    <style>
-        :root {
-            --rn-bg: #1e1e1e;
-            --rn-nav-bg: #151515;
-            --rn-orange: #ff7f00;
-            --rn-panel-bg: #252525;
-            --rn-btn-orange: #ff6b3d;
-            --text-white: #ffffff;
-            --text-muted: #aaaaaa;
-            --rr-green: #00CC66;
-        }
-
-        @import url('https://googleapis.com');
-
-        body {
-            background-color: var(--rn-bg);
-            color: var(--text-white);
-            font-family: 'Nunito', sans-serif;
-            margin: 0; padding: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-
-        .top-navbar {
-            background-color: var(--rn-nav-bg);
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-            border-bottom: 1px solid #2d2d2d;
-            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-        }
-        .logo-area { font-size: 20px; font-weight: 900; color: var(--rn-orange); display: flex; align-items: center; gap: 5px; text-decoration: none; }
-        .logo-area span { color: white; font-weight: 400; font-size: 14px; margin-left: 10px; }
-
-        .app-layout {
-            margin-top: 50px;
-            height: calc(100vh - 50px);
-            width: 100%;
-            overflow-y: auto;
-        }
-
-        .profile-banner {
-            width: 100%;
-            height: 240px;
-            background-image: url('./DormRoom-2026-7-30-3-56-58.jpg');
-            background-size: cover;
-            background-position: center;
-            border-bottom: 4px solid var(--rn-orange);
-        }
-
-        .profile-container {
-            display: grid;
-            grid-template-columns: 300px 1fr;
-            gap: 30px;
-            padding: 20px;
-            max-width: 1300px;
-            margin: 0 auto;
-            width: calc(100% - 40px);
-        }
-
-        .profile-sidebar-card {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-top: -90px;
-            z-index: 10;
-        }
-        
-        .pfp-circle {
-            width: 130px; height: 130px;
-            border-radius: 50%;
-            border: 6px solid var(--rn-bg);
-            background-color: #ff3b30;
-            overflow: hidden;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-        }
-        .pfp-circle img { width: 100%; height: 100%; object-fit: cover; }
-        
-        .user-title-name { font-size: 22px; font-weight: 900; margin: 12px 0 2px 0; color: #fff; }
-        .user-tag { color: var(--text-muted); font-size: 13px; margin-bottom: 5px; }
-        .sub-count { font-size: 12px; color: var(--text-muted); margin-bottom: 15px; font-weight: 800; }
-
-        .btn-sub-orange {
-            width: 100%; background-color: var(--rn-btn-orange); color: white;
-            border: none; padding: 10px; border-radius: 6px;
-            font-weight: 900; font-size: 13px; cursor: pointer; text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-        .btn-friends {
-            width: 100%; background-color: #333; color: white;
-            border: none; padding: 8px; border-radius: 6px;
-            font-weight: 700; font-size: 12px; cursor: pointer;
-        }
-
-        .server-monitor-box {
-            background-color: var(--rn-panel-bg);
-            width: 100%;
-            border-radius: 10px;
-            padding: 15px;
-            box-sizing: border-box;
-            border: 1px solid #3d3d3d;
-            margin-top: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            text-align: left;
-        }
-        .monitor-headline {
-            font-family: 'Fredoka One', cursive;
-            color: var(--rn-orange);
-            font-size: 15px;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .pulse-light-status { width: 9px; height: 10px; background: var(--rr-green); border-radius: 50%; box-shadow: 0 0 8px var(--rr-green); animation: statusPulse 1.5s infinite; }
-        @keyframes statusPulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
-
-        .stat-row-item { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; font-weight: bold; }
-        .stat-row-item span:last-child { color: var(--rn-orange); }
-        
-        .stat-progress-bg { background: #151515; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 2px; margin-bottom: 10px; border: 1px solid #2d2d2d; }
-        .stat-progress-fill { background: var(--rn-orange); width: 24%; height: 100%; transition: width 0.4s ease; }
-        .stat-progress-fill.ram-color { background: var(--rn-btn-orange); width: 46%; }
-
-        .grid-header-tabs {
-            background-color: var(--rn-panel-bg);
-            border-radius: 8px;
-            height: 45px;
-            display: flex;
-            align-items: center;
-            justify-content: space-around;
-            border: 1px solid #333;
-            margin-bottom: 15px;
-        }
-        .grid-tab-item { font-size: 14px; opacity: 0.5; font-weight: bold; }
-        .grid-tab-item.active { opacity: 1; color: var(--rn-orange); border-bottom: 2px solid var(--rn-orange); padding-bottom: 2px; }
-
-        .filter-bar { font-size: 12px; font-weight: 800; color: var(--text-muted); text-align: left; margin-bottom: 15px; }
-
-        .photos-feed-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            padding-bottom: 40px;
-        }
-        .photo-grid-item {
-            background-color: #151515;
-            border-radius: 6px;
-            aspect-ratio: 16 / 10;
-            overflow: hidden;
-            border: 1px solid #2d2d2d;
-        }
-        .photo-grid-item img { width: 100%; height: 100%; object-fit: cover; }
-    </style>
-</head>
-<body>
-
-    <!-- 👑 NAV BAR AVEC BOUTON DISCORD SYNCHRONISÉ -->
-    <nav class="top-navbar">
-        <div class="logo-area">🟧 PROJECT RECNET HUB <span>Live Dashboard</span></div>
-        
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <!-- 🔵 BOUTON REJOINDRE LE DISCORD -->
-            <a href="https://discord.gg" target="_blank" style="background-color: #5865F2; color: white; text-decoration: none; padding: 6px 14px; border-radius: 20px; font-weight: 900; font-size: 12px; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(88,101,242,0.3); border-bottom: 3px solid #404eed;">
-                <svg width="14" height="14" viewBox="0 0 127.14 96.36" fill="white"><path d="M107.7,8.07A105.15,105.15,0,0,0,77.26,0a77.19,77.19,0,0,0-3.3,6.83A96.67,96.67,0,0,0,53.22,6.83,77.19,77.19,0,0,0,49.88,0,105.15,105.15,0,0,0,19.44,8.07C3.66,31.58-1.86,54.65,1,77.53A105.73,105.73,0,0,0,32,96.36a74.37,74.37,0,0,0,6.72-11A68.36,68.36,0,0,1,28.12,79.9a52.44,52.44,0,0,0,4.24-3.32,75.46,75.46,0,0,0,72.6,0,52.44,52.44,0,0,0,4.24,3.32,68.36,68.36,0,0,1-10.63,5.43,74.37,74.37,0,0,0,6.72,11,105.73,105.73,0,0,0,31.06-18.83C129.47,49.37,123.53,26.54,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53S36.18,40.36,42.45,40.36,53.83,46,53.83,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.24,60,73.24,53S78.41,40.36,84.69,40.36,96.07,46,96.07,53,91,65.69,84.69,65.69Z"/></svg>
-                REJOINDRE LE DISCORD
-            </a>
-            <div style="font-size: 16px; opacity: 0.7; display: flex; gap: 15px; cursor: pointer;">🔍 🔔 👤</div>
-        </div>
-    </nav>
-
-    <div class="app-layout">
-        <div class="profile-banner"></div>
-
-        <div class="profile-container">
-            <!-- COLONNE PROFIL ET MONITEUR SYSTEME INTERNE -->
-            <div class="profile-sidebar-card">
-                <div class="pfp-circle"><img src="./DormRoom-2026-7-30-1-16-32.jpg" alt="Pfp"></div>
-                
-                <h1 class="user-title-name">LBP3PC</h1>
-                <div class="user-tag">@LBP3PC</div>
-                <div class="sub-count">5.9M Subscribers</div>
-
-                <button class="btn-sub-orange">SUBSCRIBE 5.9M</button>
-                <button class="btn-friends">🤝 Friends</button>
-
-                <div class="server-monitor-box">
-                    <div class="monitor-headline">
-                        <div class="pulse-light-status"></div>
-                        <span>Rec.js Engine 2019</span>
-                    </div>
-                    <div class="stat-row-item"><span>Statut IP</span><span style="color:#ff7f00;" id="srvStatus">SCAN LOCAL 🕒</span></div>
-                    <div class="stat-row-item"><span>Machine</span><span>localhost</span></div>
-                    <div class="stat-row-item"><span>Port API</span><span>2056</span></div>
-                    
-                    <div class="stat-row-item" style="margin-top:10px;"><span>Charge CPU</span><span id="liveCpu">14%</span></div>
-                    <div class="stat-progress-bg"><div class="stat-progress-fill" id="cpuBarFill"></div></div>
-                    
-                    <div class="stat-row-item"><span>Mémoire RAM</span><span id="liveRam">41%</span></div>
-                    <div class="stat-progress-bg"><div class="stat-progress-fill ram-color" id="ramBarFill"></div></div>
-                </div>
-            </div>
-
-            <!-- GRILLE DES 13 PHOTOS CAPTURÉES -->
-            <div class="grid-content-area">
-                <div class="grid-header-tabs">
-                    <div class="grid-tab-item">🏠 Rooms Saved</div>
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project RecNet Hub // LBP3PC 2019 Profile</title>
-    <style>
-        :root {
-            --rn-bg: #1e1e1e;
-            --rn-nav-bg: #151515;
-            --rn-orange: #ff7f00;
-            --rn-panel-bg: #252525;
-            --rn-btn-orange: #ff6b3d;
-            --text-white: #ffffff;
-            --text-muted: #aaaaaa;
-            --rr-green: #00CC66;
-        }
-
-        @import url('https://googleapis.com');
-
-        body {
-            background-color: var(--rn-bg);
-            color: var(--text-white);
-            font-family: 'Nunito', sans-serif;
-            margin: 0; padding: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-
-        .top-navbar {
-            background-color: var(--rn-nav-bg);
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-            border-bottom: 1px solid #2d2d2d;
-            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-        }
-        .logo-area { font-size: 20px; font-weight: 900; color: var(--rn-orange); display: flex; align-items: center; gap: 5px; text-decoration: none; }
-        .logo-area span { color: white; font-weight: 400; font-size: 14px; margin-left: 10px; }
-
-        .app-layout {
-            margin-top: 50px;
-            height: calc(100vh - 50px);
-            width: 100%;
-            overflow-y: auto;
-        }
-
-        .profile-banner {
-            width: 100%;
-            height: 240px;
-            background-image: url('./DormRoom-2026-7-30-3-56-58.jpg');
-            background-size: cover;
-            background-position: center;
-            border-bottom: 4px solid var(--rn-orange);
-        }
-
-        .profile-container {
-            display: grid;
-            grid-template-columns: 300px 1fr;
-            gap: 30px;
-            padding: 20px;
-            max-width: 1300px;
-            margin: 0 auto;
-            width: calc(100% - 40px);
-        }
-
-        .profile-sidebar-card {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-top: -90px;
-            z-index: 10;
-        }
-        
-        .pfp-circle {
-            width: 130px; height: 130px;
-            border-radius: 50%;
-            border: 6px solid var(--rn-bg);
-            background-color: #ff3b30;
-            overflow: hidden;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-        }
-        .pfp-circle img { width: 100%; height: 100%; object-fit: cover; }
-        
-        .user-title-name { font-size: 22px; font-weight: 900; margin: 12px 0 2px 0; color: #fff; }
-        .user-tag { color: var(--text-muted); font-size: 13px; margin-bottom: 5px; }
-        .sub-count { font-size: 12px; color: var(--text-muted); margin-bottom: 15px; font-weight: 800; }
-
-        .btn-sub-orange {
-            width: 100%; background-color: var(--rn-btn-orange); color: white;
-            border: none; padding: 10px; border-radius: 6px;
-            font-weight: 900; font-size: 13px; cursor: pointer; text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-        .btn-friends {
-            width: 100%; background-color: #333; color: white;
-            border: none; padding: 8px; border-radius: 6px;
-            font-weight: 700; font-size: 12px; cursor: pointer;
-        }
-
-        .server-monitor-box {
-            background-color: var(--rn-panel-bg);
-            width: 100%;
-            border-radius: 10px;
-            padding: 15px;
-            box-sizing: border-box;
-            border: 1px solid #3d3d3d;
-            margin-top: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            text-align: left;
-        }
-        .monitor-headline {
-            font-family: 'Fredoka One', cursive;
-            color: var(--rn-orange);
-            font-size: 15px;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .pulse-light-status { width: 9px; height: 10px; background: var(--rr-green); border-radius: 50%; box-shadow: 0 0 8px var(--rr-green); animation: statusPulse 1.5s infinite; }
-        @keyframes statusPulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
-
-        .stat-row-item { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; font-weight: bold; }
-        .stat-row-item span:last-child { color: var(--rn-orange); }
-        
-        .stat-progress-bg { background: #151515; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 2px; margin-bottom: 10px; border: 1px solid #2d2d2d; }
-        .stat-progress-fill { background: var(--rn-orange); width: 24%; height: 100%; transition: width 0.4s ease; }
-        .stat-progress-fill.ram-color { background: var(--rn-btn-orange); width: 46%; }
-
-        .grid-header-tabs {
-            background-color: var(--rn-panel-bg);
-            border-radius: 8px;
-            height: 45px;
-            display: flex;
-            align-items: center;
-            justify-content: space-around;
-            border: 1px solid #333;
-            margin-bottom: 15px;
-        }
-        .grid-tab-item { font-size: 14px; opacity: 0.5; font-weight: bold; }
-        .grid-tab-item.active { opacity: 1; color: var(--rn-orange); border-bottom: 2px solid var(--rn-orange); padding-bottom: 2px; }
-
-        .filter-bar { font-size: 12px; font-weight: 800; color: var(--text-muted); text-align: left; margin-bottom: 15px; }
-
-        .photos-feed-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            padding-bottom: 40px;
-        }
-        .photo-grid-item {
-            background-color: #151515;
-            border-radius: 6px;
-            aspect-ratio: 16 / 10;
-            overflow: hidden;
-            border: 1px solid #2d2d2d;
-        }
-        .photo-grid-item img { width: 100%; height: 100%; object-fit: cover; }
-    </style>
-</head>
-<body>
-
-    <!-- 👑 NAV TOP AVEC LE TITRE DU SERVEUR -->
-    <nav class="top-navbar">
-        <div class="logo-area">🟧 PROJECT RECNET HUB <span>Live Dashboard (2019 Edition)</span></div>
-        <div style="font-size: 16px; opacity: 0.7; display: flex; gap: 15px; cursor: pointer;">🔍 🔔 👤</div>
-    </nav>
-
-    <div class="app-layout">
-        <div class="profile-banner"></div>
-
-        <div class="profile-container">
-            <!-- COLONNE PROFIL ET MONITEUR SYSTEME -->
-            <div class="profile-sidebar-card">
-                <div class="pfp-circle"><img src="./DormRoom-2026-7-30-1-16-32.jpg" alt="Pfp"></div>
-                
-                <h1 class="user-title-name">LBP3PC</h1>
-                <div class="user-tag">@LBP3PC</div>
-                <div class="sub-count">5.9M Subscribers</div>
-
-                <button class="btn-sub-orange">SUBSCRIBE 5.9M</button>
-                <button class="btn-friends">🤝 Friends</button>
-
-                <div class="server-monitor-box">
-                    <div class="monitor-headline">
-                        <div class="pulse-light-status"></div>
-                        <span>Rec.js Engine 2019</span>
-                    </div>
-                    <div class="stat-row-item"><span>Statut IP</span><span style="color:#ff7f00;" id="srvStatus">SCAN LOCAL 🕒</span></div>
-                    <div class="stat-row-item"><span>Machine</span><span>localhost</span></div>
-                    <div class="stat-row-item"><span>Port Actif</span><span>2056</span></div>
-                    
-                    <div class="stat-row-item" style="margin-top:10px;"><span>Charge CPU</span><span id="liveCpu">18%</span></div>
-                    <div class="stat-progress-bg"><div class="stat-progress-fill" id="cpuBarFill"></div></div>
-                    
-                    <div class="stat-row-item"><span>Mémoire RAM</span><span id="liveRam">42%</span></div>
-                    <div class="stat-progress-bg"><div class="stat-progress-fill ram-color" id="ramBarFill"></div></div>
-                </div>
-            </div>
-
-            <!-- GRILLE COMPLETE DE TES 13 CAPTURES D'ECRAN -->
-            <div class="grid-content-area">
-                <div class="grid-header-tabs">
-                    <div class="grid-tab-item">🏠 Rooms Saved</div>
-                    <div class="grid-tab-item active">📷 Photos (13)</div>
-                    <div class="grid-tab-item">🤝 Subscriptions</div>
-                </div>
-
-                <div class="filter-bar">🎛️ CODES MAPS : DormRoom // SDF</div>
-
-                <div class="photos-feed-grid">
-                    <div class="photo-grid-item"><img src="./DormRoom-2026-7-29-3-44-53.jpg"></div>
-                    <div class="photo-grid-item"><img src="./DormRoom-2026-7-29-3-44-59.jpg"></div>
-                    <div class="photo-grid-item"><img src="./DormRoom-2026-7-29-3-45-53.jpg"></div>
-                    <div class="photo-grid-item"><img src="./DormRoom-2026-7-29-3-46-18.jpg"></div>
-                    <div class="photo-grid-item"><img src="./DormRoom-2026-7-29-3-49-21.jpg"></div>
-                    <div class="photo-grid-item"><img src="./DormRoom-2026-7-29-3-52-24.jpg"></div>
-                    <div class="photo-grid-item"><img src="./DormRoom-2026-7-29-3-53-0.jpg"></div>
-                    <div class="photo-grid-item"><img src="./DormRoom-2026-7-29-4-2-47.jpg"></div>
-                    <div class="photo-grid-item"><img src="./DormRoom-2026-7-29-4-3-59.jpg"></div>
-                    <div class="photo-grid-item"><img src="./DormRoom-2026-7-29-4-6-13.jpg"></div>
