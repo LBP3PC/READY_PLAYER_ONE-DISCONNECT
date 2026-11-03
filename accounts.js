@@ -82,6 +82,10 @@
     byId('account-name').value = profile.display_name;
     byId('account-role').textContent = labels[profile.role] || 'Droit inconnu';
     byId('account-admin').hidden = profile.role !== 'admin';
+    const factorList = await client.auth.mfa.listFactors();
+    const verifiedFactors = (factorList.data?.all || []).filter(factor => factor.status === 'verified').length;
+    const mfaNote = byId('account-mfa-note');
+    if (mfaNote) mfaNote.hidden = verifiedFactors > 0;
   }
   async function run(button, action) {
     button.disabled = true;

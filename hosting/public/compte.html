@@ -49,6 +49,11 @@
     </section>
 
     <section id="member" hidden>
+      <div class="mfa-alert" id="mfa-alert" hidden>
+        <strong>Double authentification obligatoire</strong>
+        <p>Pour tout le monde : activez une application d’authentification (Google Authenticator, Authy…) pour déverrouiller votre profil, votre sécurité et vos réglages.</p>
+        <button class="btn" id="mfa-alert-go" type="button">Activer maintenant</button>
+      </div>
       <div class="layout">
         <aside class="card side">
           <div class="avatar" id="avatar" aria-hidden="true">?</div>
@@ -96,7 +101,7 @@
             <label class="row">Pings de mise à jour<input id="pings" type="checkbox"></label>
             <p class="note">Ces réglages sont enregistrés sur cet appareil uniquement, pas sur le compte.</p>
           </section>
-          <section class="card">
+          <section class="card" id="mfa-card">
             <h2>Double authentification (2FA)</h2>
             <p class="note" id="mfa-state">Chargement…</p>
             <div id="mfa-factors"></div>

@@ -105,6 +105,14 @@
       phone: all.filter(factor => factor.factor_type === 'phone' && factor.status === 'verified')
     };
     renderFactors();
+    applyMfaPolicy();
+  }
+  // Politique : la double authentification est obligatoire pour tous les comptes.
+  function applyMfaPolicy() {
+    const required = factors.totp.length + factors.phone.length === 0;
+    document.body.classList.toggle('mfa-required', required);
+    const alert = byId('mfa-alert');
+    if (alert) alert.hidden = !required;
   }
   function showGate() {
     byId('guest').hidden = true; byId('member').hidden = true;
@@ -266,6 +274,11 @@
   byId('music').addEventListener('change', () => { savePref('recblue.musicOff', String(!byId('music').checked)); say(byId('music').checked ? 'Musique activée sur ce navigateur.' : 'Musique désactivée sur ce navigateur.'); });
   byId('pings').addEventListener('change', () => { savePref('recblue.updatePings', String(byId('pings').checked)); say('Préférence de notifications enregistrée.'); });
 
+  byId('mfa-alert-go').addEventListener('click', () => {
+    byId('mfa-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    byId('totp-start').focus();
+    say('Activez l’application d’authentification, puis saisissez le code à 6 chiffres.');
+  });
   byId('email-form').addEventListener('submit', event => {
     event.preventDefault();
     guard(event.submitter, async () => {
