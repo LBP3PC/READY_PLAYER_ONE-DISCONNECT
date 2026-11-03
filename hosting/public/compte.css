@@ -38,4 +38,9 @@ input, select { display:block; width:100%; margin-top:6px; padding:11px 12px; bo
 .user { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); font-size:13px; }
 .user small { display:block; color:var(--muted); font-size:11px; }
 .user select { width:auto; }
+.sub { font-size:13px; color:var(--muted); margin:18px 0 10px; text-transform:uppercase; letter-spacing:.5px; }
+.qr { display:block; width:180px; height:180px; margin:12px 0; background:#fff; border-radius:10px; padding:8px; }
+code { font-family:ui-monospace,Consolas,monospace; background:#101012; border:1px solid var(--line); border-radius:6px; padding:2px 6px; font-size:12px; word-break:break-all; }
+#gate .card { max-width:460px; }
+#gate .btn { margin-top:6px; }
 @media (max-width:760px) { .layout { grid-template-columns:1fr; } }

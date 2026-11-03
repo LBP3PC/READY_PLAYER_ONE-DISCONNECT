@@ -9,6 +9,9 @@
   let user = null;
   let profile = null;
   let revision = 0;
+  let factors = { totp: [], phone: [] };
+  let pendingFactorId = '';
+  let phoneChallengeId = '';
   const say = text => { msg.textContent = text; };
   const pseudoOf = email => {
     const value = String(email || '').toLowerCase();
@@ -28,6 +31,51 @@
     finally { if (button) button.disabled = false; }
   }
 
+  async function needsMfa() {
+    const { data, error } = await client.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (error) return false;
+    return data.currentLevel === 'aal1' && data.nextLevel === 'aal2';
+  }
+  function renderFactors() {
+    const active = [...factors.totp, ...factors.phone];
+    byId('mfa-state').textContent = active.length ? 'Protection : mot de passe + code à 6 chiffres.' : 'Protection : mot de passe seul.';
+    if (!active.length) { byId('mfa-factors').textContent = 'Aucune double authentification active.'; return; }
+    const fragment = document.createDocumentFragment();
+    active.forEach(factor => {
+      const row = document.createElement('div'); row.className = 'user';
+      const label = document.createElement('span');
+      label.textContent = factor.factor_type === 'totp' ? 'Application d’authentification' : 'SMS ' + (factor.phone || '');
+      const remove = document.createElement('button');
+      remove.type = 'button'; remove.className = 'btn ghost'; remove.textContent = 'Désactiver';
+      remove.addEventListener('click', () => guard(remove, async () => {
+        const { error } = await client.auth.mfa.unenroll({ factorId: factor.id });
+        if (error) throw new Error('Désactivation impossible. Réessayez.');
+        say('Double authentification désactivée pour ce facteur.');
+        await loadFactors();
+      }));
+      row.append(label, remove); fragment.append(row);
+    });
+    byId('mfa-factors').replaceChildren(fragment);
+  }
+  async function loadFactors() {
+    const { data, error } = await client.auth.mfa.listFactors();
+    if (error) throw error;
+    const all = data.all || [];
+    factors = {
+      totp: all.filter(factor => factor.factor_type === 'totp' && factor.status === 'verified'),
+      phone: all.filter(factor => factor.factor_type === 'phone' && factor.status === 'verified')
+    };
+    renderFactors();
+  }
+  function showGate() {
+    byId('guest').hidden = true; byId('member').hidden = true;
+    byId('gate').hidden = false;
+    byId('gate-code').value = '';
+    byId('gate-send').hidden = factors.totp.length > 0;
+    byId('gate-factors').textContent = factors.totp.length
+      ? 'Ouvrez votre application d’authentification et saisissez le code affiché.'
+      : (factors.phone.length ? 'Appuyez sur « Recevoir un code par SMS » puis saisissez le code reçu.' : 'Aucun facteur disponible : contactez un administrateur.');
+  }
   function showGuest() {
     user = null; profile = null;
     byId('member').hidden = true;
@@ -39,6 +87,11 @@
     if (current !== revision) return;
     if (error || !data.user) { showGuest(); return; }
     user = data.user;
+    if (await needsMfa()) {
+      try { await loadFactors(); } catch (error) { /* liste 2FA indisponible */ }
+      showGate();
+      return;
+    }
     const result = await client.from('recblue_accounts').select('id,display_name,role,created_at').eq('id', user.id).single();
     if (current !== revision) return;
     if (result.error) { showGuest(); say('Profil inaccessible. Vérifiez la configuration SQL.'); return; }
@@ -171,6 +224,79 @@
   byId('music').addEventListener('change', () => { savePref('recblue.musicOff', String(!byId('music').checked)); say(byId('music').checked ? 'Musique activée sur ce navigateur.' : 'Musique désactivée sur ce navigateur.'); });
   byId('pings').addEventListener('change', () => { savePref('recblue.updatePings', String(byId('pings').checked)); say('Préférence de notifications enregistrée.'); });
 
+  byId('totp-start').addEventListener('click', () => guard(byId('totp-start'), async () => {
+    const { data, error } = await client.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'REC BLUE · ' + (profile?.display_name || 'compte') });
+    if (error) throw new Error('Activation impossible : ' + (error.message || 'la 2FA doit être autorisée dans Supabase.'));
+    pendingFactorId = data.id;
+    byId('totp-qr').src = data.totp.qr_code;
+    byId('totp-secret').textContent = data.totp.secret;
+    byId('totp-setup').hidden = false;
+    say('Scannez le QR code avec Google Authenticator (ou une autre application), puis saisissez le code affiché.');
+  }));
+  byId('totp-cancel').addEventListener('click', () => guard(byId('totp-cancel'), async () => {
+    if (pendingFactorId) { await client.auth.mfa.unenroll({ factorId: pendingFactorId }); pendingFactorId = ''; }
+    byId('totp-setup').hidden = true; byId('totp-code').value = '';
+    say('Activation annulée.');
+  }));
+  byId('totp-confirm').addEventListener('click', () => guard(byId('totp-confirm'), async () => {
+    const code = byId('totp-code').value.trim();
+    if (!/^\d{6}$/.test(code)) throw new Error('Le code doit contenir 6 chiffres.');
+    if (!pendingFactorId) throw new Error('Recommencez l’activation de la 2FA.');
+    const { error } = await client.auth.mfa.challengeAndVerify({ factorId: pendingFactorId, code });
+    if (error) throw new Error('Code refusé. Vérifiez l’heure de votre téléphone, puis réessayez.');
+    pendingFactorId = '';
+    byId('totp-setup').hidden = true; byId('totp-code').value = '';
+    say('Double authentification activée : un code sera demandé à chaque connexion.');
+    await loadFactors(); await loadProfile();
+  }));
+  byId('phone-start').addEventListener('click', () => guard(byId('phone-start'), async () => {
+    const phone = byId('phone-number').value.replace(/\s+/g, '');
+    if (!/^\+\d{8,15}$/.test(phone)) throw new Error('Indiquez le numéro au format international, par exemple +33612345678.');
+    const { data, error } = await client.auth.mfa.enroll({ factorType: 'phone', friendlyName: 'SMS REC BLUE', phone });
+    if (error) throw new Error('Envoi impossible : ' + (error.message || 'un fournisseur SMS doit être configuré dans Supabase.'));
+    pendingFactorId = data.id;
+    const challenge = await client.auth.mfa.challenge({ factorId: data.id });
+    if (challenge.error) throw new Error('Envoi du SMS impossible : ' + (challenge.error.message || 'fournisseur SMS non configuré dans Supabase.'));
+    phoneChallengeId = challenge.data.id;
+    byId('phone-setup').hidden = false;
+    byId('phone-code').value = '';
+    say('Code envoyé par SMS. Saisissez-le pour confirmer le numéro.');
+  }));
+  byId('phone-confirm').addEventListener('click', () => guard(byId('phone-confirm'), async () => {
+    const code = byId('phone-code').value.trim();
+    if (!/^\d{6}$/.test(code)) throw new Error('Le code doit contenir 6 chiffres.');
+    if (!pendingFactorId || !phoneChallengeId) throw new Error('Demandez d’abord un code par SMS.');
+    const { error } = await client.auth.mfa.verify({ factorId: pendingFactorId, challengeId: phoneChallengeId, code });
+    if (error) throw new Error('Code refusé ou expiré. Demandez un nouveau code.');
+    pendingFactorId = ''; phoneChallengeId = '';
+    byId('phone-setup').hidden = true; byId('phone-code').value = '';
+    say('Double authentification par téléphone activée.');
+    await loadFactors(); await loadProfile();
+  }));
+  byId('gate-send').addEventListener('click', () => guard(byId('gate-send'), async () => {
+    const factor = factors.phone[0];
+    if (!factor) throw new Error('Aucun numéro enregistré.');
+    const challenge = await client.auth.mfa.challenge({ factorId: factor.id });
+    if (challenge.error) throw new Error('Envoi impossible : ' + (challenge.error.message || 'fournisseur SMS non configuré.'));
+    pendingFactorId = factor.id; phoneChallengeId = challenge.data.id;
+    say('Code envoyé par SMS.');
+  }));
+  byId('gate-verify').addEventListener('click', () => guard(byId('gate-verify'), async () => {
+    const code = byId('gate-code').value.trim();
+    if (!/^\d{6}$/.test(code)) throw new Error('Le code doit contenir 6 chiffres.');
+    const totp = factors.totp[0];
+    const phone = factors.phone[0];
+    if (!totp && !phone) throw new Error('Aucun facteur disponible : contactez un administrateur.');
+    let error;
+    if (totp) ({ error } = await client.auth.mfa.challengeAndVerify({ factorId: totp.id, code }));
+    else ({ error } = await client.auth.mfa.verify({ factorId: phone.id, challengeId: phoneChallengeId, code }));
+    if (error) throw new Error('Code refusé ou expiré. Réessayez.');
+    byId('gate').hidden = true;
+    byId('gate-code').value = '';
+    say('Vérification réussie.');
+    await loadProfile();
+  }));
+
   async function init() {
     if (!config?.supabaseUrl || !config?.publishableKey) { say('Service de comptes non configuré.'); return; }
     try {
@@ -183,6 +309,9 @@
       byId('music').checked = readPref('recblue.musicOff', 'false') !== 'true';
       byId('pings').checked = readPref('recblue.updatePings', 'false') === 'true';
       await loadProfile();
+      if (!byId('member').hidden) {
+        try { await loadFactors(); } catch (error) { byId('mfa-state').textContent = 'État de la double authentification indisponible.'; }
+      }
     } catch (error) { say(error.message); }
   }
   init();

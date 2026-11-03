@@ -51,6 +51,7 @@
       if (error && error.name !== 'AuthSessionMissingError') announce('Session non vérifiée. Reconnectez-vous ou réessayez.');
       return;
     }
+    if (await mfaPending()) { showMfaPrompt(); return; }
     byId('account-guest').hidden = true;
     byId('account-profile').hidden = false;
     const pseudo = pseudoFromEmail(data.user.email);
@@ -68,6 +69,18 @@
     button.disabled = true;
     try { await action(); } catch (error) { announce(error.message || 'Service inaccessible. Réessayez.'); }
     finally { button.disabled = false; }
+  }
+  let mfaChallengeId = '';
+  async function mfaPending() {
+    const { data, error } = await client.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (error) return false;
+    return data.currentLevel === 'aal1' && data.nextLevel === 'aal2';
+  }
+  function showMfaPrompt(hint) {
+    byId('account-guest').hidden = true;
+    byId('account-profile').hidden = true;
+    byId('account-mfa').hidden = false;
+    byId('mfa-hint').textContent = hint || 'Code à 6 chiffres : application d’authentification.';
   }
   async function listAccounts() {
     const result = await client.from('recblue_accounts').select('id,display_name,role,created_at').order('created_at', { ascending: false }).limit(100);
@@ -127,6 +140,7 @@
       const email = identifier.includes('@') ? identifier.trim() : pseudoEmail(checkPseudo(identifier));
       const { error } = await client.auth.signInWithPassword({ email, password });
       if (error) throw new Error('Connexion refusée. Vérifiez votre pseudo (ou email) et votre mot de passe.');
+      if (await mfaPending()) { showMfaPrompt('Un code est déjà exigé pour ce compte : saisissez-le pour terminer la connexion.'); return; }
       announce('Connexion réussie.'); await refreshAccount();
     });
   });
@@ -164,6 +178,36 @@
     if (error) throw new Error('Déconnexion impossible. Réessayez.');
     ++revision; clearPrivateUI(); byId('account-guest').hidden = false; announce('Vous êtes déconnecté.');
   }));
+  byId('account-mfa-form').addEventListener('submit', event => {
+    event.preventDefault();
+    run(byId('mfa-submit'), async () => {
+      const code = byId('mfa-code').value.trim();
+      byId('mfa-code').value = '';
+      if (!/^\d{6}$/.test(code)) throw new Error('Le code doit contenir 6 chiffres.');
+      const list = await client.auth.mfa.listFactors();
+      if (list.error) throw list.error;
+      const all = list.data.all || [];
+      const totp = all.find(factor => factor.factor_type === 'totp' && factor.status === 'verified');
+      const phone = all.find(factor => factor.factor_type === 'phone' && factor.status === 'verified');
+      if (!totp && !phone) throw new Error('Aucun facteur 2FA disponible pour ce compte.');
+      let error;
+      if (totp) ({ error } = await client.auth.mfa.challengeAndVerify({ factorId: totp.id, code }));
+      else {
+        if (!mfaChallengeId) {
+          const challenge = await client.auth.mfa.challenge({ factorId: phone.id });
+          if (challenge.error) throw challenge.error;
+          mfaChallengeId = challenge.data.id;
+          throw new Error('Un code vient d’être envoyé par SMS : saisissez-le ici.');
+        }
+        ({ error } = await client.auth.mfa.verify({ factorId: phone.id, challengeId: mfaChallengeId, code }));
+      }
+      if (error) throw new Error('Code refusé ou expiré. Réessayez.');
+      mfaChallengeId = '';
+      byId('account-mfa').hidden = true;
+      announce('Vérification réussie.');
+      await refreshAccount();
+    });
+  });
   byId('accounts-refresh').addEventListener('click', () => run(byId('accounts-refresh'), listAccounts));
   init();
 })();

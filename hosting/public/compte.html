@@ -37,6 +37,17 @@
       </div>
     </section>
 
+    <section id="gate" hidden>
+      <div class="card">
+        <h2>Vérification en deux étapes</h2>
+        <p class="note">Votre compte est protégé par la double authentification. Saisissez le code à 6 chiffres pour terminer la connexion.</p>
+        <p class="note" id="gate-factors">—</p>
+        <button class="btn ghost" id="gate-send" type="button" hidden>Recevoir un code par SMS</button>
+        <label>Code à 6 chiffres<input id="gate-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"></label>
+        <button class="btn" id="gate-verify" type="button">Vérifier</button>
+      </div>
+    </section>
+
     <section id="member" hidden>
       <div class="layout">
         <aside class="card side">
@@ -74,6 +85,28 @@
             <label class="row">Musique du site<input id="music" type="checkbox"></label>
             <label class="row">Pings de mise à jour<input id="pings" type="checkbox"></label>
             <p class="note">Ces réglages sont enregistrés sur cet appareil uniquement, pas sur le compte.</p>
+          </section>
+          <section class="card">
+            <h2>Double authentification (2FA)</h2>
+            <p class="note" id="mfa-state">Chargement…</p>
+            <div id="mfa-factors"></div>
+            <h3 class="sub">Application d’authentification (Google Authenticator, Authy…)</h3>
+            <button class="btn ghost" id="totp-start" type="button">Activer avec une application</button>
+            <div id="totp-setup" hidden>
+              <img class="qr" id="totp-qr" alt="QR code à scanner avec l’application d’authentification">
+              <p class="note">Clé manuelle : <code id="totp-secret"></code></p>
+              <label>Code affiché par l’application<input id="totp-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"></label>
+              <button class="btn" id="totp-confirm" type="button">Vérifier et activer</button>
+              <button class="btn ghost" id="totp-cancel" type="button">Annuler</button>
+            </div>
+            <h3 class="sub">Téléphone (code par SMS)</h3>
+            <label>Numéro au format international<input id="phone-number" type="tel" placeholder="+33612345678" autocomplete="tel"></label>
+            <button class="btn ghost" id="phone-start" type="button">Recevoir un code par SMS</button>
+            <div id="phone-setup" hidden>
+              <label>Code reçu par SMS<input id="phone-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"></label>
+              <button class="btn" id="phone-confirm" type="button">Vérifier et activer</button>
+            </div>
+            <p class="note">Le SMS dépend d’un fournisseur d’envoi configuré dans Supabase (Twilio, Vonage, MessageBird…). Sans lui, l’envoi est refusé. Si vous perdez l’application ou le téléphone, un administrateur doit retirer le facteur depuis Supabase.</p>
           </section>
           <section class="card" id="admin" hidden>
             <h2>Administration des comptes</h2>
