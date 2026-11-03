@@ -11,6 +11,14 @@
   let revision = 0;
   const announce = text => { message.textContent = text; };
   const labels = { member: 'Membre', admin: 'Administrateur' };
+  const navLink = document.querySelector('a.nav-control[href="#connexion"]');
+  const setNavLabel = label => {
+    if (!navLink) return;
+    navLink.textContent = label;
+    // Empêche le traducteur de remplacer le pseudo du joueur.
+    if (label === 'Se connecter') navLink.removeAttribute('data-no-translate');
+    else navLink.setAttribute('data-no-translate', '');
+  };
   const normalizePseudo = value => String(value || '').trim().toLowerCase();
   const pseudoEmail = pseudo => pseudo + '@' + PSEUDO_DOMAIN;
   const pseudoFromEmail = email => {
@@ -25,6 +33,7 @@
   }
   function clearPrivateUI() {
     profile = null;
+    setNavLabel('Se connecter');
     byId('account-profile').hidden = true;
     byId('account-admin').hidden = true;
     byId('account-users').replaceChildren();
@@ -50,6 +59,7 @@
     if (current !== revision) return;
     if (result.error) { announce('Profil inaccessible. Vérifiez la configuration SQL et réessayez.'); return; }
     profile = result.data;
+    setNavLabel(pseudo ? '@' + pseudo : profile.display_name);
     byId('account-name').value = profile.display_name;
     byId('account-role').textContent = labels[profile.role] || 'Droit inconnu';
     byId('account-admin').hidden = profile.role !== 'admin';
@@ -91,9 +101,10 @@
       const url = new URL(config.supabaseUrl);
       if (url.protocol !== 'https:' || !/^[a-z0-9-]+\.supabase\.co$/i.test(url.hostname) || url.username || url.password || url.port || url.pathname !== '/' || url.search || url.hash || !config.publishableKey.startsWith('sb_publishable_')) throw new Error('Utilisez une URL HTTPS Supabase et sa clé publique sb_publishable_. Aucune clé secrète.');
       if (!window.supabase?.createClient) throw new Error('Impossible de charger le service de comptes.');
-      // Sessions en mémoire uniquement : aucun jeton dans localStorage.
+      // Session enregistrée dans ce navigateur pour rester connecté après un
+      // rechargement ; elle se termine avec « Se déconnecter ».
       client = window.supabase.createClient(url.href, config.publishableKey, {
-        auth: { persistSession: false, autoRefreshToken: true, detectSessionInUrl: true }
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
       });
       client.auth.onAuthStateChange(() => {
         ++revision;

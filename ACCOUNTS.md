@@ -37,7 +37,7 @@ Vérifier soigneusement l'UUID avant de donner les droits. Le premier inscrit n'
 
 ## Sessions et confidentialité
 
-Le SDK est chargé via un CDN à version épinglée et vérifié par une empreinte d'intégrité (SRI). Les en-têtes du site Vercel sont définis dans `hosting/public/vercel.json` ; tout changement du script intégré à `index.html` exige de recalculer son empreinte CSP avant publication. Les jetons ne sont ni écrits dans les fichiers du projet ni conservés dans localStorage : session en mémoire, fin au rechargement de page. Les mots de passe sont envoyés uniquement à Supabase via HTTPS. Les préférences de langue et notifications restent indépendantes dans localStorage. Les noms utilisateurs sont insérés avec textContent, jamais comme HTML.
+Le SDK est chargé via un CDN à version épinglée et vérifié par une empreinte d'intégrité (SRI). Les en-têtes du site Vercel sont définis dans `hosting/public/vercel.json` ; tout changement du script intégré à `index.html` exige de recalculer son empreinte CSP avant publication. Le jeton de session est conservé dans le stockage local du navigateur afin de rester connecté après un rechargement ; il est supprimé à la déconnexion. Ce choix facilite l'usage mais expose le jeton à une faille XSS : la CSP et l'absence de HTML injecté restent donc indispensables. Les mots de passe sont envoyés uniquement à Supabase via HTTPS. Les préférences de langue et notifications restent indépendantes dans localStorage. Les noms utilisateurs sont insérés avec textContent, jamais comme HTML.
 
 La politique de confidentialité officielle et les coordonnées de contact doivent être finalisées avant publication. Ce travail ne connecte pas les comptes au moteur du jeu.
 
@@ -56,7 +56,7 @@ Les checks statiques locaux ne prouvent pas la sécurité de la base déployée.
 - administrateur peut promouvoir/rétrograder un membre ; ancien administrateur immédiatement refusé par la RPC ;
 - rétrogradation du dernier administrateur refusée, y compris changements concurrents ;
 - une inscription contenant des métadonnées `role: admin` produit toujours un membre ;
-- fermeture/rechargement termine la session locale, données privées effacées après déconnexion.
+- un rechargement de page garde la session ouverte ; « Se déconnecter » l'efface et efface les données privées.
 
 ## Documentation
 
