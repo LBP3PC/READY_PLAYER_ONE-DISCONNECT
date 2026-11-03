@@ -232,7 +232,9 @@
       const { data, error } = await client.auth.signUp({ email: pseudo + '@' + PSEUDO_DOMAIN, password });
       if (error) {
         if (error.code === 'user_already_exists' || /already/i.test(error.message || '')) throw new Error('Ce pseudo est déjà pris.');
-        throw new Error('Inscription impossible. Vérifiez le mot de passe et réessayez.');
+        if (error.code === 'over_email_send_rate_limit' || /rate limit/i.test(error.message || '')) throw new Error('Trop d’inscriptions coup sur coup : réessayez dans quelques minutes.');
+        if (error.code === 'weak_password' || /password/i.test(error.message || '')) throw new Error('Mot de passe refusé : choisissez-en un d’au moins 12 caractères.');
+        throw new Error('Inscription impossible : ' + (error.message || 'service indisponible.'));
       }
       if (!data.session) throw new Error('Inscription non activée : la confirmation email de Supabase doit être désactivée.');
       await client.from('recblue_accounts').update({ display_name: pseudo }).eq('id', data.user.id).select('id').single();
