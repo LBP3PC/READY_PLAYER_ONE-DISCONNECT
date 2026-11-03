@@ -24,6 +24,7 @@ const PACKS = Object.freeze({
   p3500: { credits: 3500, cents: 999, name: '3 500 crédits' },
   p12000: { credits: 12000, cents: 1999, name: '12 000 crédits' },
   p35000: { credits: 35000, cents: 4999, name: '35 000 crédits' },
+  p100000: { credits: 100000, cents: 35000, currency: 'EUR', name: '100 000 crédits' },
   pplus: { credits: 5000, cents: 799, name: 'REC BLUE Abonnement Plus — 1 mois' },
   pstarter: { credits: 5000, cents: 499, name: 'Pack de démarrage' }
 });
@@ -84,7 +85,7 @@ async function paypalRequest(method, path, payload, requestId) {
 }
 
 // Ajoute les crédits une seule fois par commande (la fonction SQL est idempotente).
-async function credit(packId, credits, cents, orderId, userId) {
+async function credit(packId, credits, cents, orderId, userId, currency) {
   const response = await fetch(SUPABASE_URL + '/rest/v1/rpc/recblue_credit_purchase', {
     method: 'POST',
     headers: {
@@ -98,7 +99,7 @@ async function credit(packId, credits, cents, orderId, userId) {
       p_pack: packId,
       p_credits: credits,
       p_amount_cents: cents,
-      p_currency: CURRENCY
+      p_currency: currency || CURRENCY
     })
   });
   if (!response.ok) throw new Error('credit_' + response.status);
@@ -110,13 +111,14 @@ const centsOf = value => Math.round(Number(value) * 100);
 async function createOrder(res, user, packId) {
   const pack = PACKS[packId];
   if (!pack) return json(res, 400, { error: 'Cette offre n’existe pas.' });
+  const currency = pack.currency || CURRENCY;
   const created = await paypalRequest('POST', '/v2/checkout/orders', {
     intent: 'CAPTURE',
     purchase_units: [{
       reference_id: packId,
       custom_id: user.id + '|' + packId,
       description: pack.name + ' — REC BLUE',
-      amount: { currency_code: CURRENCY, value: (pack.cents / 100).toFixed(2) }
+      amount: { currency_code: currency, value: (pack.cents / 100).toFixed(2) }
     }],
     application_context: {
       brand_name: 'REC BLUE',
@@ -144,7 +146,8 @@ async function captureOrder(res, user, orderId) {
   if (!owner || owner !== user.id) return json(res, 403, { error: 'Cette commande appartient à un autre compte.' });
   const pack = PACKS[packId];
   if (!pack) return json(res, 400, { error: 'Commande liée à une offre inconnue.' });
-  if (!unit || centsOf(unit.amount && unit.amount.value) !== pack.cents || (unit.amount && unit.amount.currency_code) !== CURRENCY) {
+  const currency = pack.currency || CURRENCY;
+  if (!unit || centsOf(unit.amount && unit.amount.value) !== pack.cents || (unit.amount && unit.amount.currency_code) !== currency) {
     return json(res, 409, { error: 'Montant inattendu : les crédits n’ont pas été ajoutés.' });
   }
 
@@ -159,11 +162,11 @@ async function captureOrder(res, user, orderId) {
   const capture = (((order.data.purchase_units || [])[0] || {}).payments || {}).captures;
   const paid = Array.isArray(capture) ? capture[0] : null;
   if (!paid || paid.status !== 'COMPLETED') return json(res, 402, { error: 'Le paiement n’a pas été capturé.' });
-  if (centsOf(paid.amount && paid.amount.value) !== pack.cents || (paid.amount && paid.amount.currency_code) !== CURRENCY) {
+  if (centsOf(paid.amount && paid.amount.value) !== pack.cents || (paid.amount && paid.amount.currency_code) !== currency) {
     return json(res, 409, { error: 'Montant payé inattendu : vérification manuelle nécessaire.' });
   }
 
-  const credits = await credit(packId, pack.credits, pack.cents, orderId, user.id);
+  const credits = await credit(packId, pack.credits, pack.cents, orderId, user.id, currency);
   return json(res, 200, { credits, added: pack.credits, pack: packId });
 }
 
