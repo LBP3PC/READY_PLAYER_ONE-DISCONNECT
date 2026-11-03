@@ -16,11 +16,12 @@
   const navBubble = byId('nav-avatar');
   const AVATAR = /^data:image\/(png|jpeg|webp);base64,/;
   // Affiche l’identité du membre dans la barre : bulle de profil + @pseudo.
-  const setNavLabel = (label, avatar) => {
+  const setNavLabel = (label, avatar, plus = false) => {
     if (!navLink) return;
     const signedOut = label === 'Se connecter';
     if (navLabel) {
       navLabel.textContent = label;
+      navLabel.classList.toggle('plus-name', !signedOut && plus);
       if (signedOut) { navLabel.setAttribute('data-i18n', 'login'); navLabel.removeAttribute('data-no-translate'); }
       else { navLabel.removeAttribute('data-i18n'); navLabel.setAttribute('data-no-translate', ''); }
     } else {
@@ -37,6 +38,7 @@
       navBubble.textContent = signedOut || photo ? '' : label.replace(/^@/, '').trim().slice(0, 2).toUpperCase();
     }
   };
+  const isPlus = value => !!value && new Date(value).getTime() > Date.now();
   const normalizePseudo = value => String(value || '').trim().toLowerCase();
   const pseudoEmail = pseudo => pseudo + '@' + PSEUDO_DOMAIN;
   const pseudoFromEmail = email => {
@@ -76,11 +78,11 @@
     byId('account-profile').hidden = false;
     const pseudo = pseudoFromEmail(data.user.email);
     byId('account-email').textContent = pseudo ? '@' + pseudo : (data.user.email || '');
-    const result = await client.from('recblue_accounts').select('id,display_name,role,avatar_url,credits').eq('id', data.user.id).single();
+    const result = await client.from('recblue_accounts').select('id,display_name,role,avatar_url,credits,plus_until').eq('id', data.user.id).single();
     if (current !== revision) return;
     if (result.error) { announce('Profil inaccessible. Vérifiez la configuration SQL et réessayez.'); return; }
     profile = result.data;
-    setNavLabel('@' + (pseudo || profile.display_name), profile.avatar_url);
+    setNavLabel('@' + (pseudo || profile.display_name), profile.avatar_url, isPlus(profile.plus_until));
     const creditsBadge = byId('nav-credits');
     if (creditsBadge) {
       const total = Number(profile.credits) || 0;
@@ -89,6 +91,8 @@
     }
     byId('account-name').value = profile.display_name;
     byId('account-role').textContent = labels[profile.role] || 'Droit inconnu';
+    const plusBadge = byId('account-plus');
+    if (plusBadge) plusBadge.hidden = !isPlus(profile.plus_until);
     byId('account-admin').hidden = profile.role !== 'admin';
     const factorList = await client.auth.mfa.listFactors();
     const verifiedFactors = (factorList.data?.all || []).filter(factor => factor.status === 'verified').length;

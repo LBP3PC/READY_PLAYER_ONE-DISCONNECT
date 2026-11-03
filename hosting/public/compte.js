@@ -145,7 +145,7 @@
       showGate();
       return;
     }
-    const result = await client.from('recblue_accounts').select('id,display_name,role,created_at,avatar_url,contact_email,credits').eq('id', user.id).single();
+    const result = await client.from('recblue_accounts').select('id,display_name,role,created_at,avatar_url,contact_email,credits,plus_until').eq('id', user.id).single();
     if (current !== revision) return;
     if (result.error) { showGuest(); say('Profil inaccessible. Vérifiez la configuration SQL.'); return; }
     profile = result.data;
@@ -160,6 +160,14 @@
     const role = byId('side-role');
     role.textContent = labels[profile.role] || 'Droit inconnu';
     role.className = 'badge' + (profile.role === 'admin' ? ' admin' : '');
+    const plus = !!profile.plus_until && new Date(profile.plus_until).getTime() > Date.now();
+    byId('side-name').classList.toggle('plus-name', plus);
+    byId('side-login').classList.toggle('plus-name', plus);
+    const plusBadge = byId('side-plus');
+    if (plusBadge) {
+      plusBadge.hidden = !plus;
+      if (plus) plusBadge.textContent = 'REC BLUE Plus · ' + formatDate(profile.plus_until);
+    }
     byId('side-created').textContent = formatDate(profile.created_at);
     byId('side-id').textContent = String(user.id).slice(0, 8) + '…';
     byId('side-email').textContent = profile.contact_email || '—';

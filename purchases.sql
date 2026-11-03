@@ -11,6 +11,7 @@ create table if not exists public.recblue_purchases (
   currency text not null default 'USD',
   created_at timestamptz not null default now()
 );
+alter table public.recblue_accounts add column if not exists plus_until timestamptz;
 alter table public.recblue_purchases enable row level security;
 revoke all on public.recblue_purchases from public, anon, authenticated;
 grant select on public.recblue_purchases to authenticated;
@@ -55,6 +56,12 @@ begin
   update public.recblue_accounts set credits = credits + p_credits
   where id = p_user
   returning credits into new_balance;
+  -- L'abonnement Plus donne un mois de statut (pseudo en or) par achat.
+  if coalesce(p_pack, '') = 'pplus' then
+    update public.recblue_accounts
+    set plus_until = greatest(coalesce(plus_until, now()), now()) + interval '1 month'
+    where id = p_user;
+  end if;
   return new_balance;
 end; $$;
 revoke all on function public.recblue_credit_purchase(text, uuid, text, integer, integer, text) from public, anon, authenticated;
