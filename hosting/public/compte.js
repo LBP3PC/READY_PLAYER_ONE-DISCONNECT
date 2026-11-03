@@ -110,6 +110,7 @@
     byId('name').value = profile.display_name;
     byId('admin').hidden = profile.role !== 'admin';
     byId('admin-users').replaceChildren();
+    try { await loadFactors(); } catch (error) { byId('mfa-state').textContent = 'État de la double authentification indisponible.'; }
   }
 
   async function listUsers() {
@@ -159,7 +160,7 @@
       }
       const { error } = await client.auth.signInWithPassword({ email, password });
       if (error) throw new Error('Connexion refusée. Vérifiez le pseudo (ou l’email) et le mot de passe.');
-      say('Connexion réussie.');
+      say((await needsMfa()) ? 'Mot de passe accepté : saisissez votre code de double authentification.' : 'Connexion réussie.');
       await loadProfile();
     });
   });
@@ -309,9 +310,6 @@
       byId('music').checked = readPref('recblue.musicOff', 'false') !== 'true';
       byId('pings').checked = readPref('recblue.updatePings', 'false') === 'true';
       await loadProfile();
-      if (!byId('member').hidden) {
-        try { await loadFactors(); } catch (error) { byId('mfa-state').textContent = 'État de la double authentification indisponible.'; }
-      }
     } catch (error) { say(error.message); }
   }
   init();
