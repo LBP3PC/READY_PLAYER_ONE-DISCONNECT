@@ -134,6 +134,12 @@
     if (current !== revision) return;
     if (error || !data.user) { showGuest(); return; }
     user = data.user;
+    try {
+      const soldeAvant2FA = await client.from('recblue_accounts').select('credits').eq('id', user.id).single();
+      const montant = (Number(soldeAvant2FA.data?.credits) || 0).toLocaleString('fr-FR') + ' crédits';
+      const gateSolde = byId('gate-credits');
+      if (gateSolde) gateSolde.textContent = 'Solde actuel : ' + montant;
+    } catch (error) { /* solde indisponible */ }
     if (await needsMfa()) {
       try { await loadFactors(); } catch (error) { /* liste 2FA indisponible */ }
       showGate();

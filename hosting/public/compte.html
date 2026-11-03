@@ -17,6 +17,12 @@
   <main class="wrap">
     <h1>Mon espace compte</h1>
     <p class="msg" id="msg" role="status" aria-live="polite"></p>
+    <section class="card" id="countdown-card">
+      <h2>Sortie du jeu</h2>
+      <p class="note">Accès anticipé annoncé pour le 2 mars 2027.</p>
+      <p class="countdown" data-countdown="2027-03-02T00:00:00+01:00" role="timer" aria-label="Temps restant avant la sortie"><em>Sortie dans</em><strong class="countdown-value">…</strong></p>
+    </section>
+
 
     <section id="guest" hidden>
       <div class="cols">
@@ -50,6 +56,7 @@
         <h2>Vérification en deux étapes</h2>
         <p class="note">Votre compte est protégé par la double authentification. Saisissez le code à 6 chiffres pour terminer la connexion.</p>
         <p class="note" id="gate-factors">—</p>
+        <p class="note" id="gate-credits">—</p>
         <button class="btn ghost" id="gate-send" type="button" hidden>Recevoir un code par SMS</button>
         <label>Code à 6 chiffres<input id="gate-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"></label>
         <button class="btn" id="gate-verify" type="button">Vérifier</button>
@@ -86,8 +93,6 @@
             <h2>Mes crédits</h2>
             <p class="credits-balance"><strong id="credits-balance">—</strong><span>crédits</span></p>
             <p class="note">Votre solde de crédits REC BLUE. Les achats ne sont pas encore activés : le solde est géré par l’équipe.</p>
-            <h3 class="sub">Sortie du jeu</h3>
-            <p class="countdown" data-countdown="2027-03-02T00:00:00+01:00" role="timer" aria-label="Temps restant avant la sortie"><em>Sortie dans</em><strong class="countdown-value">…</strong></p>
           </section>
 
             <h2>Profil</h2>
