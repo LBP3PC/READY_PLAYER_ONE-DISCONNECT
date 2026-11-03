@@ -295,6 +295,34 @@
     .site-edge .edge-left { -webkit-mask-image:linear-gradient(to right,#000 0%,#0000 92%); mask-image:linear-gradient(to right,#000 0%,#0000 92%); }
     .site-edge .edge-right { -webkit-mask-image:linear-gradient(to left,#000 0%,#0000 92%); mask-image:linear-gradient(to left,#000 0%,#0000 92%); }
     @keyframes edge-drift-y { from { background-position:0 0; } to { background-position:0 60px; } }
+    .shop-dialog { max-width:1000px; }
+    .shop-note { font-size:13px; color:var(--muted); margin:0 0 18px; }
+    .shop-hero { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.05fr); overflow:hidden; border-radius:16px; background:#1b1b1d; border:1px solid #ffffff14; margin-bottom:26px; }
+    .shop-hero-art { display:grid; place-items:center; padding:26px; background:radial-gradient(ellipse at 50% 40%,#2f6be8,#16338f); }
+    .shop-hero-art img { width:min(80%,300px); height:auto; }
+    .shop-hero-body { padding:24px 26px; }
+    .shop-eyebrow { margin:0 0 6px; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#a9c3ff; }
+    .shop-hero-body h3 { margin:0 0 14px; font-size:clamp(21px,3vw,30px); letter-spacing:-1px; }
+    .shop-perks { list-style:none; margin:0 0 18px; padding:0; display:grid; gap:8px; font-size:14px; }
+    .shop-perks li { position:relative; padding-left:22px; color:#e7e7e7; }
+    .shop-perks li::before { content:"✓"; position:absolute; left:0; color:#63efff; }
+    .shop-price { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+    .shop-price strong { font-size:18px; }
+    .shop-price span { font-size:13px; color:var(--muted); }
+    .shop-section { margin:26px 0 4px; font-size:20px; }
+    .shop-sub { margin:0 0 14px; font-size:13px; color:var(--muted); }
+    .shop-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); gap:14px; }
+    .shop-card { position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:8px; padding:18px 16px; border-radius:14px; background:#1b1b1d; border:1px solid #ffffff14; }
+    .shop-badge { position:absolute; top:10px; right:10px; font-size:9px; letter-spacing:1px; text-transform:uppercase; padding:3px 7px; border-radius:999px; background:#ffffff1a; color:#cfd6ff; }
+    .shop-coin { width:52px; height:52px; }
+    .shop-card strong { font-size:15px; }
+    .shop-price-tag { font-size:14px; color:#a9c3ff; }
+    .shop-cta { width:100%; margin-top:auto; padding:9px 14px; font-size:12px; font-weight:800; border:0; border-radius:999px; background:#ffffff1a; color:#9aa0ad; cursor:not-allowed; }
+    .shop-cta-hero { width:auto; padding:10px 26px; }
+    .shop-offer { display:grid; grid-template-columns:64px 1fr auto; align-items:center; gap:16px; }
+    .shop-offer p { margin:4px 0 6px; font-size:13px; color:var(--muted); }
+    .shop-offer .shop-cta { width:auto; padding:10px 22px; }
+    @media(max-width:700px) { .shop-hero { grid-template-columns:1fr; } .shop-offer { grid-template-columns:52px 1fr; } .shop-offer .shop-cta { grid-column:1 / -1; width:100%; } }
     @media(prefers-reduced-motion:reduce) { .download-scene::before { animation:none; } }
     @media(prefers-reduced-motion:reduce) { .site-edge span { animation:none !important; } }
     @media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } .hero::before,.hero::after { animation:none; will-change:auto; } *, *::before, *::after { transition:none !important; } }
@@ -418,7 +446,30 @@
   <dialog class="content-dialog" id="joueurs" aria-labelledby="players-title"><div class="dialog-head"><h2 id="players-title">Joueurs</h2><button class="close" data-close type="button" aria-label="Fermer les joueurs">Fermer ✕</button></div><p>Retrouvez les membres présentés sur le site.</p><div class="detail-row"><img class="profile-photo" src="DormRoom-2026-7-30-1-16-32.jpg" alt="Photo de profil de LBP3PC"><span class="profile-name">LBP3PC<small>@LBP3PC · 13 photos partagées</small></span><a class="text-link" href="#photos" data-gallery>Voir les photos →</a></div><p class="detail-note">Le nombre de joueurs en ligne est indisponible : aucun service de présence n’est connecté. Cette fiche n’indique pas que LBP3PC est actuellement en ligne.</p></dialog>
   <dialog class="content-dialog settings-dialog" id="parametres" aria-labelledby="settings-title"><div class="dialog-head"><h2 id="settings-title" data-i18n="settings">Paramètres</h2><button class="close" data-close type="button" aria-label="Fermer les paramètres">✕</button></div><h3 data-i18n="language">Langue</h3><div class="settings-row"><label for="language-select" data-i18n="language">Langue</label><div class="language-picker"><img class="language-flag" id="language-flag" src="flags/fr.svg" alt="" width="24" height="17"><select class="language-select" id="language-select"><option value="en">🇬🇧 English</option><option value="fr" selected>🇫🇷 Français</option><option value="es">🇪🇸 Español</option><option value="ru">🇷🇺 Русский</option><option value="de">🇩🇪 Deutsch</option><option value="ar">🇸🇦 العربية</option><option value="zh">🇨🇳 中文</option><option value="it">🇮🇹 Italiano</option><option value="ro">🇷🇴 Română</option><option value="hu">🇭🇺 Magyar</option></select></div></div><h3 data-i18n="notifications">Notifications</h3><div class="settings-row"><span data-i18n="updatePings">Pings de mise à jour</span><label class="switch-label"><span id="ping-state">Désactivé</span><input id="update-pings" type="checkbox" role="switch" aria-label="Pings de mise à jour"></label></div><p class="detail-note" data-i18n="localNotice">Préférence enregistrée sur cet appareil. Aucun envoi de notifications n’est encore connecté.</p><p class="detail-note" data-i18n="languageNotice">La langue choisie s’applique aux textes du site.</p><p class="detail-note" id="storage-warning" role="status" hidden>Le navigateur bloque l’enregistrement des préférences : elles seront perdues à la fermeture.</p></dialog>
   <dialog class="content-dialog" id="recherche" aria-labelledby="search-title"><div class="dialog-head"><h2 id="search-title" data-i18n="search">Rechercher</h2><button class="close" data-close type="button" aria-label="Fermer la recherche">✕</button></div><label for="site-search">Rechercher sur REC BLUE</label><input class="search-input" id="site-search" type="search" placeholder="Chambres, photos, joueurs…" autocomplete="off"><div class="search-results" id="search-results" aria-live="polite"></div></dialog>
-  <dialog class="content-dialog" id="boutique" aria-labelledby="shop-title"><div class="dialog-head"><h2 id="shop-title" data-i18n="shop">Boutique</h2><button class="close" data-close type="button" aria-label="Fermer la boutique">✕</button></div><p>La boutique REC BLUE n’est pas encore ouverte.</p><div class="detail-row"><span>Aucun article disponible<small>Aucun achat ni paiement n’est proposé actuellement.</small></span><span class="badge">À venir</span></div></dialog>
+  <dialog class="content-dialog shop-dialog" id="boutique" aria-labelledby="shop-title">
+    <div class="dialog-head"><h2 id="shop-title" data-i18n="shop">Boutique</h2><button class="close" data-close type="button" aria-label="Fermer la boutique">✕</button></div>
+    <p class="shop-note">Aucun paiement n’est encore activé : les offres sont présentées à titre d’aperçu.</p>
+    <article class="shop-hero">
+      <div class="shop-hero-art"><img src="rec-blue-logo.png" alt="REC BLUE" width="693" height="180"></div>
+      <div class="shop-hero-body">
+        <p class="shop-eyebrow">La meilleure offre REC BLUE</p>
+        <h3>REC BLUE Abonnement Plus</h3>
+        <ul class="shop-perks"><li>5 000 crédits par mois</li><li>Tenue à capuche exclusive REC BLUE</li><li>Accès en avance aux nouvelles salles</li><li>Mention spéciale sur le site et dans le jeu</li><li>Étiquette bleue à côté de votre pseudo</li><li>Rôle spécial sur le Discord</li><li>Boîte hebdomadaire 4 étoiles</li><li>25 % de réduction dans les magasins partenaires qui acceptent les crédits</li></ul>
+        <div class="shop-price"><strong>7,99 $ <span>/ mois</span></strong><button class="shop-cta shop-cta-hero" type="button" disabled>À venir</button></div>
+      </div>
+    </article>
+    <h3 class="shop-section">Crédits</h3>
+    <p class="shop-sub">La monnaie REC BLUE. Dépensez-la tout au long du jeu.</p>
+    <div class="shop-grid">
+      <article class="shop-card"><span class="shop-badge">Meilleure valeur</span><svg class="shop-coin" viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="6" width="52" height="52" rx="12" fill="#2f7de1"/><rect x="10" y="10" width="44" height="44" rx="9" fill="none" stroke="#1d5fbe" stroke-width="2"/><g fill="none" stroke="#eaf4ff" stroke-width="5" stroke-linecap="round"><path d="M20 26h24M26 26v10m12-10v10M21 44q11 9 22 0"/></g></svg><strong>35 000 crédits</strong><span class="shop-price-tag">49,99 $</span><button class="shop-cta" type="button" disabled>À venir</button></article>
+      <article class="shop-card"><svg class="shop-coin" viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="6" width="52" height="52" rx="12" fill="#2f7de1"/><rect x="10" y="10" width="44" height="44" rx="9" fill="none" stroke="#1d5fbe" stroke-width="2"/><g fill="none" stroke="#eaf4ff" stroke-width="5" stroke-linecap="round"><path d="M20 26h24M26 26v10m12-10v10M21 44q11 9 22 0"/></g></svg><strong>12 000 crédits</strong><span class="shop-price-tag">19,99 $</span><button class="shop-cta" type="button" disabled>À venir</button></article>
+      <article class="shop-card"><span class="shop-badge">Les plus populaires</span><svg class="shop-coin" viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="6" width="52" height="52" rx="12" fill="#2f7de1"/><rect x="10" y="10" width="44" height="44" rx="9" fill="none" stroke="#1d5fbe" stroke-width="2"/><g fill="none" stroke="#eaf4ff" stroke-width="5" stroke-linecap="round"><path d="M20 26h24M26 26v10m12-10v10M21 44q11 9 22 0"/></g></svg><strong>3 500 crédits</strong><span class="shop-price-tag">9,99 $</span><button class="shop-cta" type="button" disabled>À venir</button></article>
+      <article class="shop-card"><svg class="shop-coin" viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="6" width="52" height="52" rx="12" fill="#2f7de1"/><rect x="10" y="10" width="44" height="44" rx="9" fill="none" stroke="#1d5fbe" stroke-width="2"/><g fill="none" stroke="#eaf4ff" stroke-width="5" stroke-linecap="round"><path d="M20 26h24M26 26v10m12-10v10M21 44q11 9 22 0"/></g></svg><strong>1 000 crédits</strong><span class="shop-price-tag">4,99 $</span><button class="shop-cta" type="button" disabled>À venir</button></article>
+      <article class="shop-card"><svg class="shop-coin" viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="6" width="52" height="52" rx="12" fill="#2f7de1"/><rect x="10" y="10" width="44" height="44" rx="9" fill="none" stroke="#1d5fbe" stroke-width="2"/><g fill="none" stroke="#eaf4ff" stroke-width="5" stroke-linecap="round"><path d="M20 26h24M26 26v10m12-10v10M21 44q11 9 22 0"/></g></svg><strong>500 crédits</strong><span class="shop-price-tag">1,99 $</span><button class="shop-cta" type="button" disabled>À venir</button></article>
+    </div>
+    <h3 class="shop-section">Offres spéciales</h3>
+    <article class="shop-card shop-offer"><svg class="shop-coin" viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="6" width="52" height="52" rx="12" fill="#2f7de1"/><rect x="10" y="10" width="44" height="44" rx="9" fill="none" stroke="#1d5fbe" stroke-width="2"/><g fill="none" stroke="#eaf4ff" stroke-width="5" stroke-linecap="round"><path d="M20 26h24M26 26v10m12-10v10M21 44q11 9 22 0"/></g></svg><div><strong>Pack de démarrage</strong><p>5 000 crédits, pizza, root beer, un sweat à capuche édition anniversaire et un casque audio exclusif.</p><span class="shop-price-tag">4,99 $</span></div><button class="shop-cta" type="button" disabled>À venir</button></article>
+  </dialog>
   <dialog class="content-dialog" id="connexion" aria-labelledby="login-title"><div class="dialog-head"><h2 id="login-title">Mon compte REC BLUE</h2><button class="close" data-close type="button" aria-label="Fermer le compte">✕</button></div>
     <p id="account-setup" class="detail-note">Configuration requise : connectez le projet Supabase et installez le schéma de comptes. Les formulaires restent désactivés tant que le service n’est pas configuré.</p>
     <p id="account-message" role="status" aria-live="polite"></p>
