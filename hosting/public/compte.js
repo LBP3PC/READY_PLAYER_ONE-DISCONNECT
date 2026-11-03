@@ -21,6 +21,45 @@
   const readPref = (key, fallback) => { try { return localStorage.getItem(key) ?? fallback; } catch (error) { return fallback; } };
   const savePref = (key, value) => { try { localStorage.setItem(key, value); } catch (error) { /* stockage indisponible */ } };
   const initials = name => String(name || '?').trim().slice(0, 2).toUpperCase();
+  const AVATAR_PATTERN = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
+  function applyAvatar() {
+    const element = byId('avatar');
+    const url = profile?.avatar_url;
+    if (typeof url === 'string' && AVATAR_PATTERN.test(url)) {
+      element.style.backgroundImage = 'url("' + url + '")';
+      element.textContent = '';
+      element.classList.add('has-photo');
+      byId('avatar-remove').hidden = false;
+    } else {
+      element.style.backgroundImage = '';
+      element.textContent = initials(profile?.display_name);
+      element.classList.remove('has-photo');
+      byId('avatar-remove').hidden = true;
+    }
+  }
+  async function prepareAvatar(file) {
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type)) throw new Error('Format accepté : JPG, PNG ou WebP.');
+    if (file.size > 5 * 1024 * 1024) throw new Error('Image trop lourde : 5 Mo maximum.');
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error('Image illisible.'));
+      reader.readAsDataURL(file);
+    });
+    const image = await new Promise((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error('Image illisible.'));
+      element.src = dataUrl;
+    });
+    const size = 160;
+    const canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    const context = canvas.getContext('2d');
+    const side = Math.min(image.width, image.height);
+    context.drawImage(image, (image.width - side) / 2, (image.height - side) / 2, side, side, 0, 0, size, size);
+    return canvas.toDataURL('image/jpeg', 0.82);
+  }
   const formatDate = value => {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -92,14 +131,14 @@
       showGate();
       return;
     }
-    const result = await client.from('recblue_accounts').select('id,display_name,role,created_at').eq('id', user.id).single();
+    const result = await client.from('recblue_accounts').select('id,display_name,role,created_at,avatar_url').eq('id', user.id).single();
     if (current !== revision) return;
     if (result.error) { showGuest(); say('Profil inaccessible. Vérifiez la configuration SQL.'); return; }
     profile = result.data;
     const pseudo = pseudoOf(user.email);
     byId('guest').hidden = true;
     byId('member').hidden = false;
-    byId('avatar').textContent = initials(profile.display_name);
+    applyAvatar();
     byId('side-name').textContent = profile.display_name;
     byId('side-login').textContent = pseudo ? '@' + pseudo : (user.email || '—');
     const role = byId('side-role');
@@ -225,6 +264,26 @@
   byId('music').addEventListener('change', () => { savePref('recblue.musicOff', String(!byId('music').checked)); say(byId('music').checked ? 'Musique activée sur ce navigateur.' : 'Musique désactivée sur ce navigateur.'); });
   byId('pings').addEventListener('change', () => { savePref('recblue.updatePings', String(byId('pings').checked)); say('Préférence de notifications enregistrée.'); });
 
+  byId('avatar-file').addEventListener('change', event => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    guard(null, async () => {
+      if (!profile) throw new Error('Profil indisponible : reconnectez-vous.');
+      const dataUrl = await prepareAvatar(file);
+      const { data, error } = await client.from('recblue_accounts').update({ avatar_url: dataUrl }).eq('id', profile.id).select('id').single();
+      if (error || !data) throw new Error('Enregistrement refusé : ' + (error?.message || 'la colonne avatar_url doit exister.'));
+      say('Photo de profil mise à jour.');
+      await loadProfile();
+    });
+  });
+  byId('avatar-remove').addEventListener('click', () => guard(byId('avatar-remove'), async () => {
+    if (!profile) throw new Error('Profil indisponible : reconnectez-vous.');
+    const { error } = await client.from('recblue_accounts').update({ avatar_url: null }).eq('id', profile.id).select('id').single();
+    if (error) throw new Error('Suppression refusée. Réessayez.');
+    say('Photo de profil retirée.');
+    await loadProfile();
+  }));
   byId('totp-start').addEventListener('click', () => guard(byId('totp-start'), async () => {
     const { data, error } = await client.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'REC BLUE · ' + (profile?.display_name || 'compte') });
     if (error) throw new Error('Activation impossible : ' + (error.message || 'la 2FA doit être autorisée dans Supabase.'));
