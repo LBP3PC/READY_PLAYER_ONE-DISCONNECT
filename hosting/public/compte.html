@@ -62,6 +62,7 @@
           <span class="badge" id="side-role">—</span>
           <dl class="facts">
             <div><dt>Compte créé</dt><dd id="side-created">—</dd></div>
+            <div><dt>Email</dt><dd id="side-email">—</dd></div>
             <div><dt>Identifiant</dt><dd id="side-id">—</dd></div>
           </dl>
           <button class="btn ghost" id="logout" type="button">Se déconnecter</button>
@@ -73,7 +74,11 @@
               <label>Mon pseudo affiché<input id="name" required minlength="2" maxlength="40" autocomplete="nickname"></label>
               <button class="btn" type="submit">Enregistrer</button>
             </form>
-            <p class="note">Le pseudo affiché peut être différent du pseudo de connexion, qui reste fixe.</p>
+            <form id="email-form">
+              <label>Adresse email de contact<input id="contact-email" type="email" maxlength="254" autocomplete="email" placeholder="prenom@exemple.com" spellcheck="false"></label>
+              <button class="btn" type="submit">Enregistrer l’email</button>
+            </form>
+            <p class="note">Le pseudo affiché peut être différent du pseudo de connexion, qui reste fixe. L’adresse email est facultative : elle sert de contact et de secours, elle n’est pas encore vérifiée ni utilisée pour se connecter.</p>
           </section>
           <section class="card">
             <h2>Sécurité</h2>

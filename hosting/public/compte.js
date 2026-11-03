@@ -131,7 +131,7 @@
       showGate();
       return;
     }
-    const result = await client.from('recblue_accounts').select('id,display_name,role,created_at,avatar_url').eq('id', user.id).single();
+    const result = await client.from('recblue_accounts').select('id,display_name,role,created_at,avatar_url,contact_email').eq('id', user.id).single();
     if (current !== revision) return;
     if (result.error) { showGuest(); say('Profil inaccessible. Vérifiez la configuration SQL.'); return; }
     profile = result.data;
@@ -146,6 +146,8 @@
     role.className = 'badge' + (profile.role === 'admin' ? ' admin' : '');
     byId('side-created').textContent = formatDate(profile.created_at);
     byId('side-id').textContent = String(user.id).slice(0, 8) + '…';
+    byId('side-email').textContent = profile.contact_email || '—';
+    byId('contact-email').value = profile.contact_email || '';
     byId('name').value = profile.display_name;
     byId('admin').hidden = profile.role !== 'admin';
     byId('admin-users').replaceChildren();
@@ -264,6 +266,20 @@
   byId('music').addEventListener('change', () => { savePref('recblue.musicOff', String(!byId('music').checked)); say(byId('music').checked ? 'Musique activée sur ce navigateur.' : 'Musique désactivée sur ce navigateur.'); });
   byId('pings').addEventListener('change', () => { savePref('recblue.updatePings', String(byId('pings').checked)); say('Préférence de notifications enregistrée.'); });
 
+  byId('email-form').addEventListener('submit', event => {
+    event.preventDefault();
+    guard(event.submitter, async () => {
+      if (!profile) throw new Error('Profil indisponible : reconnectez-vous.');
+      const value = byId('contact-email').value.trim().toLowerCase();
+      if (value && value.length > 254) throw new Error('Adresse email trop longue.');
+      if (value && !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(value)) throw new Error('Adresse email invalide : exemple prenom@exemple.com.');
+      if (value.endsWith('@players.recblue.invalid')) throw new Error('Cette adresse technique ne peut pas être utilisée.');
+      const { data, error } = await client.from('recblue_accounts').update({ contact_email: value || null }).eq('id', profile.id).select('id').single();
+      if (error || !data) throw new Error('Enregistrement refusé : ' + (error?.message || 'la colonne contact_email doit exister.'));
+      say(value ? 'Adresse email enregistrée.' : 'Adresse email retirée.');
+      await loadProfile();
+    });
+  });
   byId('avatar-file').addEventListener('change', event => {
     const file = event.target.files?.[0];
     event.target.value = '';
