@@ -24,8 +24,10 @@
     unmuteAndClean();
   }
 
+  const musicDisabled = () => { try { return localStorage.getItem('recblue.musicOff') === 'true'; } catch (error) { return false; } };
+
   async function start() {
-    if (userPaused || !audio.paused) return;
+    if (userPaused || musicDisabled() || !audio.paused) return;
     // 1. Tentative normale, avec son : autorisée si le navigateur le permet.
     if (await tryPlay()) return;
     // 2. Sinon démarrage silencieux (toujours autorisé), puis son dès la
