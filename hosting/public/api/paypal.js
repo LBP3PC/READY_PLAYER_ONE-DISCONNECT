@@ -23,6 +23,8 @@ const PACKS = Object.freeze({
   p1000: { credits: 1000, cents: 499, name: '1 000 crédits' },
   p3500: { credits: 3500, cents: 999, name: '3 500 crédits' },
   p12000: { credits: 12000, cents: 1999, name: '12 000 crédits' },
+  p35000: { credits: 35000, cents: 4999, name: '35 000 crédits' },
+  pplus: { credits: 5000, cents: 799, name: 'REC BLUE Abonnement Plus — 1 mois' },
   pstarter: { credits: 5000, cents: 499, name: 'Pack de démarrage' }
 });
 
