@@ -330,6 +330,10 @@
     .shop-bucket { width:104px; height:auto; }
     .shop-offer .shop-bucket { width:64px; }
     .shop-offer-tag { position:absolute; left:34px; bottom:16px; padding:1px 5px; border-radius:4px; background:#f2811f; color:#fff; font-size:9px; font-weight:800; }
+    .news-art { position:relative; }
+    .news-countdown { position:absolute; left:0; right:0; bottom:0; display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:3px 8px; padding:8px 10px 7px; background:linear-gradient(to top,rgba(4,8,24,.9),rgba(4,8,24,.35)); color:#e9f1ff; font-size:10.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; text-align:center; }
+    .news-countdown-label { font-style:normal; opacity:.85; }
+    .news-countdown-value { font-size:12.5px; letter-spacing:.4px; color:#9ed6ff; }
   </style>
 </head>
 <body id="accueil">
@@ -392,7 +396,7 @@
                   <a href="#mises-a-jour" data-dialog="mises-a-jour" aria-label="Lire : Aperçu du studio"><div class="news-art news-art-photo"><img loading="lazy" src="news-studio.jpg" alt="Aperçu du studio REC BLUE"></div><div class="news-copy"><span class="tag">COULISSES</span><h3>Aperçu du studio</h3></div></a>
                 </article>
                 <article class="news-card">
-                  <a href="#mises-a-jour" data-dialog="mises-a-jour" aria-label="Lire : Maintenance du jeu"><div class="news-art news-art-photo"><img loading="lazy" src="news-maintenance.jpg" alt="Écran de maintenance REC BLUE"></div><div class="news-copy"><span class="tag">INFO</span><h3>Maintenance du jeu</h3></div></a>
+                  <a href="#mises-a-jour" data-dialog="mises-a-jour" aria-label="Lire : Maintenance du jeu"><div class="news-art news-art-photo"><img loading="lazy" src="news-maintenance.jpg" alt="Écran de maintenance REC BLUE"><span class="news-countdown" data-countdown="2027-03-02T00:00:00+01:00" role="timer" aria-label="Temps restant avant la sortie du jeu"><em class="news-countdown-label">Sortie dans</em><strong class="news-countdown-value">…</strong></span></div><div class="news-copy"><span class="tag">INFO</span><h3>Maintenance du jeu</h3></div></a>
                 </article>
               </div>
               <button class="news-nav" type="button" data-news-prev aria-label="Nouvelle précédente">‹</button>
@@ -648,6 +652,6 @@
   <audio id="site-music" src="music.mp3?v=2" loop preload="metadata"></audio>
   <script src="music.js" defer></script>
   <script src="notice.js" defer></script>
-  <script src="news-carousel.js" defer></script>
+  <script src="news-carousel.js?v=2" defer></script>
 </body>
 </html>
