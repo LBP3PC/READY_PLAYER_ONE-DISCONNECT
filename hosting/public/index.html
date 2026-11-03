@@ -107,6 +107,8 @@
     .community p { color:var(--muted); margin:0; font-size:11px; }
     .discord { flex-shrink:0; background:#5865f2; }
     .discord:hover { background:#4752c4; }
+    .music-toggle { border:0; cursor:pointer; font:inherit; }
+    .music-toggle[hidden] { display:none; }
     footer { background:var(--surface); padding:30px 28px; }
     .footer-inner { max-width:1200px; margin:auto; display:flex; justify-content:space-between; align-items:center; gap:24px; }
     footer p { color:var(--muted); font-size:12px; margin:10px 0 0; }
@@ -287,6 +289,7 @@
       <div class="nav-actions">
         <a class="nav-control icon-button" href="#parametres" data-dialog="parametres" aria-label="Paramètres"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 3-1 3-3 1 1 3-2 2 2 2-1 3 3 1 1 3h6l1-3 3-1-1-3 2-2-2-2 1-3-3-1-1-3z"/><circle cx="12" cy="12" r="3"/></svg></a>
         <a class="nav-control icon-button" href="#recherche" data-dialog="recherche" aria-label="Rechercher"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></svg></a>
+        <button class="nav-control music-toggle" id="music-toggle" type="button" aria-pressed="false" aria-label="Activer la musique" hidden>♪</button>
         <a class="nav-control" href="#connexion" data-dialog="connexion" data-i18n="login">Se connecter</a>
         <a class="button nav-cta" href="#telecharger" data-dialog="telecharger" data-i18n="download">Télécharger</a>
       </div>
@@ -546,5 +549,7 @@
   <script src="account-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.js" integrity="sha384-3wY11tldQ5+yWqAvmTN4XtQvnjoTva0cV15O/O/O5NTtp0ivVopSzLOzsVXWZse9" crossorigin="anonymous" defer></script>
   <script src="accounts.js" defer></script>
+  <audio id="site-music" src="music.mp3" loop preload="metadata"></audio>
+  <script src="music.js" defer></script>
 </body>
 </html>
