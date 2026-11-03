@@ -335,11 +335,15 @@
     .news-countdown-value { font-size:12.5px; letter-spacing:.4px; color:#9ed6ff; }
     .nav-credits { display:inline-flex; align-items:center; gap:6px; padding:5px 11px; border-radius:999px; background:rgba(88,214,255,.12); border:1px solid rgba(88,214,255,.38); color:#bde9ff; font-size:12px; font-weight:700; letter-spacing:.3px; white-space:nowrap; }
     .nav-credits[hidden] { display:none; }
-    .news-countdown { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:3px 8px; margin:0; padding:9px 10px; background:#0c1222; border-top:1px solid rgba(126,200,255,.28); border-bottom:1px solid rgba(126,200,255,.18); color:#e9f1ff; font-size:10.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; text-align:center; }
+    .countdown-dock { position:fixed; left:50%; bottom:14px; transform:translateX(-50%); z-index:40; display:flex; align-items:center; justify-content:center; gap:4px 9px; flex-wrap:wrap; max-width:calc(100% - 24px); padding:9px 16px; border-radius:999px; background:rgba(9,15,32,.95); border:1px solid rgba(126,200,255,.36); box-shadow:0 10px 26px rgba(0,0,0,.45); color:#e9f1ff; font-size:10.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; text-align:center; }
+    .countdown-dock em { font-style:normal; opacity:.85; }
+    .countdown-dock strong { font-size:12.5px; letter-spacing:.4px; color:#9ed6ff; }
+    @media (max-width:560px) { .countdown-dock { bottom:10px; padding:7px 12px; font-size:9.5px; gap:2px 6px; } .countdown-dock strong { font-size:11px; } }
   </style>
 </head>
 <body id="accueil">
   <div class="site-edge" aria-hidden="true"><span class="edge-left"></span><span class="edge-right"></span></div>
+  <div class="countdown-dock" role="timer" aria-label="Temps restant avant la sortie du jeu"><span data-countdown="2027-03-02T00:00:00+01:00"><em>Sortie dans</em><strong>…</strong></span></div>
   <div class="announcement" id="early-access-notice"><strong>REC BLUE · Accès anticipé</strong>Rendez-vous le 02/03/2027 pour l’Early Access. En attendant, découvrez notre univers et rejoignez la communauté.<button class="announcement-close" id="notice-close" type="button" aria-label="Fermer l’annonce">✕</button></div>
   <header class="topbar">
     <nav class="nav-inner" aria-label="Navigation principale">
@@ -399,7 +403,7 @@
                   <a href="#mises-a-jour" data-dialog="mises-a-jour" aria-label="Lire : Aperçu du studio"><div class="news-art news-art-photo"><img loading="lazy" src="news-studio.jpg" alt="Aperçu du studio REC BLUE"></div><div class="news-copy"><span class="tag">COULISSES</span><h3>Aperçu du studio</h3></div></a>
                 </article>
                 <article class="news-card">
-                  <a href="#mises-a-jour" data-dialog="mises-a-jour" aria-label="Lire : Maintenance du jeu"><div class="news-art news-art-photo"><img loading="lazy" src="news-maintenance.jpg" alt="Écran de maintenance REC BLUE"></div><span class="news-countdown" data-countdown="2027-03-02T00:00:00+01:00" role="timer" aria-label="Temps restant avant la sortie du jeu"><em class="news-countdown-label">Sortie dans</em><strong class="news-countdown-value">…</strong></span><div class="news-copy"><span class="tag">INFO</span><h3>Maintenance du jeu</h3></div></a>
+                  <a href="#mises-a-jour" data-dialog="mises-a-jour" aria-label="Lire : Maintenance du jeu"><div class="news-art news-art-photo"><img loading="lazy" src="news-maintenance.jpg" alt="Écran de maintenance REC BLUE"></div><div class="news-copy"><span class="tag">INFO</span><h3>Maintenance du jeu</h3></div></a>
                 </article>
               </div>
               <button class="news-nav" type="button" data-news-prev aria-label="Nouvelle précédente">‹</button>
