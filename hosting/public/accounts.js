@@ -169,7 +169,11 @@
       // Un « @ » indique un ancien compte inscrit avec une adresse email.
       const email = identifier.includes('@') ? identifier.trim() : pseudoEmail(checkPseudo(identifier));
       const { error } = await client.auth.signInWithPassword({ email, password });
-      if (error) throw new Error('Connexion refusée. Vérifiez votre pseudo (ou email) et votre mot de passe.');
+      if (error) {
+        if (error.status === 429 || error.code === 'over_request_rate_limit') throw new Error('Trop de tentatives de connexion : patientez une minute et réessayez.');
+        if (error.code === 'email_not_confirmed') throw new Error('Ce compte doit être confirmé par email : demandez à un administrateur, ou utilisez un compte par pseudo.');
+        throw new Error('Connexion refusée. Vérifiez votre pseudo (ou email) et votre mot de passe.');
+      }
       if (await mfaPending()) { showMfaPrompt('Un code est déjà exigé pour ce compte : saisissez-le pour terminer la connexion.'); return; }
       announce('Connexion réussie.'); await refreshAccount();
     });
@@ -183,7 +187,9 @@
       const { data, error } = await client.auth.signUp({ email: pseudoEmail(pseudo), password });
       if (error) {
         if (error.code === 'user_already_exists' || /already/i.test(error.message || '')) throw new Error('Ce pseudo est déjà pris. Choisissez-en un autre.');
-        throw new Error('Inscription impossible. Vérifiez le mot de passe et réessayez.');
+        if (error.code === 'over_email_send_rate_limit' || /rate limit/i.test(error.message || '')) throw new Error('Trop d’inscriptions coup sur coup : réessayez dans quelques minutes.');
+        if (error.code === 'weak_password' || /password/i.test(error.message || '')) throw new Error('Mot de passe refusé : choisissez-en un d’au moins 12 caractères.');
+        throw new Error('Inscription impossible : ' + (error.message || 'service indisponible.'));
       }
       if (!data.session) throw new Error('Inscription non activée côté service : la confirmation email de Supabase doit être désactivée (Authentication, Sign In / Providers, Email).');
       const { error: nameError } = await client.from('recblue_accounts')
