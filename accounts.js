@@ -88,7 +88,10 @@
     const creditsBadge = byId('nav-credits');
     if (creditsBadge) {
       const total = Number(profile.credits) || 0;
-      creditsBadge.textContent = total.toLocaleString('fr-FR') + (total === 1 ? ' crédit' : ' crédits');
+      const creditsText = total.toLocaleString('fr-FR') + (total === 1 ? ' crédit' : ' crédits');
+      const creditsValue = byId('nav-credits-value');
+      if (creditsValue) creditsValue.textContent = creditsText;
+      else creditsBadge.textContent = creditsText;
       creditsBadge.hidden = false;
     }
     byId('account-name').value = profile.display_name;

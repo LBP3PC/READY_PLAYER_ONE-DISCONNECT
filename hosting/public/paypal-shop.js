@@ -29,7 +29,10 @@
     const value = Number(total) || 0;
     const pill = byId('nav-credits');
     if (pill) {
-      pill.textContent = value.toLocaleString('fr-FR') + (value === 1 ? ' crédit' : ' crédits');
+      const text = value.toLocaleString('fr-FR') + (value === 1 ? ' crédit' : ' crédits');
+      const label = byId('nav-credits-value');
+      if (label) label.textContent = text;
+      else pill.textContent = text;
       pill.hidden = false;
     }
     const card = byId('credits-balance');
