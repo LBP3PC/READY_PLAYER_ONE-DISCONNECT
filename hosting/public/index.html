@@ -193,6 +193,15 @@
     .news-art img { width:86%; height:auto; }
     .news-copy .tag { font-size:9px; background:#2445b8; color:white; padding:2px 5px; letter-spacing:0; border-radius:3px; }
     .news-copy h3 { font-size:14px; }
+    .news-carousel { position:relative; }
+    .news-track { display:flex; gap:14px; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; padding-bottom:4px; }
+    .news-track::-webkit-scrollbar { display:none; }
+    .news-track .news-card { flex:0 0 100%; width:auto; max-width:none; margin-bottom:0; scroll-snap-align:center; }
+    .news-art-photo img { width:100%; height:100%; object-fit:cover; }
+    .news-nav { position:absolute; top:32%; width:36px; height:36px; border:0; border-radius:50%; background:#000000a6; color:#fff; font-size:21px; line-height:1; cursor:pointer; display:grid; place-items:center; }
+    .news-nav[data-news-prev] { left:8px; }
+    .news-nav[data-news-next] { right:8px; }
+    .news-nav:hover { background:#000000d9; }
     .community { padding:32px; margin-top:22px; margin-bottom:58px; border-radius:24px; }
     .community h2 { font-size:23px; }
     .community p { font-size:14px; }
@@ -328,9 +337,18 @@
           <section id="actualites" aria-labelledby="news-title">
             <h2 class="section-title" id="news-title">Que se passe-t-il en ce moment ?</h2>
             <div class="news-heading"><h3>Latest News</h3><a class="text-link" href="#mises-a-jour" data-dialog="mises-a-jour">Tout voir →</a></div>
-            <article class="news-card">
-              <a href="#mises-a-jour" data-dialog="mises-a-jour" aria-label="Lire : Bienvenue sur REC BLUE"><div class="news-art"><img loading="lazy" src="rec-blue-logo.png" alt="REC BLUE"></div><span class="news-pin">ÉPINGLÉ</span><div class="news-copy"><span class="tag">LATEST NEWS</span><h3>Bienvenue sur REC BLUE</h3></div></a>
-            </article>
+            <div class="news-carousel" id="news-carousel">
+              <div class="news-track" id="news-track" aria-label="Nouvelles en défilement">
+                <article class="news-card">
+                  <a href="#mises-a-jour" data-dialog="mises-a-jour" aria-label="Lire : Bienvenue sur REC BLUE"><div class="news-art"><img loading="lazy" src="rec-blue-logo.png" alt="REC BLUE"></div><span class="news-pin">ÉPINGLÉ</span><div class="news-copy"><span class="tag">LATEST NEWS</span><h3>Bienvenue sur REC BLUE</h3></div></a>
+                </article>
+                <article class="news-card">
+                  <a href="#mises-a-jour" data-dialog="mises-a-jour" aria-label="Lire : Le salon REC BLUE"><div class="news-art news-art-photo"><img loading="lazy" src="community-rec-blue.jpg" alt="Le salon REC BLUE"></div><div class="news-copy"><span class="tag">NOUVEAU</span><h3>Le salon REC BLUE</h3></div></a>
+                </article>
+              </div>
+              <button class="news-nav" type="button" data-news-prev aria-label="Nouvelle précédente">‹</button>
+              <button class="news-nav" type="button" data-news-next aria-label="Nouvelle suivante">›</button>
+            </div>
           </section>
           <details class="photo-gallery" id="photos">
             <summary class="gallery-toggle">Ouvrir la galerie · 13 photos de LBP3PC</summary>
@@ -555,5 +573,6 @@
   <audio id="site-music" src="music.mp3" loop preload="metadata"></audio>
   <script src="music.js" defer></script>
   <script src="notice.js" defer></script>
+  <script src="news-carousel.js" defer></script>
 </body>
 </html>
