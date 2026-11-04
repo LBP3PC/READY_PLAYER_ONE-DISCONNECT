@@ -67,3 +67,12 @@ body.mfa-required .stack > .card:not(#mfa-card) { opacity:.45; pointer-events:no
 .countdown { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; margin:8px 0 0; padding:10px 12px; border-radius:10px; background:rgba(8,16,40,.75); border:1px solid rgba(126,200,255,.3); }
 .countdown em { font-style:normal; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#9fb6d8; }
 .countdown-value { font-size:15px; color:#9ed6ff; }
+
+/* Effet doré animé des membres REC BLUE Plus. */
+.avatar.plus-ring { position:relative; overflow:hidden; animation:plus-pulse 2.6s ease-in-out infinite; }
+.avatar.plus-ring::after { content:''; position:absolute; inset:-45%; background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.6) 50%,transparent 60%); animation:plus-sheen 3.6s linear infinite; pointer-events:none; }
+.plus-name { animation:plus-name-pulse 3s ease-in-out infinite; }
+@keyframes plus-pulse { 0%,100% { box-shadow:0 0 0 3px #f7c948, 0 0 12px rgba(247,201,72,.45); } 50% { box-shadow:0 0 0 3px #ffe8a3, 0 0 24px rgba(247,201,72,.85); } }
+@keyframes plus-sheen { 0% { transform:translate(-120%,0) rotate(8deg); } 100% { transform:translate(120%,0) rotate(8deg); } }
+@keyframes plus-name-pulse { 0%,100% { text-shadow:0 0 8px rgba(247,201,72,.25); } 50% { text-shadow:0 0 16px rgba(247,201,72,.7); } }
+@media (prefers-reduced-motion: reduce) { .avatar.plus-ring, .avatar.plus-ring::after, .plus-name { animation:none; } }
