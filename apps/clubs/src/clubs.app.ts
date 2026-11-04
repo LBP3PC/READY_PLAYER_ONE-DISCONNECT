@@ -203,6 +203,28 @@ function parseFormBool(value: string | undefined): boolean | undefined {
 	}
 }
 
+/**
+ * The subscriber figure both subscription reads serve: the subscription club's own
+ * membership count (its creator not counted) and the reputation row's subscriber count,
+ * whichever is larger. The reputation figure is what `/api/playerReputation` hands the
+ * profile, so serving only the club count made an account whose reputation is seeded read
+ * 0 subscribers everywhere; a real subscriber can still raise the number above it. A
+ * missing `reputation` row — or table — counts as 0 rather than failing the read.
+ */
+async function subscriberTotal(
+	db: D1Database,
+	accountId: number,
+	clubId: number | null
+): Promise<number> {
+	const fromClub = clubId === null ? 0 : await countClubSubscribers(db, clubId)
+	const fromReputation = await db
+		.prepare('SELECT subscriber_count AS n FROM reputation WHERE account_id = ?1')
+		.bind(accountId)
+		.first<{ n: number }>()
+		.catch(() => null)
+	return Math.max(fromClub, fromReputation?.n ?? 0)
+}
+
 const app = new Hono<App>()
 	.use(
 		'*',
@@ -393,7 +415,7 @@ const app = new Hono<App>()
 			return c.json({
 				accountId,
 				clubId: club?.ClubId ?? 0,
-				subscriberCount: club ? await countClubSubscribers(c.env.DB, club.ClubId) : 0,
+				subscriberCount: await subscriberTotal(c.env.DB, accountId, club?.ClubId ?? null),
 			})
 		}
 	)
@@ -490,9 +512,9 @@ const app = new Hono<App>()
 		}
 	)
 
-	// Subscriber count for an account: their subscription club's members, the creator
-	// not counted. Public, a bare JSON integer; an account with no subscription club yet
-	// (nobody has read its `details` or subscribed) has 0 — this read doesn't provision one.
+	// Subscriber count for an account: the larger of their subscription club's membership
+	// (the creator not counted) and their reputation subscriber count, so a seeded reputation
+	// shows up on the profile. Public, a bare JSON integer; this read doesn't provision a club.
 	.get(
 		'/subscription/subscriberCount/:accountId{[0-9]+}',
 		describeRoute({
@@ -500,7 +522,8 @@ const app = new Hono<App>()
 			summary: 'Subscriber count for an account',
 			description: [
 				'How many subscribers the account’s subscription club has, its creator not counted.',
-				'Public. A bare JSON integer; an account with no subscription club has 0.',
+				'Public. A bare JSON integer; the larger of that membership and the account’s',
+				'reputation subscriber count, so a seeded reputation reads here too.',
 			].join(' '),
 			parameters: [
 				{
@@ -514,11 +537,9 @@ const app = new Hono<App>()
 			responses: { 200: json(SubscriberCountResponse, 'The subscriber count') },
 		}),
 		async (c) => {
-			const club = await getSubscriptionClub(
-				c.env.DB,
-				Number.parseInt(c.req.param('accountId'), 10)
-			)
-			return c.json(club ? await countClubSubscribers(c.env.DB, club.ClubId) : 0)
+			const accountId = Number.parseInt(c.req.param('accountId'), 10)
+			const club = await getSubscriptionClub(c.env.DB, accountId)
+			return c.json(await subscriberTotal(c.env.DB, accountId, club?.ClubId ?? null))
 		}
 	)
 

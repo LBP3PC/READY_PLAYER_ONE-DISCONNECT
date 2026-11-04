@@ -316,7 +316,7 @@ export const CategoryTags = z.array(z.string())
 export const SubscriberCountResponse = z
 	.int()
 	.describe(
-		'The account’s subscription club’s subscribers, its creator not counted; 0 without a club'
+		'The account’s subscription club’s subscribers, its creator not counted; the reputation count when it has no club, 0 when neither exists'
 	)
 
 /**
