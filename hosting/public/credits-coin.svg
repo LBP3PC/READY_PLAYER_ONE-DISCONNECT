@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Pièce REC BLUE">
+  <defs>
+    <linearGradient id="rb-silver" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset=".32" stop-color="#d8e8ff"/>
+      <stop offset=".58" stop-color="#9dc2ee"/>
+      <stop offset=".78" stop-color="#e8f3ff"/>
+      <stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+    <linearGradient id="rb-blue" x1="0" y1="0" x2=".85" y2="1">
+      <stop offset="0" stop-color="#3fd4ff"/>
+      <stop offset=".35" stop-color="#1f6bff"/>
+      <stop offset=".72" stop-color="#1226e0"/>
+      <stop offset="1" stop-color="#0a17b0"/>
+    </linearGradient>
+    <linearGradient id="rb-plate" x1=".2" y1="0" x2=".8" y2="1">
+      <stop offset="0" stop-color="#2f6bff"/>
+      <stop offset=".45" stop-color="#1533f0"/>
+      <stop offset="1" stop-color="#0b16a8"/>
+    </linearGradient>
+    <linearGradient id="rb-glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".75"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="rb-face" x1="0" y1="0" x2=".35" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset=".62" stop-color="#dcf2ff"/>
+      <stop offset="1" stop-color="#67d9ff"/>
+    </linearGradient>
+    <linearGradient id="rb-smile" x1="0" y1="0" x2=".4" y2="1">
+      <stop offset="0" stop-color="#b6f9ff"/>
+      <stop offset=".55" stop-color="#59e2ff"/>
+      <stop offset="1" stop-color="#16b8ff"/>
+    </linearGradient>
+  </defs>
+
+  <!-- anneau argenté extérieur -->
+  <rect x="3" y="3" width="114" height="114" rx="30" fill="url(#rb-silver)"/>
+  <!-- liseré bleu -->
+  <rect x="9" y="9" width="102" height="102" rx="26" fill="url(#rb-blue)"/>
+  <!-- deuxième anneau argenté -->
+  <rect x="15" y="15" width="90" height="90" rx="21" fill="url(#rb-silver)"/>
+  <!-- cadre bleu -->
+  <rect x="21" y="21" width="78" height="78" rx="17" fill="url(#rb-blue)"/>
+  <!-- plaque intérieure -->
+  <rect x="27" y="27" width="66" height="66" rx="13" fill="url(#rb-plate)"/>
+
+  <!-- reflet en haut de la plaque -->
+  <rect x="27" y="27" width="66" height="34" rx="13" fill="url(#rb-glass)"/>
+
+  <!-- yeux reliés en haut -->
+  <g fill="url(#rb-face)">
+    <rect x="38" y="40" width="45" height="11" rx="5.5"/>
+    <rect x="38" y="40" width="11" height="33" rx="5.5"/>
+    <rect x="72" y="40" width="11" height="33" rx="5.5"/>
+  </g>
+
+  <!-- sourire -->
+  <path d="M36 71 Q60 95 84 71" fill="none" stroke="url(#rb-smile)" stroke-width="12" stroke-linecap="round"/>
+</svg>

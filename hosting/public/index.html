@@ -345,7 +345,7 @@
     .plus-mark-wrap { display:inline-block; }
     .plus-mark-wrap[hidden] { display:none; }
     .plus-mark { width:18px; height:18px; display:inline-block; vertical-align:-3px; margin-left:6px; }
-    .nav-coin { width:14px; height:14px; display:inline-block; vertical-align:-2px; margin-right:5px; }
+    .nav-coin { width:15px; height:15px; display:inline-block; vertical-align:-2.5px; margin-right:6px; object-fit:contain; }
     .countdown-dock { position:fixed; left:0; right:0; bottom:14px; margin:0 auto; width:max-content; z-index:40; display:flex; align-items:center; justify-content:center; gap:4px 9px; flex-wrap:wrap; max-width:calc(100% - 24px); padding:9px 16px; border-radius:999px; background:rgba(9,15,32,.95); border:1px solid rgba(126,200,255,.36); box-shadow:0 10px 26px rgba(0,0,0,.45); color:#e9f1ff; font-size:10.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; text-align:center; }
     .countdown-dock em { font-style:normal; opacity:.85; }
     .countdown-dock strong { font-size:12.5px; letter-spacing:.4px; color:#9ed6ff; }
@@ -370,7 +370,7 @@
         <a class="nav-control icon-button" href="#parametres" data-dialog="parametres" aria-label="Paramètres"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 3-1 3-3 1 1 3-2 2 2 2-1 3 3 1 1 3h6l1-3 3-1-1-3 2-2-2-2 1-3-3-1-1-3z"/><circle cx="12" cy="12" r="3"/></svg></a>
         <a class="nav-control icon-button" href="#recherche" data-dialog="recherche" aria-label="Rechercher"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></svg></a>
         <button class="nav-control music-toggle" id="music-toggle" type="button" aria-pressed="false" aria-label="Activer la musique" hidden>♪</button>
-        <span class="nav-credits" id="nav-credits" hidden><svg class="nav-coin" aria-hidden="true"><use href="#recblue-coin"/></svg><span id="nav-credits-value">0 crédit</span></span>
+        <span class="nav-credits" id="nav-credits" hidden><img class="nav-coin" src="credits-coin.svg" alt="" width="15" height="15" aria-hidden="true"><span id="nav-credits-value">0 crédit</span></span>
         <a class="nav-control account-pill" href="#connexion" data-dialog="connexion"><span class="account-bubble" id="nav-avatar" aria-hidden="true" hidden></span><span id="nav-account-label" data-i18n="login">Se connecter</span><span class="plus-mark-wrap" id="nav-plus" hidden><svg class="plus-mark" aria-hidden="true"><use href="#recblue-plus"/></svg></span></a>
         <a class="button nav-cta" href="#telecharger" data-dialog="telecharger" data-i18n="download">Télécharger</a>
       </div>
