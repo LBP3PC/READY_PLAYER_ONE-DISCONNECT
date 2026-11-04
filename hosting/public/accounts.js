@@ -122,6 +122,13 @@
     const plusBadge = byId('account-plus');
     if (plusBadge) plusBadge.hidden = !isPlus(profile.plus_until);
     byId('account-admin').hidden = !(profile.role === 'admin' || profile.role === 'moderator');
+    // Les crédits et le Plus restent réservés aux administrateurs : un
+    // modérateur ne voit que la liste des comptes.
+    const isAdminMember = profile.role === 'admin';
+    ['admin-credits', 'admin-plus'].forEach(id => {
+      const block = byId(id);
+      if (block) block.hidden = !isAdminMember;
+    });
     const factorList = await client.auth.mfa.listFactors();
     const verifiedFactors = (factorList.data?.all || []).filter(factor => factor.status === 'verified').length;
     const mfaNote = byId('account-mfa-note');
