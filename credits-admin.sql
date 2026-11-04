@@ -1,5 +1,6 @@
--- Ajout manuel de crédits, réservé aux administrateurs.
--- Le contrôle du rôle est fait dans la fonction : un membre ne peut pas l'appeler.
+-- Ajout manuel de crédits, réservé à l'équipe.
+-- Version remplacée par moderator-role.sql (rôle modérateur + recherche par nom) ;
+-- ce fichier reste pour mémoire du premier déploiement.
 begin;
 create or replace function public.recblue_grant_credits(p_identifier text, p_amount integer)
 returns integer

@@ -10,7 +10,7 @@
   let profile = null;
   let revision = 0;
   const announce = text => { message.textContent = text; };
-  const labels = { member: 'Membre', admin: 'Administrateur' };
+  const labels = { member: 'Membre', moderator: 'Modérateur', admin: 'Administrateur' };
   const navLink = document.querySelector('a.nav-control[href="#connexion"]');
   const navLabel = byId('nav-account-label');
   const navBubble = byId('nav-avatar');
@@ -118,7 +118,7 @@
     byId('account-role').textContent = labels[profile.role] || 'Droit inconnu';
     const plusBadge = byId('account-plus');
     if (plusBadge) plusBadge.hidden = !isPlus(profile.plus_until);
-    byId('account-admin').hidden = profile.role !== 'admin';
+    byId('account-admin').hidden = !(profile.role === 'admin' || profile.role === 'moderator');
     const factorList = await client.auth.mfa.listFactors();
     const verifiedFactors = (factorList.data?.all || []).filter(factor => factor.status === 'verified').length;
     const mfaNote = byId('account-mfa-note');
@@ -146,7 +146,7 @@
     if (result.error) throw result.error;
     const accounts = result.data;
     await refreshAccount();
-    if (!profile || profile.role !== 'admin') throw new Error('Accès administrateur requis.');
+    if (!profile || !(profile.role === 'admin' || profile.role === 'moderator')) throw new Error('Accès réservé à l’équipe.');
     const fragment = document.createDocumentFragment();
     accounts.forEach(account => {
       const row = document.createElement('div'); row.className = 'detail-row';
@@ -156,6 +156,9 @@
       Object.entries(labels).forEach(([value, label]) => { const option = document.createElement('option'); option.value = value; option.textContent = label; select.append(option); });
       select.value = account.role;
       const save = document.createElement('button'); save.type = 'button'; save.className = 'button'; save.textContent = 'Appliquer';
+      // Seul un administrateur peut changer les droits ; un modérateur consulte la liste.
+      const isAdmin = profile.role === 'admin';
+      select.disabled = !isAdmin; save.disabled = !isAdmin; save.hidden = !isAdmin;
       save.addEventListener('click', () => run(save, async () => {
         const { error } = await client.rpc('recblue_set_role', { target_id: account.id, new_role: select.value });
         if (error) { await refreshAccount(); throw error; }
@@ -171,7 +174,7 @@
   if (creditsForm) creditsForm.addEventListener('submit', event => {
     event.preventDefault();
     run(byId('admin-credits-submit'), async () => {
-      if (!profile || profile.role !== 'admin') throw new Error('Accès administrateur requis.');
+      if (!profile || !(profile.role === 'admin' || profile.role === 'moderator')) throw new Error('Accès réservé à l’équipe.');
       const target = byId('admin-credits-target').value.trim();
       const amount = Number(byId('admin-credits-amount').value);
       if (!target) throw new Error('Indiquez un pseudo ou une adresse email.');

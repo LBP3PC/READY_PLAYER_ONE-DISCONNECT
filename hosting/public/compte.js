@@ -4,7 +4,7 @@
   const config = window.RECBLUE_ACCOUNTS;
   const PSEUDO_DOMAIN = 'players.recblue.invalid';
   const PSEUDO_PATTERN = /^[a-z0-9_][a-z0-9_-]{2,19}$/;
-  const labels = { member: 'Membre', admin: 'Administrateur' };
+  const labels = { member: 'Membre', moderator: 'Modérateur', admin: 'Administrateur' };
   let client = null;
   let user = null;
   let profile = null;
@@ -179,7 +179,7 @@
     byId('side-email').textContent = profile.contact_email || '—';
     byId('contact-email').value = profile.contact_email || '';
     byId('name').value = profile.display_name;
-    byId('admin').hidden = profile.role !== 'admin';
+    byId('admin').hidden = !(profile.role === 'admin' || profile.role === 'moderator');
     byId('admin-users').replaceChildren();
     try { await loadFactors(); } catch (error) { byId('mfa-state').textContent = 'État de la double authentification indisponible.'; }
   }
@@ -204,6 +204,9 @@
       select.value = account.role;
       const apply = document.createElement('button');
       apply.type = 'button'; apply.className = 'btn ghost'; apply.textContent = 'Appliquer';
+      // Un modérateur voit la liste mais ne change pas les droits.
+      const isAdmin = profile?.role === 'admin';
+      select.disabled = !isAdmin; apply.disabled = !isAdmin; apply.hidden = !isAdmin;
       apply.addEventListener('click', () => guard(apply, async () => {
         const { error } = await client.rpc('recblue_set_role', { target_id: account.id, new_role: select.value });
         if (error) throw error;

@@ -7,7 +7,7 @@ grant usage on schema private to authenticated;
 create table public.recblue_accounts (
   id uuid primary key references auth.users(id) on delete cascade,
   display_name text not null default 'Joueur' check (char_length(display_name) between 2 and 40),
-  role text not null default 'member' check (role in ('member', 'admin')),
+  role text not null default 'member' check (role in ('member', 'moderator', 'admin')),
   created_at timestamptz not null default now()
 );
 alter table public.recblue_accounts enable row level security;
