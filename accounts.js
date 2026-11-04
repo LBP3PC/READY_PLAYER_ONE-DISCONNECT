@@ -218,7 +218,14 @@
       if (!password) throw new Error('Indiquez votre mot de passe.');
       // Un « @ » indique un compte inscrit avec une adresse email.
       const email = identifier.includes('@') ? identifier.toLowerCase() : pseudoEmail(checkPseudo(identifier));
-      const { error } = await client.auth.signInWithPassword({ email, password });
+      let attempt;
+      try {
+        attempt = await client.auth.signInWithPassword({ email, password });
+      } catch (failure) {
+        // Réseau coupé, VPN ou bloqueur : la requête n’a même pas abouti.
+        throw new Error('Le site n’a pas pu joindre le service de comptes (' + ((failure && failure.message) || 'réseau bloqué') + '). Vérifiez votre connexion internet, coupez un VPN ou un bloqueur de publicité, puis réessayez.');
+      }
+      const { error } = attempt;
       if (error) {
         const code = String(error.code || error.name || '');
         const detail = String(error.message || '');
@@ -234,7 +241,12 @@
         if (code === 'invalid_credentials' || /invalid login credentials/i.test(detail)) {
           throw new Error('Mot de passe incorrect, ou aucun compte sous « ' + email + ' ». Si vous vous êtes inscrit avec un email, utilisez cet email à la place du pseudo.');
         }
-        throw new Error('Connexion impossible (' + (code || 'erreur inconnue') + ') : ' + (detail || 'réessayez dans un instant.'));
+        if (!navigator.onLine || !error.status || /fetch|network|timeout/i.test(code + ' ' + detail)) {
+          throw new Error(!navigator.onLine
+            ? 'Ce navigateur est hors connexion : rétablissez internet puis réessayez.'
+            : 'Le site n’a pas pu joindre le service de comptes (' + (detail || code || 'réseau bloqué') + '). Vérifiez internet, coupez un VPN ou un bloqueur de publicité, puis réessayez.');
+        }
+        throw new Error('Connexion refusée par le service (' + (code || 'sans code') + ', statut ' + (error.status || 'inconnu') + ') : ' + (detail || 'réessayez dans un instant.'));
       }
       if (await mfaPending()) { showMfaPrompt('Un code est déjà exigé pour ce compte : saisissez-le pour terminer la connexion.'); return; }
       announce('Connexion réussie.'); await refreshAccount();

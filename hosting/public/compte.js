@@ -232,7 +232,13 @@
         if (!PSEUDO_PATTERN.test(pseudo)) throw new Error('Pseudo invalide : 3 à 20 lettres, chiffres, tiret ou souligné.');
         email = pseudo + '@' + PSEUDO_DOMAIN;
       }
-      const { error } = await client.auth.signInWithPassword({ email, password });
+      let attempt;
+      try {
+        attempt = await client.auth.signInWithPassword({ email, password });
+      } catch (failure) {
+        throw new Error('Le site n’a pas pu joindre le service de comptes (' + ((failure && failure.message) || 'réseau bloqué') + '). Vérifiez votre connexion internet, coupez un VPN ou un bloqueur de publicité, puis réessayez.');
+      }
+      const { error } = attempt;
       if (error) {
         const code = String(error.code || error.name || '');
         const detail = String(error.message || '');
@@ -240,7 +246,12 @@
         if (code === 'email_not_confirmed' || /email not confirmed/i.test(detail)) throw new Error('L’email de ce compte n’a jamais été confirmé : connectez-vous avec le pseudo, ou demandez à un administrateur.');
         if (/aal|mfa|totp|factor/i.test(code + ' ' + detail)) throw new Error('Ce compte exige un code de double authentification : saisissez-le ci-dessous.');
         if (code === 'invalid_credentials' || /invalid login credentials/i.test(detail)) throw new Error('Mot de passe incorrect, ou aucun compte sous « ' + email + ' ».');
-        throw new Error('Connexion impossible (' + (code || 'erreur inconnue') + ') : ' + (detail || 'réessayez dans un instant.'));
+        if (!navigator.onLine || !error.status || /fetch|network|timeout/i.test(code + ' ' + detail)) {
+          throw new Error(!navigator.onLine
+            ? 'Ce navigateur est hors connexion : rétablissez internet puis réessayez.'
+            : 'Le site n’a pas pu joindre le service de comptes (' + (detail || code || 'réseau bloqué') + '). Vérifiez internet, coupez un VPN ou un bloqueur de publicité, puis réessayez.');
+        }
+        throw new Error('Connexion refusée par le service (' + (code || 'sans code') + ', statut ' + (error.status || 'inconnu') + ') : ' + (detail || 'réessayez dans un instant.'));
       }
       say((await needsMfa()) ? 'Mot de passe accepté : saisissez votre code de double authentification.' : 'Connexion réussie.');
       await loadProfile();
