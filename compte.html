@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#004cff">
+  <meta name="description" content="Espace compte REC BLUE : pseudo, rôle, sécurité, préférences et administration.">
+  <title>Mon compte · REC BLUE</title>
+  <link rel="icon" type="image/svg+xml" href="rec-blue-icon.svg">
+  <link rel="stylesheet" href="compte.css">
+</head>
+<body>
+  <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute;left:-9999px;top:0"><symbol id="recblue-plus" viewBox="0 0 48 48"><defs><linearGradient id="plus-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffb648"/><stop offset="1" stop-color="#de7a0b"/></linearGradient></defs><rect x="2" y="2" width="44" height="44" rx="12" fill="url(#plus-gold)" stroke="#ffd27a" stroke-width="2"/><rect x="6" y="6" width="36" height="36" rx="9" fill="none" stroke="#ffe6b0" stroke-width="1.4" opacity=".7"/><text x="9" y="34" font-family="Futura,'Trebuchet MS',Arial,sans-serif" font-size="24" font-weight="800" fill="#ffd977">R</text><text x="21" y="34" font-family="Futura,'Trebuchet MS',Arial,sans-serif" font-size="24" font-weight="800" fill="#ffcf6b">R</text><g fill="#fff2c8"><rect x="33" y="10" width="9" height="3.2" rx="1.6"/><rect x="35.9" y="7" width="3.2" height="9" rx="1.6"/></g><path d="M35 44l5-5" stroke="#7ef2ff" stroke-width="3" stroke-linecap="round"/></symbol><symbol id="recblue-coin" viewBox="0 0 46 46"><rect x="1" y="5" width="44" height="41" rx="12" fill="#8fa3c2" opacity=".5"/><rect x="1" y="1" width="44" height="41" rx="12" fill="#eef3fa" stroke="#b4c2d6" stroke-width="2"/><rect x="5.5" y="5.5" width="35" height="32" rx="9" fill="#1b34e8" stroke="#0b1fa8" stroke-width="1.6"/><g stroke="#e8eeff" stroke-width="3.4" stroke-linecap="round"><path d="M15.5 13v11.5"/><path d="M23.5 13v11.5"/></g><path d="M13.5 28.5q9.5 8 19 0" fill="none" stroke="#2ff0ff" stroke-width="3.2" stroke-linecap="round"/></symbol></svg>
+  <header class="bar">
+    <a href="index.html"><img src="rec-blue-logo.png" alt="REC BLUE" width="693" height="180"></a>
+    <a class="back" href="index.html">← Retour au site</a>
+  </header>
+  <main class="wrap">
+    <h1>Mon espace compte</h1>
+    <p class="msg" id="msg" role="status" aria-live="polite"></p>
+    <section class="card" id="countdown-card">
+      <h2>Sortie du jeu</h2>
+      <p class="note">Accès anticipé annoncé pour le 2 mars 2027.</p>
+      <p class="countdown" data-countdown="2027-03-02T00:00:00+01:00" role="timer" aria-label="Temps restant avant la sortie"><em>Sortie dans</em><strong class="countdown-value">…</strong></p>
+    </section>
+
+
+    <section id="guest" hidden>
+      <div class="cols">
+        <form class="card" id="login">
+          <h2>Se connecter</h2>
+          <label>Pseudo ou email<input id="login-id" required maxlength="254" autocomplete="username" spellcheck="false"></label>
+          <label>Mot de passe<input id="login-pw" type="password" required maxlength="128" autocomplete="current-password"></label>
+          <button class="btn" type="submit">Se connecter</button>
+          <p class="note">Les anciens comptes peuvent utiliser leur adresse email à la place du pseudo.</p>
+        </form>
+        <form class="card" id="signup">
+          <h2>Créer un compte</h2>
+          <label>Pseudo · 3 à 20 lettres, chiffres, tiret ou souligné<input id="signup-pseudo" required minlength="3" maxlength="20" pattern="[A-Za-z0-9_][A-Za-z0-9_\-]{2,19}" spellcheck="false" autocomplete="username"></label>
+          <label>Mot de passe · 12 caractères minimum<input id="signup-pw" type="password" required minlength="12" maxlength="128" autocomplete="new-password"></label>
+          <button class="btn" type="submit">Créer mon compte</button>
+          <p class="note">Aucune adresse email n’est demandée. Les nouveaux comptes sont membres.</p>
+        </form>
+        <form class="card" id="reset-request">
+          <h2>Mot de passe oublié ?</h2>
+          <p class="note">Un compte créé avec un pseudo n’a pas d’adresse email réelle : le lien automatique de récupération ne peut pas aboutir. Envoyez une demande, un administrateur réinitialisera votre mot de passe.</p>
+          <label>Votre pseudo<input id="reset-pseudo" required minlength="3" maxlength="20" pattern="[A-Za-z0-9_][A-Za-z0-9_\-]{2,19}" spellcheck="false" autocomplete="username"></label>
+          <label>Adresse email de contact (facultatif)<input id="reset-email" type="email" maxlength="254" placeholder="prenom@exemple.com" spellcheck="false"></label>
+          <label>Message (facultatif)<input id="reset-message" maxlength="200"></label>
+          <button class="btn" type="submit">Envoyer ma demande</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="gate" hidden>
+      <div class="card">
+        <h2>Vérification en deux étapes</h2>
+        <p class="note">Votre compte est protégé par la double authentification. Saisissez le code à 6 chiffres pour terminer la connexion.</p>
+        <p class="note" id="gate-factors">—</p>
+        <p class="note" id="gate-credits">—</p>
+        <button class="btn ghost" id="gate-send" type="button" hidden>Recevoir un code par SMS</button>
+        <label>Code à 6 chiffres<input id="gate-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"></label>
+        <button class="btn" id="gate-verify" type="button">Vérifier</button>
+      </div>
+    </section>
+
+    <section id="member" hidden>
+      <div class="mfa-alert" id="mfa-alert" hidden>
+        <strong>Double authentification obligatoire</strong>
+        <p>Pour tout le monde : activez une application d’authentification (Google Authenticator, Authy…) pour déverrouiller votre profil, votre sécurité et vos réglages.</p>
+        <button class="btn" id="mfa-alert-go" type="button">Activer maintenant</button>
+      </div>
+      <div class="layout">
+        <aside class="card side">
+          <div class="avatar" id="avatar" aria-hidden="true">?</div>
+          <div class="avatar-actions">
+            <input class="visually-hidden" id="avatar-file" type="file" accept="image/png,image/jpeg,image/webp">
+            <label class="btn ghost small" for="avatar-file">Changer ma photo</label>
+            <button class="btn ghost small" id="avatar-remove" type="button">Retirer</button>
+          </div>
+          <strong><span id="side-name">—</span><span class="plus-mark-wrap" id="side-plus-mark" hidden><svg class="plus-mark" aria-hidden="true"><use href="#recblue-plus"/></svg></span></strong>
+          <small id="side-login">—</small>
+          <span class="badge" id="side-role">—</span>
+          <span class="badge plus" id="side-plus" hidden>REC BLUE Plus</span>
+          <dl class="facts">
+            <div><dt>Compte créé</dt><dd id="side-created">—</dd></div>
+            <div><dt>Email</dt><dd id="side-email">—</dd></div>
+            <div><dt>Identifiant</dt><dd id="side-id">—</dd></div>
+          </dl>
+          <button class="btn ghost" id="logout" type="button">Se déconnecter</button>
+        </aside>
+        <div class="stack">
+          <section class="card">
+          <section class="card" id="credits-card">
+            <h2>Mes crédits</h2>
+            <p class="credits-balance"><img class="credits-coin" src="credits-coin.svg" alt="" width="34" height="34" aria-hidden="true"><strong id="credits-balance">—</strong><span>crédits</span></p>
+            <p class="note">Votre solde de crédits REC BLUE. Les achats ne sont pas encore activés : le solde est géré par l’équipe.</p>
+          </section>
+
+            <h2>Profil</h2>
+            <form id="profile">
+              <label>Mon pseudo affiché<input id="name" required minlength="2" maxlength="40" autocomplete="nickname"></label>
+              <button class="btn" type="submit">Enregistrer</button>
+            </form>
+            <form id="email-form">
+              <label>Adresse email de contact<input id="contact-email" type="email" maxlength="254" autocomplete="email" placeholder="prenom@exemple.com" spellcheck="false"></label>
+              <button class="btn" type="submit">Enregistrer l’email</button>
+            </form>
+            <p class="note">Le pseudo affiché peut être différent du pseudo de connexion, qui reste fixe. L’adresse email est facultative : elle sert de contact et de secours, elle n’est pas encore vérifiée ni utilisée pour se connecter.</p>
+          </section>
+          <section class="card">
+            <h2>Sécurité</h2>
+            <form id="password">
+              <label>Nouveau mot de passe · 12 caractères minimum<input id="new-pw" type="password" required minlength="12" maxlength="128" autocomplete="new-password"></label>
+              <label>Confirmer le nouveau mot de passe<input id="new-pw2" type="password" required minlength="12" maxlength="128" autocomplete="new-password"></label>
+              <button class="btn" type="submit">Changer mon mot de passe</button>
+            </form>
+            <p class="note">Sans adresse email, un mot de passe perdu doit être réinitialisé par un administrateur.</p>
+          </section>
+          <section class="card">
+            <h2>Préférences de ce navigateur</h2>
+            <label class="row">Langue<select id="lang"><option value="fr">Français</option><option value="en">English</option><option value="es">Español</option><option value="ru">Русский</option><option value="de">Deutsch</option><option value="ar">العربية</option><option value="zh">中文</option><option value="it">Italiano</option><option value="ro">Română</option><option value="hu">Magyar</option></select></label>
+            <label class="row">Musique du site<input id="music" type="checkbox"></label>
+            <label class="row">Pings de mise à jour<input id="pings" type="checkbox"></label>
+            <p class="note">Ces réglages sont enregistrés sur cet appareil uniquement, pas sur le compte.</p>
+          </section>
+          <section class="card" id="mfa-card">
+            <h2>Double authentification (2FA)</h2>
+            <p class="note" id="mfa-state">Chargement…</p>
+            <div id="mfa-factors"></div>
+            <h3 class="sub">Application d’authentification (Google Authenticator, Authy…)</h3>
+            <button class="btn ghost" id="totp-start" type="button">Activer avec une application</button>
+            <div id="totp-setup" hidden>
+              <img class="qr" id="totp-qr" alt="QR code à scanner avec l’application d’authentification">
+              <p class="note">Clé manuelle : <code id="totp-secret"></code></p>
+              <label>Code affiché par l’application<input id="totp-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"></label>
+              <button class="btn" id="totp-confirm" type="button">Vérifier et activer</button>
+              <button class="btn ghost" id="totp-cancel" type="button">Annuler</button>
+            </div>
+            <h3 class="sub">Téléphone (code par SMS)</h3>
+            <label>Numéro au format international<input id="phone-number" type="tel" placeholder="+33612345678" autocomplete="tel"></label>
+            <button class="btn ghost" id="phone-start" type="button">Recevoir un code par SMS</button>
+            <div id="phone-setup" hidden>
+              <label>Code reçu par SMS<input id="phone-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"></label>
+              <button class="btn" id="phone-confirm" type="button">Vérifier et activer</button>
+            </div>
+            <p class="note">Le SMS dépend d’un fournisseur d’envoi configuré dans Supabase (Twilio, Vonage, MessageBird…). Sans lui, l’envoi est refusé. Si vous perdez l’application ou le téléphone, un administrateur doit retirer le facteur depuis Supabase.</p>
+          </section>
+          <section class="card" id="admin" hidden>
+            <h2>Administration des comptes</h2>
+            <p class="note">Attribuer ou retirer les droits administrateur. Le dernier administrateur est protégé. Liste limitée aux 100 comptes les plus récents.</p>
+            <button class="btn ghost" id="admin-refresh" type="button">Charger les comptes</button>
+            <div id="admin-users"></div>
+            <h3 class="sub">Demandes de réinitialisation</h3>
+            <p class="note">Après avoir coché « Traité », réinitialisez le mot de passe du membre dans Supabase (Authentication → Users).</p>
+            <button class="btn ghost" id="reset-refresh" type="button">Charger les demandes</button>
+            <div id="reset-list"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="account-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.js" integrity="sha384-3wY11tldQ5+yWqAvmTN4XtQvnjoTva0cV15O/O/O5NTtp0ivVopSzLOzsVXWZse9" crossorigin="anonymous" defer></script>
+  <script src="countdown.js?v=1" defer></script>
+  <script src="compte.js?v=2" defer></script>
+</body>
+</html>
