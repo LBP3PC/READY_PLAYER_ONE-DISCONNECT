@@ -211,16 +211,30 @@
   byId('account-login').addEventListener('submit', event => {
     event.preventDefault();
     run(byId('login-submit'), async () => {
-      const identifier = byId('login-identifier').value;
+      const identifier = byId('login-identifier').value.trim();
       const password = byId('login-password').value;
       byId('login-password').value = '';
-      // Un « @ » indique un ancien compte inscrit avec une adresse email.
-      const email = identifier.includes('@') ? identifier.trim() : pseudoEmail(checkPseudo(identifier));
+      if (!identifier) throw new Error('Indiquez votre pseudo ou votre adresse email.');
+      if (!password) throw new Error('Indiquez votre mot de passe.');
+      // Un « @ » indique un compte inscrit avec une adresse email.
+      const email = identifier.includes('@') ? identifier.toLowerCase() : pseudoEmail(checkPseudo(identifier));
       const { error } = await client.auth.signInWithPassword({ email, password });
       if (error) {
-        if (error.status === 429 || error.code === 'over_request_rate_limit') throw new Error('Trop de tentatives de connexion : patientez une minute et réessayez.');
-        if (error.code === 'email_not_confirmed') throw new Error('Ce compte doit être confirmé par email : demandez à un administrateur, ou utilisez un compte par pseudo.');
-        throw new Error('Connexion refusée. Vérifiez votre pseudo (ou email) et votre mot de passe.');
+        const code = String(error.code || error.name || '');
+        const detail = String(error.message || '');
+        if (error.status === 429 || code === 'over_request_rate_limit' || /rate limit/i.test(detail)) {
+          throw new Error('Trop de tentatives de connexion : patientez une minute et réessayez.');
+        }
+        if (code === 'email_not_confirmed' || /email not confirmed/i.test(detail)) {
+          throw new Error('L’email de ce compte n’a jamais été confirmé : connectez-vous avec votre pseudo, ou demandez à un administrateur de confirmer le compte.');
+        }
+        if (/aal|mfa|totp|factor/i.test(code + ' ' + detail)) {
+          throw new Error('Ce compte exige un code de double authentification : ouvrez « Mon espace compte » pour le saisir.');
+        }
+        if (code === 'invalid_credentials' || /invalid login credentials/i.test(detail)) {
+          throw new Error('Mot de passe incorrect, ou aucun compte sous « ' + email + ' ». Si vous vous êtes inscrit avec un email, utilisez cet email à la place du pseudo.');
+        }
+        throw new Error('Connexion impossible (' + (code || 'erreur inconnue') + ') : ' + (detail || 'réessayez dans un instant.'));
       }
       if (await mfaPending()) { showMfaPrompt('Un code est déjà exigé pour ce compte : saisissez-le pour terminer la connexion.'); return; }
       announce('Connexion réussie.'); await refreshAccount();

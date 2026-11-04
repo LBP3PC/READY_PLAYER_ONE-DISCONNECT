@@ -233,7 +233,15 @@
         email = pseudo + '@' + PSEUDO_DOMAIN;
       }
       const { error } = await client.auth.signInWithPassword({ email, password });
-      if (error) throw new Error('Connexion refusée. Vérifiez le pseudo (ou l’email) et le mot de passe.');
+      if (error) {
+        const code = String(error.code || error.name || '');
+        const detail = String(error.message || '');
+        if (error.status === 429 || code === 'over_request_rate_limit' || /rate limit/i.test(detail)) throw new Error('Trop de tentatives de connexion : patientez une minute et réessayez.');
+        if (code === 'email_not_confirmed' || /email not confirmed/i.test(detail)) throw new Error('L’email de ce compte n’a jamais été confirmé : connectez-vous avec le pseudo, ou demandez à un administrateur.');
+        if (/aal|mfa|totp|factor/i.test(code + ' ' + detail)) throw new Error('Ce compte exige un code de double authentification : saisissez-le ci-dessous.');
+        if (code === 'invalid_credentials' || /invalid login credentials/i.test(detail)) throw new Error('Mot de passe incorrect, ou aucun compte sous « ' + email + ' ».');
+        throw new Error('Connexion impossible (' + (code || 'erreur inconnue') + ') : ' + (detail || 'réessayez dans un instant.'));
+      }
       say((await needsMfa()) ? 'Mot de passe accepté : saisissez votre code de double authentification.' : 'Connexion réussie.');
       await loadProfile();
     });
