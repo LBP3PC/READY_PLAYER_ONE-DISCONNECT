@@ -25,14 +25,35 @@
     return { ok: response.ok, status: response.status, data };
   }
 
+  // La pastille garde sa pièce : on ne remplace que le texte du solde.
+  function creditsLabel(pill) {
+    if (!pill) return null;
+    if (!pill.querySelector('img.nav-coin')) {
+      const coin = document.createElement('img');
+      coin.className = 'nav-coin';
+      coin.src = 'credits-coin.svg';
+      coin.alt = '';
+      coin.width = 15;
+      coin.height = 15;
+      coin.setAttribute('aria-hidden', 'true');
+      pill.prepend(coin);
+    }
+    let label = byId('nav-credits-value');
+    if (!label) {
+      label = document.createElement('span');
+      label.id = 'nav-credits-value';
+      pill.appendChild(label);
+    }
+    return label;
+  }
+
   function showBalance(total) {
     const value = Number(total) || 0;
     const pill = byId('nav-credits');
     if (pill) {
       const text = value.toLocaleString('fr-FR') + (value === 1 ? ' crédit' : ' crédits');
-      const label = byId('nav-credits-value');
+      const label = creditsLabel(pill);
       if (label) label.textContent = text;
-      else pill.textContent = text;
       pill.hidden = false;
     }
     const card = byId('credits-balance');

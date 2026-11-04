@@ -53,6 +53,27 @@
     if (!PSEUDO_PATTERN.test(pseudo)) throw new Error('Pseudo invalide : 3 à 20 lettres, chiffres, tiret ou souligné.');
     return pseudo;
   }
+  // Garde la pièce et le texte de crédits dans la pastille, même si elle a été vidée.
+  function creditsLabel(pill) {
+    if (!pill) return null;
+    if (!pill.querySelector('img.nav-coin')) {
+      const coin = document.createElement('img');
+      coin.className = 'nav-coin';
+      coin.src = 'credits-coin.svg';
+      coin.alt = '';
+      coin.width = 15;
+      coin.height = 15;
+      coin.setAttribute('aria-hidden', 'true');
+      pill.prepend(coin);
+    }
+    let label = byId('nav-credits-value');
+    if (!label) {
+      label = document.createElement('span');
+      label.id = 'nav-credits-value';
+      pill.appendChild(label);
+    }
+    return label;
+  }
   function clearPrivateUI() {
     profile = null;
     setNavLabel('Se connecter');
@@ -63,7 +84,7 @@
     byId('account-role').textContent = '';
     byId('account-name').value = '';
     const navCredits = byId('nav-credits');
-    if (navCredits) { navCredits.hidden = true; navCredits.textContent = ''; }
+    if (navCredits) navCredits.hidden = true;
   }
   async function refreshAccount() {
     const current = ++revision;
@@ -89,9 +110,8 @@
     if (creditsBadge) {
       const total = Number(profile.credits) || 0;
       const creditsText = total.toLocaleString('fr-FR') + (total === 1 ? ' crédit' : ' crédits');
-      const creditsValue = byId('nav-credits-value');
+      const creditsValue = creditsLabel(creditsBadge);
       if (creditsValue) creditsValue.textContent = creditsText;
-      else creditsBadge.textContent = creditsText;
       creditsBadge.hidden = false;
     }
     byId('account-name').value = profile.display_name;
