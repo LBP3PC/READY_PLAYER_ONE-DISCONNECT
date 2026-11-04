@@ -1,12 +1,20 @@
 /**
- * Default player settings seeded on a player's first read, ported verbatim from
- * the reference's `PlayerSettingsController.GetPlayerSettings`. Ordered; written to KV the
- * first time a player has no stored settings.
+ * Default player settings seeded on a player's first read, ported from the reference's
+ * `PlayerSettingsController.GetPlayerSettings`. Ordered; written to KV the first time a
+ * player has no stored settings.
+ *
+ * `ShowNames` / `ShowOwnNames` are ours rather than the reference's list: nametags are the
+ * client's own toggle, and a player with neither stored draws no plate over anyone's head —
+ * their own included (a name the server serves correctly, so the loss is silent). Seed both
+ * on so a new account is never nameless; the client writes them back when the player
+ * changes the setting, and an explicit `False` is kept like any other stored value.
  */
 export const DEFAULT_SETTINGS: Array<{ Key: string; Value: string }> = [
 	{ Key: 'Recroom.OOBE', Value: '77' },
 	{ Key: 'TUTORIAL_COMPLETE_MASK', Value: '11' },
 	{ Key: 'FIRST_TIME_IN_FLAGS', Value: '0' },
+	{ Key: 'ShowNames', Value: 'True' },
+	{ Key: 'ShowOwnNames', Value: 'True' },
 ]
 
 /**
