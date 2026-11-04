@@ -169,6 +169,8 @@
     const sideMark = byId('side-plus-mark');
     if (sideMark) sideMark.hidden = !plus;
     byId('side-login').classList.toggle('plus-name', plus);
+    // Cadre doré de la photo de profil pour les membres REC BLUE Plus.
+    byId('avatar').classList.toggle('plus-ring', plus);
     const plusBadge = byId('side-plus');
     if (plusBadge) {
       plusBadge.hidden = !plus;
@@ -315,6 +317,35 @@
   }));
 
   byId('admin-refresh').addEventListener('click', () => guard(byId('admin-refresh'), listUsers));
+
+  // REC BLUE Plus : date de fin choisie par un administrateur.
+  byId('admin-plus')?.addEventListener('submit', event => {
+    event.preventDefault();
+    guard(byId('admin-plus-submit'), async () => {
+      if (profile?.role !== 'admin') throw new Error('Accès administrateur requis.');
+      const target = byId('admin-plus-target').value.trim();
+      if (!target) throw new Error('Indiquez un pseudo ou une adresse email.');
+      const day = byId('admin-plus-date').value;
+      if (!day) throw new Error('Choisissez la date de fin du REC BLUE Plus.');
+      const until = new Date(day + 'T23:59:59');
+      if (until.getTime() <= Date.now()) throw new Error('La date de fin doit être dans le futur.');
+      const { error } = await client.rpc('recblue_grant_plus', { p_identifier: target, p_until: until.toISOString() });
+      if (error) throw error;
+      byId('admin-plus-date').value = '';
+      say('REC BLUE Plus accordé à ' + target + ' jusqu’au ' + formatDate(until) + '.');
+      await loadProfile();
+    });
+  });
+
+  byId('admin-plus-remove')?.addEventListener('click', () => guard(byId('admin-plus-remove'), async () => {
+    if (profile?.role !== 'admin') throw new Error('Accès administrateur requis.');
+    const target = byId('admin-plus-target').value.trim();
+    if (!target) throw new Error('Indiquez un pseudo ou une adresse email.');
+    const { error } = await client.rpc('recblue_grant_plus', { p_identifier: target, p_until: null });
+    if (error) throw error;
+    say('REC BLUE Plus retiré à ' + target + '.');
+    await loadProfile();
+  }));
 
   byId('lang').addEventListener('change', () => { savePref('recblue.language', byId('lang').value); document.documentElement.lang = byId('lang').value; say('Langue enregistrée pour ce navigateur.'); });
   byId('music').addEventListener('change', () => { savePref('recblue.musicOff', String(!byId('music').checked)); say(byId('music').checked ? 'Musique activée sur ce navigateur.' : 'Musique désactivée sur ce navigateur.'); });

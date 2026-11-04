@@ -36,6 +36,8 @@
       const photo = typeof avatar === 'string' && AVATAR.test(avatar);
       navBubble.hidden = signedOut;
       navBubble.classList.toggle('has-photo', photo);
+      // Anneau doré réservé aux membres REC BLUE Plus.
+      navBubble.classList.toggle('plus-ring', !signedOut && plus);
       navBubble.style.backgroundImage = photo ? 'url("' + avatar + '")' : '';
       navBubble.textContent = signedOut || photo ? '' : label.replace(/^@/, '').trim().slice(0, 2).toUpperCase();
     }
@@ -79,6 +81,7 @@
     setNavLabel('Se connecter');
     byId('account-profile').hidden = true;
     byId('account-admin').hidden = true;
+    if (navBubble) navBubble.classList.remove('plus-ring');
     byId('account-users').replaceChildren();
     byId('account-email').textContent = '';
     byId('account-role').textContent = '';
@@ -186,6 +189,38 @@
       await refreshAccount();
     });
   });
+  // REC BLUE Plus : un administrateur choisit la date de fin (ou retire l’avantage).
+  const plusForm = byId('admin-plus');
+  const plusTarget = target => {
+    const value = String(target || '').trim();
+    if (!value) throw new Error('Indiquez un pseudo ou une adresse email.');
+    return value;
+  };
+  if (plusForm) plusForm.addEventListener('submit', event => {
+    event.preventDefault();
+    run(byId('admin-plus-submit'), async () => {
+      if (!profile || profile.role !== 'admin') throw new Error('Accès administrateur requis.');
+      const target = plusTarget(byId('admin-plus-target').value);
+      const day = byId('admin-plus-date').value;
+      if (!day) throw new Error('Choisissez la date de fin du REC BLUE Plus.');
+      const until = new Date(day + 'T23:59:59');
+      if (until.getTime() <= Date.now()) throw new Error('La date de fin doit être dans le futur.');
+      const { error } = await client.rpc('recblue_grant_plus', { p_identifier: target, p_until: until.toISOString() });
+      if (error) throw error;
+      announce('REC BLUE Plus accordé à ' + target + ' jusqu’au ' + until.toLocaleDateString('fr-FR') + '.');
+      byId('admin-plus-date').value = '';
+      await refreshAccount();
+    });
+  });
+  const plusRemove = byId('admin-plus-remove');
+  if (plusRemove) plusRemove.addEventListener('click', () => run(plusRemove, async () => {
+    if (!profile || profile.role !== 'admin') throw new Error('Accès administrateur requis.');
+    const target = plusTarget(byId('admin-plus-target').value);
+    const { error } = await client.rpc('recblue_grant_plus', { p_identifier: target, p_until: null });
+    if (error) throw error;
+    announce('REC BLUE Plus retiré à ' + target + '.');
+    await refreshAccount();
+  }));
   async function init() {
     if (!config?.supabaseUrl || !config?.publishableKey) return;
     try {

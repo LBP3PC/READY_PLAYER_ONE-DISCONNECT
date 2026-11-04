@@ -151,6 +151,14 @@
             <p class="note">Attribuer ou retirer les droits administrateur. Le dernier administrateur est protégé. Liste limitée aux 100 comptes les plus récents.</p>
             <button class="btn ghost" id="admin-refresh" type="button">Charger les comptes</button>
             <div id="admin-users"></div>
+            <h3 class="sub">REC BLUE Plus</h3>
+            <p class="note">Le Plus ajoute le cadre doré autour de la photo de profil. Choisissez une date de fin, ou retirez l’avantage.</p>
+            <form id="admin-plus">
+              <label>Pseudo ou email<input id="admin-plus-target" required maxlength="120" spellcheck="false" autocomplete="off"></label>
+              <label>Jusqu’au · date de fin<input id="admin-plus-date" type="date"></label>
+              <button class="btn" id="admin-plus-submit" type="submit">Donner le REC BLUE Plus</button>
+              <button class="btn ghost" id="admin-plus-remove" type="button">Retirer le Plus</button>
+            </form>
             <h3 class="sub">Demandes de réinitialisation</h3>
             <p class="note">Après avoir coché « Traité », réinitialisez le mot de passe du membre dans Supabase (Authentication → Users).</p>
             <button class="btn ghost" id="reset-refresh" type="button">Charger les demandes</button>
@@ -163,6 +171,6 @@
   <script src="account-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.js" integrity="sha384-3wY11tldQ5+yWqAvmTN4XtQvnjoTva0cV15O/O/O5NTtp0ivVopSzLOzsVXWZse9" crossorigin="anonymous" defer></script>
   <script src="countdown.js?v=1" defer></script>
-  <script src="compte.js?v=2" defer></script>
+  <script src="compte.js?v=3" defer></script>
 </body>
 </html>
