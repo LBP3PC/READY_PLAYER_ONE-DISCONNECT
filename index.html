@@ -257,6 +257,8 @@
     .download-copy p { color:white; line-height:1.7; font-size:15px; }
     .download-copy .tag { color:#dce8ff; }
     .download-unavailable { margin-top:12px; border-radius:10px; padding:15px 22px; background:#142d9b; opacity:.75; cursor:not-allowed; }
+    .download-ready { margin-top:12px; border-radius:10px; padding:15px 22px; background:#2f60e8; cursor:pointer; box-shadow:0 10px 30px #0a1c56; transition:background .2s ease, transform .2s ease; }
+    .download-ready:hover { background:#3d74ff; transform:translateY(-1px); }
     .download-copy .download-availability,.download-copy .download-date { color:#d2dfff; font-size:12px; }
     .download-visual { position:relative; display:grid; place-items:center; }
     .download-room { display:block; width:100%; max-height:430px; aspect-ratio:1; object-fit:contain; filter:drop-shadow(0 18px 18px #08195050); }
@@ -636,7 +638,7 @@
       android: { image:'android', description:'Emportez REC BLUE sur votre appareil Android et retrouvez la communauté où que vous soyez.', action:'Télécharger pour Android' },
       ios: { image:'ios', description:'Retrouvez REC BLUE sur iPhone et iPad et emportez vos aventures avec vous.', action:'Télécharger pour iOS' },
       quest: { image:'quest', description:'Découvrez REC BLUE en réalité virtuelle immersive avec Meta Quest.', action:'Télécharger pour Meta Quest' },
-      pc: { image:'pc', description:'Créez et jouez ensemble sur PC. Retrouvez vos amis et découvrez de nouvelles aventures.', action:'Jouer sur PC' },
+      pc: { image:'pc', description:'Créez et jouez ensemble sur PC. Retrouvez vos amis et découvrez de nouvelles aventures.', action:'Télécharger le launcher Windows', href:'download/REC-BLUE-Launcher.exe' },
       steam: { image:'pc', description:'Retrouvez REC BLUE sur Steam et partagez de nouvelles aventures avec vos amis.', action:'Voir sur Steam' }
     };
     function selectPlatform(button) {
@@ -645,11 +647,23 @@
       document.getElementById('platform-title').textContent = platformNames[button.dataset.platform];
       const details = platformDetails[button.dataset.platform];
       document.getElementById('platform-description').textContent = details.description;
-      document.getElementById('platform-download').textContent = details.action;
+      const downloadButton = document.getElementById('platform-download');
+      downloadButton.textContent = details.action;
+      if (details.href) {
+        downloadButton.disabled = false;
+        downloadButton.classList.remove('download-unavailable');
+        downloadButton.classList.add('download-ready');
+        downloadButton.onclick = () => { window.location.href = details.href; };
+      } else {
+        downloadButton.disabled = true;
+        downloadButton.onclick = null;
+        downloadButton.classList.remove('download-ready');
+        downloadButton.classList.add('download-unavailable');
+      }
       const graphic = document.getElementById('platform-graphic');
       graphic.src = 'download/' + details.image + '.webp';
       graphic.alt = button.textContent.trim();
-      document.getElementById('platform-availability').textContent = button.dataset.platform === 'pc' ? 'Aucun fichier d’installation officiel n’a encore été ajouté.' : 'Aucune version officielle disponible pour cette plateforme.';
+      document.getElementById('platform-availability').textContent = details.href ? 'Launcher officiel Windows · gratuit · le pack serveur est téléchargé automatiquement.' : 'Aucune version officielle disponible pour cette plateforme.';
       window.recblueApplyLanguage();
     }
     platformButtons.forEach((button, index) => {

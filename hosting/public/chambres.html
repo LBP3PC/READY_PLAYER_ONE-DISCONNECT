@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#004cff">
+  <meta name="description" content="Les chambres de REC BLUE, lues en direct sur le serveur de jeu.">
+  <title>Chambres du jeu · REC BLUE</title>
+  <link rel="icon" type="image/svg+xml" href="rec-blue-icon.svg">
+  <script src="theme.js?v=1"></script>
+  <link rel="stylesheet" href="chambres.css?v=2">
+</head>
+<body>
+  <header class="bar">
+    <a href="index.html"><img src="rec-blue-logo.png" alt="REC BLUE" width="693" height="180"></a>
+    <nav class="links">
+      <a href="compte.html">Mon compte</a>
+      <a href="index.html">← Retour au site</a>
+    </nav>
+  </header>
+  <main class="wrap">
+    <h1>Chambres du jeu</h1>
+    <p class="note">Cette liste vient du serveur de jeu : une chambre publiée en jeu apparaît ici toute seule, une chambre retirée disparaît. Rien n’est recopié sur le site.</p>
+    <p class="count" id="online" role="status" aria-live="polite"></p>
+    <form id="room-search" class="search">
+      <label for="room-query">Rechercher une chambre</label>
+      <input id="room-query" type="search" maxlength="60" placeholder="nom ou #tag" spellcheck="false" autocomplete="off">
+      <button class="btn" type="submit">Rechercher</button>
+    </form>
+    <p class="msg" id="msg" role="status" aria-live="polite"></p>
+    <p class="count" id="room-count"></p>
+    <section id="room-list" class="room-grid" aria-label="Chambres"></section>
+    <h2 class="photos-title">Photos du jeu</h2>
+    <p class="note">Les dernières photos partagées dans le jeu, avec la chambre où elles ont été prises.</p>
+    <p class="msg" id="photos-msg" role="status" aria-live="polite"></p>
+    <section id="photo-list" class="photo-grid" aria-label="Photos du jeu"></section>
+  </main>
+  <script src="chambres.js?v=3" defer></script>
+  <script src="music.js?v=3" defer></script>
+</body>
+</html>

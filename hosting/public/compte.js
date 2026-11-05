@@ -22,10 +22,34 @@
   const savePref = (key, value) => { try { localStorage.setItem(key, value); } catch (error) { /* stockage indisponible */ } };
   const initials = name => String(name || '?').trim().slice(0, 2).toUpperCase();
   const AVATAR_PATTERN = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
+  // La photo du JEU arrive sous forme d'URL (service d'images), pas en data URL : elle doit
+  // être acceptée ici aussi, sinon l'avatar retombait sur les initiales alors qu'elle existait.
+  const GAME_AVATAR_PATTERN = /^https:\/\/img\.recblue\.net\/[^\s"'<>]+$/;
+  const isAvatarUrl = value =>
+    typeof value === 'string' && (AVATAR_PATTERN.test(value) || GAME_AVATAR_PATTERN.test(value));
+  // La photo du JEU (servie par le service d'images) a la priorité : c'est celle que le
+  // joueur voit dans Rec Room, le site montre donc la même.
+  let gameImage = '';
+  // Bannière du jeu : même source que la photo, le pont renvoie les deux ensemble.
+  let gameBanner = '';
+  async function gameAvatar() {
+    try {
+      const token = await sessionToken();
+      if (!token) return { image: '', banner: '' };
+      const response = await fetch('/api/game/avatar', { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' });
+      const body = await response.json().catch(() => null);
+      if (!response.ok || !body) return { image: '', banner: '' };
+      return {
+        image: typeof body.image === 'string' ? body.image : '',
+        banner: typeof body.banner === 'string' ? body.banner : ''
+      };
+    } catch (error) { return { image: '', banner: '' }; }
+  }
   function applyAvatar() {
     const element = byId('avatar');
-    const url = profile?.avatar_url;
-    if (typeof url === 'string' && AVATAR_PATTERN.test(url)) {
+    const siteUrl = isAvatarUrl(profile?.avatar_url) ? profile.avatar_url : '';
+    const url = gameImage || siteUrl;
+    if (isAvatarUrl(url)) {
       element.style.backgroundImage = 'url("' + url + '")';
       element.textContent = '';
       element.classList.add('has-photo');
@@ -35,6 +59,13 @@
       element.textContent = initials(profile?.display_name);
       element.classList.remove('has-photo');
       byId('avatar-remove').hidden = true;
+    }
+    // Bannière du jeu (la grande image du profil Rec Room), quand le joueur en a une.
+    const banner = byId('banner');
+    if (banner) {
+      const show = GAME_AVATAR_PATTERN.test(gameBanner || '');
+      banner.hidden = !show;
+      banner.style.backgroundImage = show ? 'url("' + gameBanner + '")' : '';
     }
   }
   async function prepareAvatar(file) {
@@ -127,6 +158,63 @@
       ? 'Ouvrez votre application d’authentification et saisissez le code affiché.'
       : (factors.phone.length ? 'Appuyez sur « Recevoir un code par SMS » puis saisissez le code reçu.' : 'Aucun facteur disponible : contactez un administrateur.');
   }
+  // Le solde montré ici est celui du JEU : un seul nombre pour le site et le jeu.
+  async function sessionToken() {
+    const { data } = await client.auth.getSession();
+    return data && data.session ? data.session.access_token : '';
+  }
+  async function gameCredits() {
+    try {
+      const token = await sessionToken();
+      if (!token) return null;
+      const response = await fetch('/api/game/credits', { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' });
+      if (!response.ok) return null;
+      const body = await response.json();
+      return typeof body.credits === 'number' ? body.credits : null;
+    } catch (error) { return null; }
+  }
+  // Plus et bannissement : la décision est prise ici, le compte de JEU la reçoit.
+  // Le badge « Certifié REC BLUE » vit sur le compte de JEU : on le lit, on ne le déduit pas.
+  async function gameStatus() {
+    try {
+      const token = await sessionToken();
+      if (!token) return { certified: false, plus: false };
+      const response = await fetch('/api/game/certified', { headers: { Authorization: 'Bearer ' + token } });
+      const body = await response.json().catch(() => null);
+      return {
+        certified: !!(response.ok && body && body.certified),
+        plus: !!(response.ok && body && body.plus)
+      };
+    } catch (error) { return { certified: false, plus: false }; }
+  }
+  async function gameRequest(path, payload) {
+    try {
+      const token = await sessionToken();
+      if (!token) return { ok: false, error: 'session absente' };
+      const response = await fetch(path, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) return { ok: false, error: (body && body.error) || ('statut ' + response.status) };
+      return body || { ok: true };
+    } catch (error) { return { ok: false, error: 'réseau' }; }
+  }
+  async function grantGame(target, amount) {
+    try {
+      const token = await sessionToken();
+      if (!token) return { ok: false, error: 'session absente' };
+      const response = await fetch('/api/game/grant', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target, tokens: amount })
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) return { ok: false, error: (body && body.error) || ('statut ' + response.status) };
+      return body || { ok: true };
+    } catch (error) { return { ok: false, error: 'réseau' }; }
+  }
   function showGuest() {
     user = null; profile = null;
     byId('member').hidden = true;
@@ -139,8 +227,9 @@
     if (error || !data.user) { showGuest(); return; }
     user = data.user;
     try {
-      const soldeAvant2FA = await client.from('recblue_accounts').select('credits').eq('id', user.id).single();
-      const montant = (Number(soldeAvant2FA.data?.credits) || 0).toLocaleString('fr-FR') + ' crédits';
+      const soldeJeu = await gameCredits();
+      const secours = await client.from('recblue_accounts').select('credits').eq('id', user.id).single();
+      const montant = (soldeJeu === null ? (Number(secours.data?.credits) || 0) : soldeJeu).toLocaleString('fr-FR') + ' crédits';
       const gateSolde = byId('gate-credits');
       if (gateSolde) gateSolde.textContent = 'Solde actuel : ' + montant;
     } catch (error) { /* solde indisponible */ }
@@ -154,18 +243,30 @@
     if (result.error) { showGuest(); say('Profil inaccessible. Vérifiez la configuration SQL.'); return; }
     profile = result.data;
     const pseudo = pseudoOf(user.email);
+    const jeu = await gameAvatar();
+    gameImage = jeu.image;
+    gameBanner = jeu.banner;
+    if (current !== revision) return;
     byId('guest').hidden = true;
     byId('member').hidden = false;
     applyAvatar();
     byId('side-name').textContent = profile.display_name;
     const solde = byId('credits-balance');
-    if (solde) solde.textContent = (Number(profile.credits) || 0).toLocaleString('fr-FR');
+    if (solde) {
+      const soldeJeu = await gameCredits();
+      solde.textContent = (soldeJeu === null ? (Number(profile.credits) || 0) : soldeJeu).toLocaleString('fr-FR');
+    }
     byId('side-login').textContent = pseudo ? '@' + pseudo : (user.email || '—');
     const role = byId('side-role');
     role.textContent = labels[profile.role] || 'Droit inconnu';
     role.className = 'badge' + (profile.role === 'admin' ? ' admin' : '');
-    const plus = !!profile.plus_until && new Date(profile.plus_until).getTime() > Date.now();
+    // Le Plus peut venir du site (Supabase) ou du compte de JEU : les deux comptent.
+    const etatJeu = await gameStatus();
+    const plus = (!!profile.plus_until && new Date(profile.plus_until).getTime() > Date.now()) || etatJeu.plus;
     byId('side-name').classList.toggle('plus-name', plus);
+    // Membre REC BLUE Plus : le solde de crédits passe en or.
+    const creditsLine = document.querySelector('.credits-balance');
+    if (creditsLine) creditsLine.classList.toggle('plus-credits', plus);
     const sideMark = byId('side-plus-mark');
     if (sideMark) sideMark.hidden = !plus;
     byId('side-login').classList.toggle('plus-name', plus);
@@ -176,6 +277,8 @@
       plusBadge.hidden = !plus;
       if (plus) plusBadge.textContent = isLifetime(profile.plus_until) ? 'REC BLUE Plus · à vie' : 'REC BLUE Plus · ' + formatDate(profile.plus_until);
     }
+    const certBadge = byId('side-certified');
+    if (certBadge) certBadge.hidden = !etatJeu.certified;
     byId('side-created').textContent = formatDate(profile.created_at);
     byId('side-id').textContent = String(user.id).slice(0, 8) + '…';
     byId('side-email').textContent = profile.contact_email || '—';
@@ -185,6 +288,29 @@
     byId('admin-users').replaceChildren();
     try { await loadFactors(); } catch (error) { byId('mfa-state').textContent = 'État de la double authentification indisponible.'; }
   }
+
+  // Personnalisation : couleur d'accent du site, propre à ce navigateur.
+  (function setupAccents() {
+    const box = byId('accents');
+    const theme = window.recblueTheme;
+    if (!box || !theme) return;
+    const draw = () => {
+      const current = theme.current();
+      box.replaceChildren(...Object.entries(theme.accents).map(([name, color]) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'accent' + (name === current ? ' active' : '');
+        button.style.background = color;
+        button.setAttribute('aria-label', 'Couleur ' + name);
+        button.setAttribute('aria-pressed', name === current ? 'true' : 'false');
+        button.addEventListener('click', () => { theme.set(name); draw(); });
+        return button;
+      }));
+    };
+    draw();
+    const reset = byId('accent-reset');
+    if (reset) reset.addEventListener('click', () => { theme.set('bleu'); draw(); });
+  })();
 
   async function listUsers() {
     const result = await client.from('recblue_accounts').select('id,display_name,role,created_at').order('created_at', { ascending: false }).limit(100);
@@ -212,11 +338,27 @@
       apply.addEventListener('click', () => guard(apply, async () => {
         const { error } = await client.rpc('recblue_set_role', { target_id: account.id, new_role: select.value });
         if (error) throw error;
-        say('Droits mis à jour pour ' + account.display_name + '.');
+        // Le rôle du site est répercuté sur le compte de JEU (modérateur / staff) :
+        // sinon la personne serait modératrice ici et simple joueuse en jeu.
+        const sync = await gameRequest('/api/game/role', { target: account.display_name, role: select.value });
+        if (sync && sync.ok) say('Droits de ' + account.display_name + ' : ' + (labels[select.value] || select.value) + ' sur le site ET en jeu (effectif à la prochaine connexion du joueur).');
+        else say('Droits du site mis à jour, mais le rôle en jeu n’a pas suivi : ' + ((sync && sync.error) || 'serveur de jeu injoignable') + '.');
         await loadProfile();
         if (profile?.role === 'admin') await listUsers();
       }));
-      row.append(info, select, apply);
+      // Le badge « Certifié REC BLUE » : accordé par l’administration, rangé sur le compte de jeu.
+      const certify = document.createElement('button');
+      certify.type = 'button'; certify.className = 'btn ghost'; certify.textContent = 'Certifier';
+      certify.disabled = !isAdmin; certify.hidden = !isAdmin;
+      certify.addEventListener('click', () => guard(certify, async () => {
+        const on = certify.dataset.certified !== '1';
+        const result = await gameRequest('/api/game/certify', { target: account.display_name, certified: on });
+        if (!result || !result.ok) throw new Error((result && result.error) || 'Certification refusée.');
+        certify.dataset.certified = on ? '1' : '0';
+        certify.textContent = on ? 'Retirer la certification' : 'Certifier';
+        say((on ? 'Compte certifié : ' : 'Certification retirée : ') + account.display_name + '.');
+      }));
+      row.append(info, select, apply, certify);
       fragment.append(row);
     });
     byId('admin-users').replaceChildren(fragment);
@@ -329,10 +471,14 @@
       if (!day) throw new Error('Choisissez la date de fin du REC BLUE Plus.');
       const until = new Date(day + 'T23:59:59');
       if (until.getTime() <= Date.now()) throw new Error('La date de fin doit être dans le futur.');
-      const { error } = await client.rpc('recblue_grant_plus', { p_identifier: target, p_until: until.toISOString() });
-      if (error) throw error;
+      // Le jeu d'abord : la fiche du site est facultative, un joueur peut n'exister qu'en jeu.
+      const site = await client.rpc('recblue_grant_plus', { p_identifier: target, p_until: until.toISOString() });
+      const jeu = await gameRequest('/api/game/plus', { target, until: until.toISOString() });
+      if (site.error && !(jeu && jeu.ok)) throw site.error;
       byId('admin-plus-date').value = '';
-      say('REC BLUE Plus accordé à ' + target + ' jusqu’au ' + formatDate(until) + '.');
+      say(jeu && jeu.ok
+        ? 'REC BLUE Plus accordé à ' + target + ' jusqu’au ' + formatDate(until) + ', actif dans le jeu.'
+        : 'REC BLUE Plus accordé côté site jusqu’au ' + formatDate(until) + ', mais le jeu n’a pas suivi' + (jeu && jeu.error ? ' : ' + jeu.error : '.') + '.');
       await loadProfile();
     });
   });
@@ -341,11 +487,63 @@
     if (profile?.role !== 'admin') throw new Error('Accès administrateur requis.');
     const target = byId('admin-plus-target').value.trim();
     if (!target) throw new Error('Indiquez un pseudo ou une adresse email.');
-    const { error } = await client.rpc('recblue_grant_plus', { p_identifier: target, p_until: null });
-    if (error) throw error;
-    say('REC BLUE Plus retiré à ' + target + '.');
+    const site = await client.rpc('recblue_grant_plus', { p_identifier: target, p_until: null });
+    const jeu = await gameRequest('/api/game/plus', { target, until: null });
+    if (site.error && !(jeu && jeu.ok)) throw site.error;
+    say(jeu && jeu.ok
+      ? 'REC BLUE Plus retiré à ' + target + ', y compris dans le jeu.'
+      : 'REC BLUE Plus retiré côté site, mais le jeu n’a pas suivi' + (jeu && jeu.error ? ' : ' + jeu.error : '.') + '.');
     await loadProfile();
   }));
+
+  // Bannissement : le joueur visé ne peut plus se connecter au jeu (durée vide = définitif).
+  byId('admin-ban')?.addEventListener('submit', event => {
+    event.preventDefault();
+    guard(byId('admin-ban-submit'), async () => {
+      if (profile?.role !== 'admin') throw new Error('Accès administrateur requis.');
+      const target = byId('admin-ban-target').value.trim();
+      if (!target) throw new Error('Indiquez un pseudo de jeu ou une adresse email.');
+      const reason = byId('admin-ban-reason').value.trim();
+      const days = byId('admin-ban-days').value;
+      const duree = days === '' ? 'définitif' : Number(days) + ' jours';
+      const result = await gameRequest('/api/game/ban', { target, ban: true, reason, days });
+      if (!result || !result.ok) throw new Error((result && result.error) || 'Bannissement refusé.');
+      say('Joueur banni : ' + target + ' (' + duree + ')' + (reason ? ' — ' + reason : '') + '.');
+      byId('admin-ban-target').value = '';
+      byId('admin-ban-reason').value = '';
+      byId('admin-ban-days').value = '';
+    });
+  });
+
+  byId('admin-ban-lift')?.addEventListener('click', () => guard(byId('admin-ban-lift'), async () => {
+    if (profile?.role !== 'admin') throw new Error('Accès administrateur requis.');
+    const target = byId('admin-ban-target').value.trim();
+    if (!target) throw new Error('Indiquez le pseudo du joueur à débannir.');
+    const result = await gameRequest('/api/game/ban', { target, ban: false });
+    if (!result || !result.ok) throw new Error((result && result.error) || 'Débannissement refusé.');
+    say('Joueur débanni : ' + target + '.');
+    byId('admin-ban-target').value = '';
+  }));
+
+  // Retrait de crédits : correction de solde côté jeu (le solde affiché est celui du jeu).
+  byId('admin-debit')?.addEventListener('submit', event => {
+    event.preventDefault();
+    guard(byId('admin-debit-submit'), async () => {
+      if (profile?.role !== 'admin') throw new Error('Accès administrateur requis.');
+      const target = byId('admin-debit-target').value.trim();
+      if (!target) throw new Error('Indiquez un pseudo de jeu ou une adresse email.');
+      const amount = Number(byId('admin-debit-amount').value);
+      if (!Number.isInteger(amount) || amount < 1) throw new Error('Indiquez un nombre de crédits entier, au moins 1.');
+      const result = await gameRequest('/api/game/debit', { target, tokens: amount });
+      if (!result || !result.ok) throw new Error((result && result.error) || 'Retrait refusé.');
+      const reste = Number(result.credits) || 0;
+      const retire = Number(result.removed) || 0;
+      say('Crédits retirés à ' + target + ' : ' + retire.toLocaleString('fr-FR') + ' retirés, nouveau solde en jeu ' + reste.toLocaleString('fr-FR') + '.'
+        + (retire < amount ? ' Le solde ne couvrait pas la totalité.' : ''));
+      byId('admin-debit-amount').value = '';
+      await loadProfile();
+    });
+  });
 
   byId('lang').addEventListener('change', () => { savePref('recblue.language', byId('lang').value); document.documentElement.lang = byId('lang').value; say('Langue enregistrée pour ce navigateur.'); });
   byId('music').addEventListener('change', () => { savePref('recblue.musicOff', String(!byId('music').checked)); say(byId('music').checked ? 'Musique activée sur ce navigateur.' : 'Musique désactivée sur ce navigateur.'); });
@@ -507,7 +705,7 @@
     if (!config?.supabaseUrl || !config?.publishableKey) { say('Service de comptes non configuré.'); return; }
     try {
       const url = new URL(config.supabaseUrl);
-      if (url.protocol !== 'https:' || !/^[a-z0-9-]+\.supabase\.co$/i.test(url.hostname) || !config.publishableKey.startsWith('sb_publishable_')) throw new Error('Configuration Supabase invalide.');
+      if (url.protocol !== 'https:' || !/^[a-z0-9-]+\.supabase\.co$/i.test(url.hostname) || !/^(sb_publishable_|eyJ)/.test(config.publishableKey)) throw new Error('Configuration Supabase invalide.');
       if (!window.supabase?.createClient) throw new Error('Service de comptes indisponible.');
       client = window.supabase.createClient(url.href, config.publishableKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
       client.auth.onAuthStateChange(() => { loadProfile().catch(() => say('Session non vérifiée.')); });

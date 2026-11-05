@@ -1,0 +1,131 @@
+:root {
+  --blue: #004cff;
+  --ink: #eaf0ff;
+  --muted: #9db0d0;
+  --card: #0d1a33;
+  --line: #1f3358;
+  --gold: #f7c948;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: radial-gradient(1200px 600px at 20% -10%, #12275a 0%, #050b1a 55%, #03060f 100%);
+  color: var(--ink);
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  min-height: 100vh;
+}
+
+a { color: #8fc0ff; }
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: rgba(3, 8, 20, 0.8);
+  border-bottom: 1px solid var(--line);
+}
+
+.bar img { height: 44px; width: auto; }
+
+.links { display: flex; gap: 14px; }
+.links a { text-decoration: none; font-weight: 700; }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
+
+h1 { font-size: 2rem; margin: 0 0 8px; letter-spacing: 0.02em; }
+
+.note, .msg, .count { color: var(--muted); font-size: 0.95rem; }
+.msg { min-height: 1.2em; }
+
+.search {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin: 18px 0 6px;
+}
+
+.search label { flex: 1 1 100%; color: var(--muted); font-size: 0.9rem; }
+
+.search input {
+  flex: 1 1 240px;
+  padding: 11px 13px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #071227;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.btn {
+  padding: 11px 18px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--blue);
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.btn:hover { filter: brightness(1.1); }
+
+.room-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.room-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.room-thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 10px;
+  background: #071227;
+}
+
+.room-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.room-head h2 { font-size: 1.05rem; margin: 0; }
+
+.tag {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.tag.official { color: #1b1200; background: var(--gold); border-color: var(--gold); }
+
+.room-desc { margin: 0; color: var(--muted); font-size: 0.9rem; }
+.room-facts { margin: 0; font-size: 0.85rem; color: #7dd3ff; }
+
+@media (max-width: 520px) {
+  h1 { font-size: 1.6rem; }
+}
+
+/* Photos partagées en jeu */
+.photos-title { margin-top:36px; }
+.photo-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:12px; }
+.photo-card { margin:0; background:#fff; border:2px solid #e2dccb; border-radius:14px; overflow:hidden; }
+.photo-card img { display:block; width:100%; aspect-ratio:1/1; object-fit:cover; }
+.photo-caption { font-size:12px; font-weight:700; color:#44506b; padding:8px 10px; }

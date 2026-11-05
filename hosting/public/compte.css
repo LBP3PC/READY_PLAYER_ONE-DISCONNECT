@@ -23,6 +23,14 @@ input, select { display:block; width:100%; margin-top:6px; padding:11px 12px; bo
 .btn.ghost:hover { background:#ffffff26; }
 .note { font-size:12px; color:var(--muted); margin:10px 0 0; }
 .side { text-align:center; }
+/* Bannière du jeu : la grande image du profil Rec Room. */
+.banner { width:100%; height:96px; border-radius:12px; margin-bottom:14px; background:#101012 center/cover no-repeat; }
+/* Pastilles de couleur de la personnalisation. */
+.accents { display:flex; flex-wrap:wrap; gap:10px; margin:6px 0 14px; }
+.accent { width:34px; height:34px; border-radius:50%; border:3px solid #ffffff2e; cursor:pointer; padding:0; }
+.accent:hover { border-color:#ffffff70; }
+.accent.active { border-color:#fff; box-shadow:0 0 0 3px #ffffff26; }
+.banner[hidden] { display:none; }
 .avatar { width:74px; height:74px; margin:0 auto 12px; border-radius:50%; display:grid; place-items:center; background:linear-gradient(140deg,#2445b8,#63efff); color:#08122e; font-size:26px; }
 /* Cadre doré des membres REC BLUE Plus. */
 .avatar.plus-ring { box-shadow:0 0 0 3px #f7c948, 0 0 18px rgba(247,201,72,.55); }
@@ -38,7 +46,19 @@ input, select { display:block; width:100%; margin-top:6px; padding:11px 12px; bo
 .plus-name { color:#f7c948 !important; text-shadow:0 0 12px rgba(247,201,72,.35); }
 .plus-mark-wrap { display:inline-block; }
 .plus-mark-wrap[hidden] { display:none; }
-.plus-mark { width:18px; height:18px; display:inline-block; vertical-align:-3px; margin-left:6px; }
+/* Badges un peu plus grands, avec une lueur qui respire. */
+.plus-mark { width:24px; height:24px; display:inline-block; vertical-align:middle; margin-left:6px; filter:drop-shadow(0 0 8px rgba(247,201,72,.9)); }
+/* Le cadre doré des membres Plus respire. */
+.avatar.plus-ring { animation:recblue-ring-gold 3.2s ease-in-out infinite; }
+@keyframes recblue-ring-gold { 0%,100% { box-shadow:0 0 0 3px #f7c948, 0 0 18px rgba(247,201,72,.55); } 50% { box-shadow:0 0 0 3px #ffe08a, 0 0 26px rgba(247,201,72,.95); } }
+
+
+@media (prefers-reduced-motion: reduce) { .avatar.plus-ring, .credits-balance.plus-credits strong { animation:none; } }
+/* Certification : la coche bleue, à droite du pseudo, sans cadre. */
+/* Effet de lumière : une lueur FIXE sur le badge, sans halo animé autour. */
+.verified-mark-wrap { display:inline-block; }
+.verified-mark-wrap[hidden] { display:none; }
+.verified-mark { width:22px; height:22px; display:inline-block; vertical-align:middle; margin-left:6px; filter:drop-shadow(0 0 7px rgba(99,200,248,.9)); }
 .facts { margin:18px 0; text-align:left; font-size:12px; }
 .facts div { display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px solid var(--line); }
 .facts dt { color:var(--muted); margin:0; }
@@ -64,6 +84,12 @@ body.mfa-required .stack > .card:not(#mfa-card) { opacity:.45; pointer-events:no
 .credits-coin { width:34px; height:34px; display:inline-block; flex:0 0 auto; }
 .credits-balance strong { font-size:38px; line-height:1; color:#8fdcff; }
 .credits-balance span { font-size:13px; letter-spacing:1px; text-transform:uppercase; color:#9aa7c7; }
+/* Crédits en OR pour les membres REC BLUE Plus : lueur fixe, aucune animation. */
+/* Solde en or ANIMÉ : reflet qui traverse le chiffre (dégradé découpé sur le texte). */
+.credits-balance.plus-credits strong { color:transparent; background:linear-gradient(100deg,#ffe9a8,#fff8e2,#ffd977,#e9a93b,#ffe9a8); background-size:280% 100%; -webkit-background-clip:text; background-clip:text; animation:recblue-gold-shine 5s linear infinite; }
+@keyframes recblue-gold-shine { 0% { background-position:0% 50%; } 100% { background-position:280% 50%; } }
+.credits-balance.plus-credits span { color:#e2c37f; }
+.credits-balance.plus-credits .credits-coin { filter:drop-shadow(0 0 8px rgba(247,201,72,.9)); }
 .countdown { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; margin:8px 0 0; padding:10px 12px; border-radius:10px; background:rgba(8,16,40,.75); border:1px solid rgba(126,200,255,.3); }
 .countdown em { font-style:normal; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#9fb6d8; }
 .countdown-value { font-size:15px; color:#9ed6ff; }

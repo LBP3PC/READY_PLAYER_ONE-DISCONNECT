@@ -1,0 +1,20 @@
+recflare-outils/
+recflare-serveur/
+
+# Jetons et valeurs locales (jamais commités)
+hosting/.cf-token
+hosting/.zoho-records.json
+
+# Node portable + wrangler utilise pour les deploiements
+.tools/
+
+# Caches de build wrangler
+.wrangler/
+hosting/.wrangler/
+
+# Artefacts d'essai et binaires regeneres par les scripts
+badge-check.png
+badges-agrandis-2.png
+hosting/public/download/REC-BLUE-Launcher.exe
+hosting/public/download/rec-blue/
+hosting/public/download/*.log

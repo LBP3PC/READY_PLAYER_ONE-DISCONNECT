@@ -14,7 +14,9 @@
   const navLink = document.querySelector('a.nav-control[href="#connexion"]');
   const navLabel = byId('nav-account-label');
   const navBubble = byId('nav-avatar');
-  const AVATAR = /^data:image\/(png|jpeg|webp);base64,/;
+  // Photo acceptée : une image du site (data URL) ou la photo du JEU, servie par le
+  // service d'images du jeu.
+  const AVATAR = /^(data:image\/(png|jpeg|webp);base64,|https:\/\/img\.recblue\.net\/)/;
   // Affiche l’identité du membre dans la barre : bulle de profil + @pseudo.
   const setNavLabel = (label, avatar, plus = false) => {
     if (!navLink) return;
@@ -24,6 +26,9 @@
       navLabel.classList.toggle('plus-name', !signedOut && plus);
       const navMark = byId('nav-plus');
       if (navMark) navMark.hidden = signedOut || !plus;
+      // La coche de certification est décidée par le compte de jeu (voir refreshAccount).
+      const navCert = byId('nav-certified');
+      if (navCert && signedOut) navCert.hidden = true;
       if (signedOut) { navLabel.setAttribute('data-i18n', 'login'); navLabel.removeAttribute('data-no-translate'); }
       else { navLabel.removeAttribute('data-i18n'); navLabel.setAttribute('data-no-translate', ''); }
     } else {
@@ -76,18 +81,91 @@
     }
     return label;
   }
+  // Les crédits du site et du jeu sont le MÊME nombre : le solde affiché est lu sur le
+  // serveur de jeu, et un don d'administration part aussi dans le jeu.
+  async function sessionToken() {
+    const { data } = await client.auth.getSession();
+    return data && data.session ? data.session.access_token : '';
+  }
+  async function gameCredits() {
+    try {
+      const token = await sessionToken();
+      if (!token) return null;
+      const response = await fetch('/api/game/credits', { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' });
+      if (!response.ok) return null;
+      const body = await response.json();
+      return typeof body.credits === 'number' ? body.credits : null;
+    } catch (error) { return null; }
+  }
+  // Plus et bannissement : la décision est prise ici, le compte de JEU la reçoit.
+  // Le badge « Certifié REC BLUE » vit sur le compte de JEU : on le lit, on ne le déduit pas.
+  async function gameStatus() {
+    try {
+      const token = await sessionToken();
+      if (!token) return { certified: false, plus: false };
+      const response = await fetch('/api/game/certified', { headers: { Authorization: 'Bearer ' + token } });
+      const body = await response.json().catch(() => null);
+      return {
+        certified: !!(response.ok && body && body.certified),
+        plus: !!(response.ok && body && body.plus)
+      };
+    } catch (error) { return { certified: false, plus: false }; }
+  }
+  // La photo du JEU du joueur connecté (le site affiche celle-là, pas une copie).
+  async function gameAvatarUrl() {
+    try {
+      const token = await sessionToken();
+      if (!token) return '';
+      const response = await fetch('/api/game/avatar', { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' });
+      const body = await response.json().catch(() => null);
+      return response.ok && body && typeof body.image === 'string' ? body.image : '';
+    } catch (error) { return ''; }
+  }
+  async function gameRequest(path, payload) {
+    try {
+      const token = await sessionToken();
+      if (!token) return { ok: false, error: 'session absente' };
+      const response = await fetch(path, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) return { ok: false, error: (body && body.error) || ('statut ' + response.status) };
+      return body || { ok: true };
+    } catch (error) { return { ok: false, error: 'réseau' }; }
+  }
+  async function grantGame(target, amount) {
+    try {
+      const token = await sessionToken();
+      if (!token) return { ok: false, error: 'session absente' };
+      const response = await fetch('/api/game/grant', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target, tokens: amount })
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) return { ok: false, error: (body && body.error) || ('statut ' + response.status) };
+      return body || { ok: true };
+    } catch (error) { return { ok: false, error: 'réseau' }; }
+  }
   function clearPrivateUI() {
     profile = null;
     setNavLabel('Se connecter');
     byId('account-profile').hidden = true;
     byId('account-admin').hidden = true;
     if (navBubble) navBubble.classList.remove('plus-ring');
+    const navCertOff = byId('nav-certified');
+    if (navCertOff) navCertOff.hidden = true;
     byId('account-users').replaceChildren();
     byId('account-email').textContent = '';
     byId('account-role').textContent = '';
     byId('account-name').value = '';
     const navCredits = byId('nav-credits');
-    if (navCredits) navCredits.hidden = true;
+    if (navCredits) {
+      navCredits.hidden = true;
+      navCredits.classList.remove('plus-credits');
+    }
   }
   async function refreshAccount() {
     const current = ++revision;
@@ -108,19 +186,30 @@
     if (current !== revision) return;
     if (result.error) { announce('Profil inaccessible. Vérifiez la configuration SQL et réessayez.'); return; }
     profile = result.data;
-    setNavLabel('@' + (pseudo || profile.display_name), profile.avatar_url, isPlus(profile.plus_until));
+    // Plus et certification vivent sur le compte de JEU : on lit l'état réel, pas une copie.
+    const jeu = await gameStatus();
+    const plusSite = isPlus(profile.plus_until) || jeu.plus;
+    setNavLabel('@' + (pseudo || profile.display_name), (await gameAvatarUrl()) || profile.avatar_url, plusSite);
     const creditsBadge = byId('nav-credits');
     if (creditsBadge) {
-      const total = Number(profile.credits) || 0;
+      const soldeJeu = await gameCredits();
+      const total = soldeJeu === null ? (Number(profile.credits) || 0) : soldeJeu;
       const creditsText = total.toLocaleString('fr-FR') + (total === 1 ? ' crédit' : ' crédits');
       const creditsValue = creditsLabel(creditsBadge);
       if (creditsValue) creditsValue.textContent = creditsText;
+      // Membre REC BLUE Plus : la pastille de crédits passe en or.
+      creditsBadge.classList.toggle('plus-credits', plusSite);
       creditsBadge.hidden = false;
     }
     byId('account-name').value = profile.display_name;
     byId('account-role').textContent = labels[profile.role] || 'Droit inconnu';
+    const certified = jeu.certified;
+    const certBadge = byId('account-certified');
+    if (certBadge) certBadge.hidden = !certified;
+    const navCert = byId('nav-certified');
+    if (navCert) navCert.hidden = !certified;
     const plusBadge = byId('account-plus');
-    if (plusBadge) plusBadge.hidden = !isPlus(profile.plus_until);
+    if (plusBadge) plusBadge.hidden = !plusSite;
     byId('account-admin').hidden = !(profile.role === 'admin' || profile.role === 'moderator');
     // Les crédits et le Plus restent réservés aux administrateurs : un
     // modérateur ne voit que la liste des comptes.
@@ -172,11 +261,26 @@
       save.addEventListener('click', () => run(save, async () => {
         const { error } = await client.rpc('recblue_set_role', { target_id: account.id, new_role: select.value });
         if (error) { await refreshAccount(); throw error; }
-        announce('Droits mis à jour.');
+        // Le rôle du SITE pilote aussi le rôle EN JEU (modérateur / staff) : sans cet
+        // appel, la personne serait modératrice ici et simple joueuse en jeu.
+        const sync = await gameRequest('/api/game/role', { target: account.display_name, role: select.value });
+        if (sync && sync.ok) announce('Droits de ' + account.display_name + ' : ' + (labels[select.value] || select.value) + ' sur le site ET en jeu (effectif à sa prochaine connexion).');
+        else announce('Droits du site mis à jour, mais le rôle en jeu n’a pas suivi : ' + ((sync && sync.error) || 'serveur de jeu injoignable') + '.');
         await refreshAccount();
         if (profile?.role === 'admin') await listAccounts();
       }));
-      row.append(name, select, save); fragment.append(row);
+      // Le badge « Certifié REC BLUE » : accordé par l’administration, rangé sur le compte de jeu.
+      const certify = document.createElement('button'); certify.type = 'button'; certify.className = 'button'; certify.textContent = 'Certifier';
+      certify.disabled = !isAdmin; certify.hidden = !isAdmin;
+      certify.addEventListener('click', () => run(certify, async () => {
+        const on = certify.dataset.certified !== '1';
+        const result = await gameRequest('/api/game/certify', { target: account.display_name, certified: on });
+        if (!result || !result.ok) throw new Error((result && result.error) || 'Certification refusée.');
+        certify.dataset.certified = on ? '1' : '0';
+        certify.textContent = on ? 'Retirer la certification' : 'Certifier';
+        announce((on ? 'Compte certifié : ' : 'Certification retirée : ') + account.display_name + '.');
+      }));
+      row.append(name, select, save, certify); fragment.append(row);
     });
     byId('account-users').replaceChildren(fragment);
   }
@@ -190,12 +294,42 @@
       if (!target) throw new Error('Indiquez un pseudo ou une adresse email.');
       if (!Number.isInteger(amount) || amount < 1) throw new Error('Indiquez un nombre de crédits entier, au moins 1.');
       const { data, error } = await client.rpc('recblue_grant_credits', { p_identifier: target, p_amount: amount });
-      if (error) throw error;
-      announce('Crédits ajoutés à ' + target + ' : nouveau solde ' + Number(data).toLocaleString('fr-FR') + '.');
+      // Un joueur peut exister EN JEU sans fiche sur le site (compte créé en jeu) : le don
+      // doit quand même arriver, donc on n'abandonne que si les DEUX côtés refusent.
+      const jeu = await grantGame(target, amount);
+      if (error) {
+        if (!jeu || !jeu.ok) throw new Error('Don impossible pour « ' + target + ' » : ' + (jeu && jeu.error ? jeu.error : (error.message || 'compte introuvable')) + '.');
+        announce('Crédits envoyés en jeu à ' + target + ' : solde en jeu ' + Number(jeu.credits || 0).toLocaleString('fr-FR') + ', box envoyée (aucune fiche de site à créditer).');
+      } else {
+        announce(jeu && jeu.ok
+          ? 'Crédits ajoutés à ' + target + ' : solde en jeu ' + Number(jeu.credits || 0).toLocaleString('fr-FR') + ', box envoyée.'
+          : 'Crédits ajoutés côté site (' + Number(data).toLocaleString('fr-FR') + '), mais le jeu n’a pas été crédité' + (jeu && jeu.error ? ' : ' + jeu.error : '.') + '.');
+      }
       byId('admin-credits-amount').value = '';
       await refreshAccount();
     });
   });
+  // Retrait de crédits : correction de solde côté jeu (le solde affiché est celui du jeu).
+  const debitForm = byId('admin-debit');
+  if (debitForm) debitForm.addEventListener('submit', event => {
+    event.preventDefault();
+    run(byId('admin-debit-submit'), async () => {
+      if (!profile || profile.role !== 'admin') throw new Error('Accès administrateur requis.');
+      const target = String(byId('admin-debit-target').value || '').trim();
+      if (!target) throw new Error('Indiquez un pseudo de jeu ou une adresse email.');
+      const amount = Number(byId('admin-debit-amount').value);
+      if (!Number.isInteger(amount) || amount < 1) throw new Error('Indiquez un nombre de crédits entier, au moins 1.');
+      const result = await gameRequest('/api/game/debit', { target, tokens: amount });
+      if (!result || !result.ok) throw new Error((result && result.error) || 'Retrait refusé.');
+      const reste = Number(result.credits) || 0;
+      const retire = Number(result.removed) || 0;
+      announce('Crédits retirés à ' + target + ' : ' + retire.toLocaleString('fr-FR') + ' retirés, nouveau solde en jeu ' + reste.toLocaleString('fr-FR') + '.'
+        + (retire < amount ? ' Le solde ne couvrait pas la totalité.' : ''));
+      byId('admin-debit-amount').value = '';
+      await refreshAccount();
+    });
+  });
+
   // REC BLUE Plus : un administrateur choisit la date de fin (ou retire l’avantage).
   const plusForm = byId('admin-plus');
   const plusTarget = target => {
@@ -212,9 +346,13 @@
       if (!day) throw new Error('Choisissez la date de fin du REC BLUE Plus.');
       const until = new Date(day + 'T23:59:59');
       if (until.getTime() <= Date.now()) throw new Error('La date de fin doit être dans le futur.');
-      const { error } = await client.rpc('recblue_grant_plus', { p_identifier: target, p_until: until.toISOString() });
-      if (error) throw error;
-      announce('REC BLUE Plus accordé à ' + target + ' jusqu’au ' + until.toLocaleDateString('fr-FR') + '.');
+      // Le jeu d'abord : la fiche du site est facultative, un joueur peut n'exister qu'en jeu.
+      const site = await client.rpc('recblue_grant_plus', { p_identifier: target, p_until: until.toISOString() });
+      const jeu = await gameRequest('/api/game/plus', { target, until: until.toISOString() });
+      if (site.error && !(jeu && jeu.ok)) throw site.error;
+      announce(jeu && jeu.ok
+        ? 'REC BLUE Plus accordé à ' + target + ' jusqu’au ' + until.toLocaleDateString('fr-FR') + ', actif dans le jeu.'
+        : 'REC BLUE Plus accordé côté site jusqu’au ' + until.toLocaleDateString('fr-FR') + ', mais le jeu n’a pas suivi' + (jeu && jeu.error ? ' : ' + jeu.error : '.') + '.');
       byId('admin-plus-date').value = '';
       await refreshAccount();
     });
@@ -223,16 +361,46 @@
   if (plusRemove) plusRemove.addEventListener('click', () => run(plusRemove, async () => {
     if (!profile || profile.role !== 'admin') throw new Error('Accès administrateur requis.');
     const target = plusTarget(byId('admin-plus-target').value);
-    const { error } = await client.rpc('recblue_grant_plus', { p_identifier: target, p_until: null });
-    if (error) throw error;
-    announce('REC BLUE Plus retiré à ' + target + '.');
+    const site = await client.rpc('recblue_grant_plus', { p_identifier: target, p_until: null });
+    const jeu = await gameRequest('/api/game/plus', { target, until: null });
+    if (site.error && !(jeu && jeu.ok)) throw site.error;
+    announce(jeu && jeu.ok
+      ? 'REC BLUE Plus retiré à ' + target + ', y compris dans le jeu.'
+      : 'REC BLUE Plus retiré côté site, mais le jeu n’a pas suivi' + (jeu && jeu.error ? ' : ' + jeu.error : '.') + '.');
     await refreshAccount();
+  }));
+
+  // Bannissement : le joueur visé ne peut plus se connecter au jeu (durée vide = définitif).
+  const banForm = byId('admin-ban');
+  if (banForm) banForm.addEventListener('submit', event => {
+    event.preventDefault();
+    run(byId('admin-ban-submit'), async () => {
+      if (!profile || profile.role !== 'admin') throw new Error('Accès administrateur requis.');
+      const target = String(byId('admin-ban-target').value || '').trim();
+      if (!target) throw new Error('Indiquez un pseudo de jeu ou une adresse email.');
+      const reason = String(byId('admin-ban-reason').value || '').trim();
+      const days = byId('admin-ban-days').value;
+      const result = await gameRequest('/api/game/ban', { target, ban: true, reason, days });
+      if (!result || !result.ok) throw new Error((result && result.error) || 'Bannissement refusé.');
+      announce('Joueur banni : ' + target + (days === '' ? ' (définitif)' : ' (' + Number(days) + ' jours)') + (reason ? ' — ' + reason : '') + '.');
+      byId('admin-ban-target').value = ''; byId('admin-ban-reason').value = ''; byId('admin-ban-days').value = '';
+    });
+  });
+  const banLift = byId('admin-ban-lift');
+  if (banLift) banLift.addEventListener('click', () => run(banLift, async () => {
+    if (!profile || profile.role !== 'admin') throw new Error('Accès administrateur requis.');
+    const target = String(byId('admin-ban-target').value || '').trim();
+    if (!target) throw new Error('Indiquez le pseudo du joueur à débannir.');
+    const result = await gameRequest('/api/game/ban', { target, ban: false });
+    if (!result || !result.ok) throw new Error((result && result.error) || 'Débannissement refusé.');
+    announce('Joueur débanni : ' + target + '.');
+    byId('admin-ban-target').value = '';
   }));
   async function init() {
     if (!config?.supabaseUrl || !config?.publishableKey) return;
     try {
       const url = new URL(config.supabaseUrl);
-      if (url.protocol !== 'https:' || !/^[a-z0-9-]+\.supabase\.co$/i.test(url.hostname) || url.username || url.password || url.port || url.pathname !== '/' || url.search || url.hash || !config.publishableKey.startsWith('sb_publishable_')) throw new Error('Utilisez une URL HTTPS Supabase et sa clé publique sb_publishable_. Aucune clé secrète.');
+      if (url.protocol !== 'https:' || !/^[a-z0-9-]+\.supabase\.co$/i.test(url.hostname) || url.username || url.password || url.port || url.pathname !== '/' || url.search || url.hash || !/^(sb_publishable_|eyJ)/.test(config.publishableKey)) throw new Error('Utilisez une URL HTTPS Supabase et sa clé publique sb_publishable_. Aucune clé secrète.');
       if (!window.supabase?.createClient) throw new Error('Impossible de charger le service de comptes.');
       // Session enregistrée dans ce navigateur pour rester connecté après un
       // rechargement ; elle se termine avec « Se déconnecter ».
@@ -310,7 +478,27 @@
       if (!data.session) throw new Error('Inscription non activée côté service : la confirmation email de Supabase doit être désactivée (Authentication, Sign In / Providers, Email).');
       const { error: nameError } = await client.from('recblue_accounts')
         .update({ display_name: pseudo }).eq('id', data.user.id).select('id').single();
-      announce(nameError ? 'Compte créé : vous êtes connecté, modifiez votre pseudo dans votre profil.' : 'Compte créé avec le rôle membre : vous êtes connecté.');
+      // Le compte du JEU, avec le même pseudo et le même mot de passe : c'est ce qui permet
+      // de se connecter dans Rec Room juste après l'inscription sur le site.
+      let gameNote = '';
+      try {
+        const game = await fetch('api/game/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + data.session.access_token },
+          body: JSON.stringify({ pseudo, password })
+        });
+        const result = await game.json().catch(() => ({}));
+        if (game.ok && result && result.ok) {
+          gameNote = result.renamed
+            ? ' Votre compte de jeu est prêt : connectez-vous dans Rec Room avec « ' + pseudo + ' » et ce mot de passe.'
+            : ' Compte de jeu créé, mais ' + (result.warning || 'le pseudo en jeu n’a pas pu être appliqué.');
+        } else {
+          gameNote = ' Compte de jeu non créé : ' + ((result && result.error) || 'serveur de jeu indisponible') + ' — signale-le à un administrateur.';
+        }
+      } catch (failure) {
+        gameNote = ' Compte de jeu non créé : serveur de jeu injoignable.';
+      }
+      announce((nameError ? 'Compte créé : vous êtes connecté, modifiez votre pseudo dans votre profil.' : 'Compte créé avec le rôle membre : vous êtes connecté.') + gameNote);
       await refreshAccount();
     });
   });

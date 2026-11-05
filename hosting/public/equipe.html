@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#004cff">
+  <meta name="description" content="Les comptes du jeu et les joueurs en ligne, pour donner un rôle ou certifier quelqu’un.">
+  <title>Joueurs &amp; équipe · REC BLUE</title>
+  <link rel="icon" type="image/svg+xml" href="rec-blue-icon.svg">
+  <script src="theme.js?v=1"></script>
+  <link rel="stylesheet" href="equipe.css?v=2">
+</head>
+<body>
+  <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute;left:-9999px;top:0"><symbol id="recblue-verified" viewBox="0 0 48 48"><path fill="#63c8f8" d="M24 4.4A5.1 5.1 0 0 1 33.8 7A5.1 5.1 0 0 1 41 14.2A5.1 5.1 0 0 1 43.6 24A5.1 5.1 0 0 1 41 33.8A5.1 5.1 0 0 1 33.8 41A5.1 5.1 0 0 1 24 43.6A5.1 5.1 0 0 1 14.2 41A5.1 5.1 0 0 1 7 33.8A5.1 5.1 0 0 1 4.4 24A5.1 5.1 0 0 1 7 14.2A5.1 5.1 0 0 1 14.2 7A5.1 5.1 0 0 1 24 4.4Z"/><path fill="#2f8ce4" transform="translate(24 24) scale(.76) translate(-24 -24)" d="M24 4.4A5.1 5.1 0 0 1 33.8 7A5.1 5.1 0 0 1 41 14.2A5.1 5.1 0 0 1 43.6 24A5.1 5.1 0 0 1 41 33.8A5.1 5.1 0 0 1 33.8 41A5.1 5.1 0 0 1 24 43.6A5.1 5.1 0 0 1 14.2 41A5.1 5.1 0 0 1 7 33.8A5.1 5.1 0 0 1 4.4 24A5.1 5.1 0 0 1 7 14.2A5.1 5.1 0 0 1 14.2 7A5.1 5.1 0 0 1 24 4.4Z"/><path d="M14.5 24.6l6.2 6.2L34 16.9" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></symbol></svg>
+  <header class="bar">
+    <a href="index.html"><img src="rec-blue-logo.png" alt="REC BLUE" width="693" height="180"></a>
+    <nav class="links">
+      <a class="back" href="compte.html">Mon espace compte</a>
+      <a class="back" href="chambres.html">Chambres du jeu</a>
+      <a class="back" href="index.html">← Retour au site</a>
+    </nav>
+  </header>
+  <main class="wrap">
+    <h1>Joueurs &amp; équipe</h1>
+    <p class="note">Cette liste vient du serveur de jeu : tous les comptes qui existent, lesquels sont <strong>en ligne</strong> en ce moment, et les droits de chacun. Un rôle ou une certification posé ici part directement sur le compte de jeu — le joueur le voit à sa prochaine connexion. Réservé aux administrateurs du site.</p>
+    <p class="msg" id="msg" role="status" aria-live="polite"></p>
+    <div class="toolbar">
+      <input id="query" type="search" placeholder="Chercher un pseudo" maxlength="40" spellcheck="false" autocomplete="off" aria-label="Chercher un pseudo">
+      <label class="chk"><input id="only-online" type="checkbox"> Seulement en ligne</label>
+      <button class="btn ghost" id="refresh" type="button">Rafraîchir</button>
+      <span class="count" id="count"></span>
+    </div>
+    <section class="list" id="list" aria-label="Comptes du jeu"></section>
+  </main>
+  <script src="account-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.js" integrity="sha384-3wY11tldQ5+yWqAvmTN4XtQvnjoTva0cV15O/O/O5NTtp0ivVopSzLOzsVXWZse9" crossorigin="anonymous" defer></script>
+  <script src="equipe.js?v=2" defer></script>
+  <script src="music.js?v=3" defer></script>
+</body>
+</html>

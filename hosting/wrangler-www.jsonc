@@ -1,0 +1,10 @@
+{
+  "name": "www",
+  "main": "worker.js",
+  "compatibility_date": "2025-10-11",
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true },
+  "routes": [
+    { "pattern": "recblue.net", "custom_domain": true },
+    { "pattern": "www.recblue.net", "custom_domain": true }
+  ]
+}
