@@ -985,6 +985,23 @@ namespace RecBlueBranding
                 }
                 catch { }
             }
+            // Le jeu reconstruit parfois son logo juste apres l'avoir affiche : on le remet
+            // en place toutes les 120 ms, sinon l'orange revient entre deux balayages.
+            for (int i = 0; i < logoCanaries.Count; i++)
+            {
+                Image logo = logoCanaries[i];
+                if (logo == null) continue;
+                try
+                {
+                    if (logo.sprite != titleSprite)
+                    {
+                        logo.sprite = titleSprite;
+                        logo.preserveAspect = true;
+                        reverted = true;
+                    }
+                }
+                catch { }
+            }
             if (!reverted && fixedButtons == 0) return;
             RequestPaint(2f);
         }
@@ -2435,6 +2452,8 @@ namespace RecBlueBranding
         // ce qui se voyait comme un gel a chaque nouvelle image du jeu.
         private Image[] sweepQueue;
         private int sweepCursor;
+        private readonly List<Image> logoCanaries = new List<Image>();
+        private int lastLoggedSwapped = -1;
         private int sweepSwapped;
         private bool sweepDeep;
         private float sweepStartedAt;
@@ -2497,9 +2516,10 @@ namespace RecBlueBranding
                             {
                                 image.sprite = titleSprite;
                                 // Le cadre d'origine etait prevu pour un logo large : sans ca
-                                // notre image est etiree et deborde de son emplacement.
+                                // notre image est estiree et deborde de son emplacement.
                                 image.preserveAspect = true;
                                 sweepSwapped++;
+                                if (logoCanaries.Count < 40 && !logoCanaries.Contains(image)) logoCanaries.Add(image);
                                 // Pas d'agrandissement : x1.8 puis x1.25 ont tous deux ete
                                 // juges trop gros et masquaient le panneau. On garde le cadre
                                 // d'origine du jeu.
@@ -2521,7 +2541,13 @@ namespace RecBlueBranding
                 if (sweepSwapped > 0)
                 {
                     titleSwapped = true;
-                    BrandingPlugin.Trace.LogInfo("marque : " + sweepSwapped + " sprite(s) remplace(s).");
+                    // Le jeu reconstruit son logo en boucle au demarrage : on ne journalise
+                    // qu'au changement de compte pour ne pas noyer le log.
+                    if (sweepSwapped != lastLoggedSwapped)
+                    {
+                        lastLoggedSwapped = sweepSwapped;
+                        BrandingPlugin.Trace.LogInfo("marque : " + sweepSwapped + " sprite(s) remplace(s) a " + Mathf.RoundToInt(Time.realtimeSinceStartup) + " s.");
+                    }
                 }
                 // Certains logos passent par une RawImage (texture et non sprite) : on leur
                 // substitue la planche du titre pour ne pas laisser un logo orange.
@@ -2668,7 +2694,7 @@ namespace RecBlueBranding
                         RequestPaint(4f);
                         // Nouvel ecran : on relance la passe de logo sans attendre le balayage
                         // suivant (20 s), sinon le logo du jeu reste visible tout ce temps.
-                        if (now - lastSweepAt >= 2f) nextSweep = now;
+                        if (now - lastSweepAt >= 0.3f) nextSweep = now;
                         // On ne repousse plus la passe : chaque canvas qui apparait la repoussait
                         // de 1,5 s et le balayage n'etait jamais execute (titre jamais pose).
                         // Le plancher de 8 s entre deux passes suffit a eviter les rafales.
@@ -2685,7 +2711,10 @@ namespace RecBlueBranding
                 // Une passe de logo commencee se poursuit a chaque frame, par tranches.
                 if (sweepQueue != null) Sweep();
 
-                if (now >= nextSweep && now - lastSweepAt >= 8f)
+                // Au demarrage, un nouvel ecran doit etre traite tout de suite : le logo du
+                // jeu ne doit pas rester affiche. Le plancher de 8 s ne revient qu'ensuite.
+                float sweepFloor = age < 60f ? 0.4f : 8f;
+                if (now >= nextSweep && now - lastSweepAt >= sweepFloor)
                 {
                     System.Diagnostics.Stopwatch blockWatch = System.Diagnostics.Stopwatch.StartNew();
                     // Une passe enumere toutes les Image vivantes : six passes au demarrage ont
@@ -2693,7 +2722,7 @@ namespace RecBlueBranding
                     lastSweepAt = now;
                     // Tant que le titre n'est pas pose on retente toutes les 20 s (le logo
                     // n'existe pas encore pendant le chargement) ; ensuite 120 s suffisent.
-                    nextSweep = now + (sweeps > 9 ? 120f : 20f);
+                    nextSweep = now + (age < 60f ? 0.5f : (sweeps > 9 ? 120f : 20f));
                     sweeps++;
                     Sweep();
                     // Nouvel ecran vu : on repeint ses textes et son tableau tout de suite.

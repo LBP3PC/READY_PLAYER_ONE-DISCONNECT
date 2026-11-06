@@ -28,7 +28,9 @@ Le logo est aussi reconnu par le **nom des objets** quand le sprite n'a pas un n
 parlant : `[Icon] Rec Room Logo / Image - Change Icon Here`, sur l'écran de login comme
 sur l'écran de chargement (`Title Loading Screen`). Une `RawImage` de logo, si elle
 existe, reçoit directement la texture du titre. Le remplacement est relancé dès qu'un
-nouvel écran apparaît, donc le logo du jeu ne reste pas visible 20 s.
+nouvel écran apparaît, puis vérifié toutes les 120 ms sur les logos déjà vus : comme le
+client reconstruit son logo en boucle au démarrage, il repasse en REC BLUE aussitôt et
+le logo d'origine n'a plus le temps de s'installer.
 
 Journal : `titre REC BLUE charge : <largeur>x<hauteur>` puis
 `marque : N sprite(s) remplace(s).`
