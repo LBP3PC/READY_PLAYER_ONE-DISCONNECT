@@ -22,7 +22,12 @@ dans `BepInEx/plugins` **jeu fermé** (sinon « Device or resource busy »).
 Les sprites dont le nom commence par `RecRoomLogo`, `RecRoom_Logo`,
 `Illustration_RecRoomLogo` ou qui sont les splash Steam / Oculus / VR sont remplacés par
 l'image embarquée `RecBlueTitle.png` (`1673x935`, contour blanc, fond transparent).
-Le cadre d'origine est conservé (`preserveAspect = true`), sans agrandissement.
+Le cadre d'origine est conservé (`preserveAspect = true`). Sur l'écran de login
+uniquement, le logo est mis **à la largeur du logo Rec Room qu'il remplace** : mesure
+faite sur une capture du jeu sans branding, 248 px de large contre 227 px au repos, soit
+un rapport de 1.09. Deux images imbriquées portant le logo composent leurs échelles
+(k × k), d'où `LoginLogoScale = 1.045` appliqué au `localScale`. L'écran de chargement et
+les splashs ne sont pas touchés.
 
 Le logo est aussi reconnu par le **nom des objets** quand le sprite n'a pas un nom
 parlant : `[Icon] Rec Room Logo / Image - Change Icon Here`, sur l'écran de login comme
@@ -33,7 +38,8 @@ client reconstruit son logo en boucle au démarrage, il repasse en REC BLUE auss
 le logo d'origine n'a plus le temps de s'installer.
 
 Journal : `titre REC BLUE charge : <largeur>x<hauteur>` puis
-`marque : N sprite(s) remplace(s).`
+`marque : N sprite(s) remplace(s).` et, au premier logo de login,
+`logo login : taille Rec Room x1.045 (<chemin>)`.
 
 ### 2. Le bleu
 

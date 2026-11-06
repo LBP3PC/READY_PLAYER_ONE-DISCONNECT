@@ -10,13 +10,13 @@ using UnityEngine.UI;
 
 namespace RecBlueBranding
 {
-    // REC BLUE 2.5.0
+    // REC BLUE 2.9.0
     // - perf : vsync coupe, fps non plafonnes, priorite process haute ;
     // - marque : sprites du logo remplaces par REC BLUE ;
     // - bleu : palette RRUI + teintes runtime (Graphic.color, ColorBlock) + recoloration
     //   des TEXTURES orange (c'est la que vivaient le bouton JOUER et le fond a motifs).
     // Tout le travail est fait une seule fois au demarrage, puis le plugin se desactive.
-    [BepInPlugin("net.recblue.branding", "REC BLUE - marque du jeu", "2.6.0")]
+    [BepInPlugin("net.recblue.branding", "REC BLUE - marque du jeu", "2.9.0")]
     public class BrandingPlugin : BasePlugin
     {
         internal static ManualLogSource Trace;
@@ -24,11 +24,216 @@ namespace RecBlueBranding
         public override void Load()
         {
             Trace = Log;
+            InstallLogoGuards(Log);
             QuietConsole.Install(Log);
             QualityGuard.Capture(Log);
-            Log.LogInfo("REC BLUE 2.6.0 : plugin charge (vsync off, plafond ecran, priorite high).");
+            Log.LogInfo("REC BLUE 2.9.0 : plugin charge (vsync off, plafond ecran, priorite high, logo verrouille).");
             AddComponent<BrandingScan>();
             AddComponent<FpsProbe>();
+        }
+
+        // Le jeu reconstruit son logo (retour au login, changement de compte, reouverture
+        // du panneau) : un simple balayage laissait le logo Rec Room visible entre deux
+        // passes. On intercepte l'affectation du sprite et l'activation des Image, pour
+        // que l'original ne soit jamais dessine, meme une seule image.
+        private static void InstallLogoGuards(BepInEx.Logging.ManualLogSource log)
+        {
+            try
+            {
+                HarmonyLib.Harmony harmony = new HarmonyLib.Harmony("rec.blue.logo");
+                System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic;
+                System.Reflection.MethodInfo setter = HarmonyLib.AccessTools.Method(typeof(UnityEngine.UI.Image), "set_sprite");
+                if (setter != null)
+                {
+                    harmony.Patch(setter, prefix: new HarmonyLib.HarmonyMethod(typeof(LogoSetSpritePatch).GetMethod("Prefix", flags)));
+                    log.LogInfo("logo : garde set_sprite active (le sprite Rec Room n'est plus jamais affecte).");
+                }
+                else log.LogWarning("logo : set_sprite introuvable, balayage seul.");
+                System.Reflection.MethodInfo onEnable = HarmonyLib.AccessTools.Method(typeof(UnityEngine.UI.Image), "OnEnable");
+                if (onEnable != null)
+                {
+                    harmony.Patch(onEnable, postfix: new HarmonyLib.HarmonyMethod(typeof(LogoOnEnablePatch).GetMethod("Postfix", flags)));
+                    log.LogInfo("logo : garde OnEnable active (logo corrige avant le premier rendu).");
+                }
+                else log.LogWarning("logo : OnEnable introuvable, balayage seul.");
+                System.Reflection.MethodInfo setTexture = HarmonyLib.AccessTools.Method(typeof(UnityEngine.UI.RawImage), "set_texture");
+                if (setTexture != null)
+                {
+                    harmony.Patch(setTexture, prefix: new HarmonyLib.HarmonyMethod(typeof(LoadingTexturePatch).GetMethod("Prefix", flags)));
+                    log.LogInfo("chargement : garde set_texture active.");
+                }
+                else log.LogWarning("chargement : set_texture introuvable.");
+            }
+            catch (Exception error)
+            {
+                log.LogWarning("logo : garde non installee (" + error.Message + "), balayage seul.");
+            }
+        }
+    }
+
+    // Affectation d'un sprite de marque : on la remplace avant que l'Image ne la garde.
+    internal static class LogoSetSpritePatch
+    {
+        private static void Prefix(UnityEngine.UI.Image __instance, ref UnityEngine.Sprite value)
+        {
+            BrandingScan.GuardSprite(__instance, ref value);
+        }
+    }
+
+    // Image activee (prefab instancie, panneau reaffiche) : le sprite d'origine peut venir
+    // des donnees serialisees sans passer par set_sprite, on le corrige avant le rendu.
+    internal static class LogoOnEnablePatch
+    {
+        private static void Postfix(UnityEngine.UI.Image __instance)
+        {
+            BrandingScan.GuardExisting(__instance);
+        }
+    }
+
+    // Texture d'un RawImage : les visuels de campagne des ecrans de chargement
+    // (setup_..._2560x1440) sont remplaces par les images REC BLUE.
+    internal static class LoadingTexturePatch
+    {
+        private static void Prefix(UnityEngine.UI.RawImage __instance, ref UnityEngine.Texture value)
+        {
+            BrandingScan.GuardTexture(__instance, ref value);
+        }
+    }
+
+    // ---------------------------------------------------------------- chargement
+    // Les visuels affiches apres le login sont lus dans un dossier du joueur :
+    // BepInEx/plugins/RecBlueLoading. Aucune recompilation pour en changer.
+    internal static class LoadingArt
+    {
+        private const string Folder = "C:/RecRoom2023/BepInEx/plugins/RecBlueLoading";
+        private static Sprite[] sprites = new Sprite[0];
+        private static Texture2D[] textures = new Texture2D[0];
+        private static int index;
+        private static float nextRead;
+        private static bool loaded;
+        private static Sprite current;
+        private static int lastTarget;
+        private static Sprite fallbackSprite;
+        private static Texture2D fallbackTexture;
+
+        internal static bool IsLoadingTexture(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return false;
+            if (name.IndexOf("LoadingScreen_Tex", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            if (name.IndexOf("CustomLoadingScreen", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            if (name.IndexOf("2560x1440", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            if (name.EndsWith("tip.jpg", StringComparison.OrdinalIgnoreCase)) return true;
+            return name.StartsWith("setup_", StringComparison.OrdinalIgnoreCase);
+        }
+
+        internal static void Ensure()
+        {
+            if (loaded) return;
+            float now = Time.realtimeSinceStartup;
+            if (now < nextRead) return;
+            nextRead = now + 3f;
+            try
+            {
+                if (!Directory.Exists(Folder)) { Directory.CreateDirectory(Folder); return; }
+                List<string> files = new List<string>();
+                foreach (string file in Directory.GetFiles(Folder))
+                {
+                    string ext = Path.GetExtension(file).ToLowerInvariant();
+                    if (ext == ".png" || ext == ".jpg" || ext == ".jpeg") files.Add(file);
+                }
+                if (files.Count == 0) return;
+                files.Sort(StringComparer.OrdinalIgnoreCase);
+                List<Sprite> madeSprites = new List<Sprite>();
+                List<Texture2D> madeTextures = new List<Texture2D>();
+                foreach (string file in files)
+                {
+                    try
+                    {
+                        byte[] bytes = File.ReadAllBytes(file);
+                        Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                        if (!ImageConversion.LoadImage(texture, bytes)) continue;
+                        texture.hideFlags = HideFlags.DontUnloadUnusedAsset;
+                        texture.name = "RecBlueLoading_" + madeTextures.Count;
+                        Sprite sprite = Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100f);
+                        sprite.name = "RecBlueLoading";
+                        madeTextures.Add(texture);
+                        madeSprites.Add(sprite);
+                    }
+                    catch { }
+                }
+                if (madeSprites.Count == 0) return;
+                sprites = madeSprites.ToArray();
+                textures = madeTextures.ToArray();
+                loaded = true;
+                BrandingPlugin.Trace.LogInfo("chargement : " + sprites.Length + " image(s) REC BLUE chargee(s) depuis " + Folder);
+            }
+            catch (Exception error)
+            {
+                BrandingPlugin.Trace.LogWarning("chargement : dossier illisible (" + error.Message + ").");
+            }
+        }
+
+        // Dossier vide : le client garde son visuel REC BLUE embarque, jamais la photo
+        // de campagne Rec Room.
+        private static void EnsureFallback()
+        {
+            if (fallbackTexture != null) return;
+            try
+            {
+                using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("RecBlueLoadingDefault.png"))
+                {
+                    if (stream == null) return;
+                    byte[] bytes = new byte[stream.Length];
+                    stream.Read(bytes, 0, bytes.Length);
+                    Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                    if (!ImageConversion.LoadImage(texture, bytes)) return;
+                    texture.hideFlags = HideFlags.DontUnloadUnusedAsset;
+                    texture.name = "RecBlueLoading_Default";
+                    Sprite sprite = Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100f);
+                    sprite.name = "RecBlueLoading";
+                    fallbackTexture = texture;
+                    fallbackSprite = sprite;
+                    BrandingPlugin.Trace.LogInfo("chargement : visuel REC BLUE par defaut (dossier vide).");
+                }
+            }
+            catch (Exception error)
+            {
+                BrandingPlugin.Trace.LogWarning("chargement : visuel par defaut indisponible (" + error.Message + ").");
+            }
+        }
+
+        // Une image par ecran de chargement : l'objet change a chaque chargement, donc son
+        // identifiant sert de compteur. Un nouvel ecran prend l'image suivante, comme la
+        // rotation des visuels du jeu d'origine.
+        internal static Sprite PickFor(int target)
+        {
+            Ensure();
+            if (sprites.Length == 0) { EnsureFallback(); return fallbackSprite; }
+            if (current == null || target != lastTarget)
+            {
+                current = sprites[index % sprites.Length];
+                index = (index + 1) % sprites.Length;
+                lastTarget = target;
+            }
+            return current;
+        }
+
+        // Appele quand l'ecran de chargement disparait : le prochain ecran repart sur
+        // l'image suivante, que le jeu recree l'objet ou reutilise le meme.
+        internal static void ResetCycle()
+        {
+            lastTarget = 0;
+            current = null;
+        }
+
+        internal static Texture2D TextureFor(int target)
+        {
+            Ensure();
+            if (sprites.Length == 0) { EnsureFallback(); return fallbackTexture; }
+            PickFor(target);
+            if (current == null) return null;
+            int position = Array.IndexOf(sprites, current);
+            return position >= 0 ? textures[position] : null;
         }
     }
 
@@ -315,6 +520,15 @@ namespace RecBlueBranding
         private static Texture2D title;
         private static Sprite titleSprite;
 
+        // Deux images imbriquees portent le logo du login : leurs echelles se composent
+        // (k x k). Pour que le logo occupe la largeur de celui de Rec Room (mesure sur une
+        // capture sans branding : 248 px contre 227 px au repos), le facteur par image est
+        // donc la racine du rapport, soit 1.045. L'echelle d'origine est memorisee pour que
+        // la reapplication ne compose jamais le facteur.
+        private const float LoginLogoScale = 1.045f;
+        private readonly Dictionary<Transform, Vector3> logoBaseScales = new Dictionary<Transform, Vector3>();
+        private bool loginScaleLogged;
+
         private readonly HashSet<string> seenPalettes = new HashSet<string>();
         private readonly HashSet<int> seenTextures = new HashSet<int>();
         private readonly List<Texture2D> queue = new List<Texture2D>();
@@ -432,11 +646,36 @@ namespace RecBlueBranding
             }
         }
 
+        // Le halo blanc du titre est semi-transparent sur ses bords : le motif orange du
+        // fond le traverse et le contour parait sale, avec des marches. On le rend opaque
+        // d'un bord net, comme le liseré du logo Rec Room.
+        private static void SolidifyTitleHalo(Texture2D texture)
+        {
+            try
+            {
+                Color32[] pixels = texture.GetPixels32();
+                int changed = 0;
+                for (int i = 0; i < pixels.Length; i++)
+                {
+                    byte a = pixels[i].a;
+                    if (a == 0 || a == 255) continue;
+                    pixels[i].a = a >= 150 ? (byte)255 : (byte)0;
+                    changed++;
+                }
+                if (changed == 0) return;
+                texture.SetPixels32(pixels);
+                texture.Apply(false);
+                BrandingPlugin.Trace.LogInfo("titre : halo rendu opaque (" + changed + " pixel(s)).");
+            }
+            catch { }
+        }
+
         private void Prepare()
         {
             if (title != null) return;
             title = Load("RecBlueTitle.png");
             if (title == null) return;
+            SolidifyTitleHalo(title);
             titleSprite = Sprite.Create(title, new Rect(0f, 0f, title.width, title.height), new Vector2(0.5f, 0.5f));
             titleSprite.name = "RecBlueTitle";
             BrandingPlugin.Trace.LogInfo("titre REC BLUE charge : " + title.width + "x" + title.height);
@@ -999,8 +1238,16 @@ namespace RecBlueBranding
                         logo.preserveAspect = true;
                         reverted = true;
                     }
+                    // Le jeu remet parfois son echelle d'origine : on la reimpose ici.
+                    EnlargeLoginLogo(logo);
                 }
                 catch { }
+            }
+            for (int i = 0; i < shadowCanaries.Count; i++)
+            {
+                Image shadow = shadowCanaries[i];
+                if (shadow == null) continue;
+                try { if (shadow.enabled) shadow.enabled = false; } catch { }
             }
             if (!reverted && fixedButtons == 0) return;
             RequestPaint(2f);
@@ -1891,10 +2138,16 @@ namespace RecBlueBranding
                     Material material;
                     try { material = renderer.sharedMaterial; } catch { continue; }
                     if (material == null) continue;
+                    // Sans cette garde, Unity inonde la console : un materiau dont le shader
+                    // n'a pas de _MainTex (grille MakerPen) declenche un avertissement a
+                    // chaque lecture de mainTexture.
+                    bool hasMain = false;
+                    try { hasMain = material.HasProperty("_MainTex"); } catch { }
+                    if (!hasMain) continue;
                     Texture current;
-                    try { current = material.mainTexture; } catch { continue; }
+                    try { current = material.GetTexture("_MainTex"); } catch { continue; }
                     if (current != best) continue;
-                    try { material.mainTexture = art; materials++; } catch { }
+                    try { material.SetTexture("_MainTex", art); materials++; } catch { }
                 }
             }
             catch { }
@@ -2383,6 +2636,90 @@ namespace RecBlueBranding
         private bool logoScreenDumped;
         private float nextLogoDumpAt;
         private int logoDumpPass;
+        private float nextChargeDump;
+
+        // Sonde des ecrans de chargement : marqueur RECBLUE_DUMP_CHARGEMENT.txt.
+        // Journalise une fois par seconde les elements qui portent un visuel de campagne
+        // (sprite, texture, materiau), pour savoir exactement quoi remplacer.
+        private void DumpLoadingOnce(float now)
+        {
+            try { if (!System.IO.File.Exists("C:/RecRoom2023/BepInEx/plugins/RECBLUE_DUMP_CHARGEMENT.txt")) return; } catch { return; }
+            if (now < nextChargeDump) return;
+            nextChargeDump = now + 1f;
+            try
+            {
+                Graphic[] graphics = UnityEngine.Object.FindObjectsOfType<Graphic>();
+                int logged = 0;
+                foreach (Graphic graphic in graphics)
+                {
+                    if (graphic == null || !graphic.isActiveAndEnabled) continue;
+                    string path = PathOf(graphic.transform, 6);
+                    string lower = path.ToLowerInvariant();
+                    Image image = graphic as Image;
+                    RawImage raw = graphic as RawImage;
+                    string sprite = "";
+                    string texture = "";
+                    if (image != null)
+                    {
+                        try
+                        {
+                            Sprite s = image.sprite;
+                            if (s != null)
+                            {
+                                sprite = s.name ?? "";
+                                if (s.texture != null) texture = s.texture.name ?? "";
+                            }
+                        }
+                        catch { }
+                    }
+                    if (raw != null) { try { if (raw.texture != null) texture = raw.texture.name ?? ""; } catch { } }
+                    string material = "";
+                    string materialTexture = "";
+                    string shader = "";
+                    try
+                    {
+                        Material m = graphic.material;
+                        if (m != null)
+                        {
+                            material = m.name ?? "";
+                            if (m.shader != null) shader = m.shader.name ?? "";
+                            if (m.mainTexture != null) materialTexture = m.mainTexture.name ?? "";
+                        }
+                    }
+                    catch { }
+                    bool interesting = lower.Contains("loading") || lower.Contains("bootui") || lower.Contains("title screen")
+                        || sprite.IndexOf("setup_", StringComparison.OrdinalIgnoreCase) >= 0
+                        || texture.IndexOf("setup_", StringComparison.OrdinalIgnoreCase) >= 0
+                        || materialTexture.IndexOf("setup_", StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (!interesting) continue;
+                    Rect rect = default(Rect);
+                    try { rect = graphic.rectTransform.rect; } catch { }
+                    BrandingPlugin.Trace.LogInfo("charge : " + Mathf.RoundToInt(rect.width) + "x" + Mathf.RoundToInt(rect.height)
+                        + " sprite=" + sprite + " tex=" + texture + " mat=" + material + " matTex=" + materialTexture
+                        + " shader=" + shader + " chemin=" + path);
+                    if (++logged >= 30) break;
+                }
+            }
+            catch { }
+            try
+            {
+                Renderer[] renderers = UnityEngine.Object.FindObjectsOfType<Renderer>();
+                int shown = 0;
+                foreach (Renderer renderer in renderers)
+                {
+                    if (renderer == null) continue;
+                    Material material = null;
+                    try { material = renderer.sharedMaterial; } catch { }
+                    if (material == null) continue;
+                    string texture = "";
+                    try { if (material.mainTexture != null) texture = material.mainTexture.name ?? ""; } catch { }
+                    if (texture.IndexOf("setup_", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    BrandingPlugin.Trace.LogInfo("charge mesh : tex=" + texture + " mat=" + (material.name ?? "?") + " chemin=" + PathOf(renderer.transform, 6));
+                    if (++shown >= 10) break;
+                }
+            }
+            catch { }
+        }
 
         private void DumpLogoOnce(float now)
         {
@@ -2453,6 +2790,119 @@ namespace RecBlueBranding
         private Image[] sweepQueue;
         private int sweepCursor;
         private readonly List<Image> logoCanaries = new List<Image>();
+        private readonly List<Image> shadowCanaries = new List<Image>();
+        private readonly List<Transform> logoRoots = new List<Transform>();
+        private float nextLogoWatch;
+        private float nextLogoWatchLog;
+        private int logoWatchFixes;
+        internal static RawImage LoadingTarget;
+        private static float loadingHiddenAt;
+        private float nextLoadingLog;
+        private readonly HashSet<Transform> shadowScanDone = new HashSet<Transform>();
+
+        private static bool IsBrandShadowSprite(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return false;
+            return IsBrandSprite(name) && name.IndexOf("Shadow", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        // Le jeu superpose au logo un calque d'ombre qui porte la forme du logo Rec Room.
+        // Une fois converti par le balayage, ce calque affiche notre sprite en double et
+        // son contour depasse derriere le logo : on masque tout doublon de la page.
+        // Filet de securite : tant que le panneau du logo vit, on le revalide 5 fois par
+        // seconde. Coute moins d'une milliseconde et couvre les cas que les gardes ne
+        // voient pas (RawImage, sprite pose hors set_sprite).
+        private void WatchLogoRoots(float now)
+        {
+            if (safeMode || titleSprite == null) return;
+            if (now < nextLogoWatch) return;
+            nextLogoWatch = now + 0.2f;
+            for (int i = logoRoots.Count - 1; i >= 0; i--)
+            {
+                Transform root = logoRoots[i];
+                if (root == null) { logoRoots.RemoveAt(i); continue; }
+                Image[] images;
+                try { images = root.GetComponentsInChildren<Image>(true); } catch { continue; }
+                foreach (Image image in images)
+                {
+                    if (image == null) continue;
+                    Sprite current = null;
+                    try { current = image.sprite; } catch { }
+                    string name = "";
+                    if (current != null) { try { name = current.name ?? ""; } catch { } }
+                    if (!IsBrandSprite(name)) continue;
+                    if (IsBrandShadowSprite(name))
+                    {
+                        try { if (image.enabled) { image.enabled = false; logoWatchFixes++; } } catch { }
+                        if (shadowCanaries.Count < 20 && !shadowCanaries.Contains(image)) shadowCanaries.Add(image);
+                        continue;
+                    }
+                    try
+                    {
+                        image.sprite = titleSprite;
+                        image.preserveAspect = true;
+                        logoWatchFixes++;
+                        EnlargeLoginLogo(image);
+                    }
+                    catch { }
+                    if (logoCanaries.Count < 40 && !logoCanaries.Contains(image)) logoCanaries.Add(image);
+                }
+                RawImage[] raws;
+                try { raws = root.GetComponentsInChildren<RawImage>(true); } catch { raws = null; }
+                if (raws == null) continue;
+                foreach (RawImage raw in raws)
+                {
+                    if (raw == null || raw.texture == null) continue;
+                    string textureName = "";
+                    try { textureName = raw.texture.name ?? ""; } catch { }
+                    if (textureName.Length == 0) continue;
+                    if (textureName.IndexOf("RecRoomLogo", StringComparison.OrdinalIgnoreCase) < 0
+                        && textureName.IndexOf("RecRoom_Logo", StringComparison.OrdinalIgnoreCase) < 0
+                        && textureName.IndexOf("Rec Room Logo", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    try { raw.texture = title; logoWatchFixes++; } catch { }
+                }
+            }
+            if (logoWatchFixes > 0 && now >= nextLogoWatchLog)
+            {
+                nextLogoWatchLog = now + 5f;
+                BrandingPlugin.Trace.LogInfo("logo : " + logoWatchFixes + " logo(s) Rec Room intercepte(s) apres reapparition.");
+            }
+        }
+
+        private void HideLogoDuplicates(Image main)
+        {
+            try
+            {
+                Transform root = main.transform;
+                for (int up = 0; up < 3 && root.parent != null; up++) root = root.parent;
+                if (!shadowScanDone.Add(root)) return;
+                if (logoRoots.Count < 4 && !logoRoots.Contains(root)) logoRoots.Add(root);
+                Image[] images = root.GetComponentsInChildren<Image>(true);
+                int hidden = 0;
+                foreach (Image candidate in images)
+                {
+                    if (candidate == null || candidate == main) continue;
+                    bool ours = false;
+                    string spriteName = "";
+                    try
+                    {
+                        ours = candidate.sprite == titleSprite;
+                        if (candidate.sprite != null) spriteName = candidate.sprite.name ?? "";
+                    }
+                    catch { }
+                    if (!ours && !IsBrandShadowSprite(spriteName)) continue;
+                    try
+                    {
+                        if (candidate.enabled) { candidate.enabled = false; hidden++; }
+                        if (shadowCanaries.Count < 20 && !shadowCanaries.Contains(candidate)) shadowCanaries.Add(candidate);
+                    }
+                    catch { }
+                }
+                if (hidden > 0)
+                    BrandingPlugin.Trace.LogInfo("logo : " + hidden + " doublon(s) / ombre(s) du logo masque(s).");
+            }
+            catch { }
+        }
         private int lastLoggedSwapped = -1;
         private int sweepSwapped;
         private bool sweepDeep;
@@ -2474,9 +2924,44 @@ namespace RecBlueBranding
                     System.Diagnostics.Stopwatch scan = System.Diagnostics.Stopwatch.StartNew();
                     try
                     {
-                        sweepQueue = deep
+                        Image[] all = deep
                             ? Resources.FindObjectsOfTypeAll<Image>()
                             : UnityEngine.Object.FindObjectsOfType<Image>();
+                        // Seuls les candidats entrent dans la file : sprite de marque, chemin de
+                        // marque ou grand cadre. Sans ce filtre, la file comptait des centaines
+                        // d'images et mettait plusieurs secondes a atteindre le logo du login :
+                        // il s'affichait entre-temps avec le sprite Rec Room d'origine.
+                        List<Image> kept = new List<Image>(all.Length);
+                        foreach (Image candidate in all)
+                        {
+                            if (candidate == null) continue;
+                            bool keep = false;
+                            Sprite current = null;
+                            try { current = candidate.sprite; } catch { }
+                            if (current != null)
+                            {
+                                string spriteName = "";
+                                try { spriteName = current.name ?? ""; } catch { }
+                                keep = IsBrandSprite(spriteName);
+                                if (!keep)
+                                {
+                                    try
+                                    {
+                                        Texture2D spriteTexture = current.texture;
+                                        keep = spriteTexture != null && LoadingArt.IsLoadingTexture(spriteTexture.name ?? "");
+                                    }
+                                    catch { }
+                                }
+                            }
+                            if (!keep)
+                            {
+                                Rect box = default(Rect);
+                                try { box = candidate.rectTransform.rect; } catch { }
+                                keep = box.width >= 300f && box.height >= 120f;
+                            }
+                            if (keep) kept.Add(candidate);
+                        }
+                        sweepQueue = kept.ToArray();
                     }
                     catch { sweepQueue = new Image[0]; }
                     sweepCursor = 0;
@@ -2499,6 +2984,11 @@ namespace RecBlueBranding
                         {
                             try { name = current.name ?? ""; } catch { name = ""; }
                         }
+                        if (LoadingArt.IsLoadingTexture(name))
+                        {
+                            ApplyLoading(image);
+                            continue;
+                        }
                         bool brand = IsBrandSprite(name);
                         if (!brand)
                         {
@@ -2512,19 +3002,30 @@ namespace RecBlueBranding
                         }
                         if (brand)
                         {
-                            try
+                            if (IsBrandShadowSprite(name))
                             {
-                                image.sprite = titleSprite;
-                                // Le cadre d'origine etait prevu pour un logo large : sans ca
-                                // notre image est estiree et deborde de son emplacement.
-                                image.preserveAspect = true;
-                                sweepSwapped++;
-                                if (logoCanaries.Count < 40 && !logoCanaries.Contains(image)) logoCanaries.Add(image);
-                                // Pas d'agrandissement : x1.8 puis x1.25 ont tous deux ete
-                                // juges trop gros et masquaient le panneau. On garde le cadre
-                                // d'origine du jeu.
+                                // Le jeu garde un calque "ombre" a la forme du logo Rec Room :
+                                // son contour blanc depassait derriere notre logo. On le masque
+                                // au lieu de le remplacer.
+                                try { image.enabled = false; } catch { }
+                                if (shadowCanaries.Count < 20 && !shadowCanaries.Contains(image)) shadowCanaries.Add(image);
                             }
-                            catch { }
+                            else
+                            {
+                                try
+                                {
+                                    image.sprite = titleSprite;
+                                    // Le cadre d'origine etait prevu pour un logo large : sans ca
+                                    // notre image est estiree et deborde de son emplacement.
+                                    image.preserveAspect = true;
+                                    // Meme largeur que le logo Rec Room remplace (login seulement).
+                                    EnlargeLoginLogo(image);
+                                    HideLogoDuplicates(image);
+                                    sweepSwapped++;
+                                    if (logoCanaries.Count < 40 && !logoCanaries.Contains(image)) logoCanaries.Add(image);
+                                }
+                                catch { }
+                            }
                         }
                     }
                     // La passe profonde arrive pendant le chargement : elle doit finir tant que
@@ -2568,6 +3069,29 @@ namespace RecBlueBranding
                         BrandingPlugin.Trace.LogInfo("marque : " + rawsDone + " texture(s) de logo remplacee(s).");
                 }
                 catch { }
+                // Visuels de campagne des ecrans de chargement (setup_..._2560x1440).
+                try
+                {
+                    RawImage[] tips = UnityEngine.Object.FindObjectsOfType<RawImage>();
+                    int tipsDone = 0;
+                    foreach (RawImage raw in tips)
+                    {
+                        if (raw == null || raw.texture == null) continue;
+                        string textureName = "";
+                        try { textureName = raw.texture.name ?? ""; } catch { }
+                        if (!LoadingArt.IsLoadingTexture(textureName) && !IsLoadingBackground(raw)) continue;
+                        Texture2D replacement = LoadingArt.TextureFor(raw.GetInstanceID());
+                        if (replacement == null) continue;
+                        try { raw.texture = replacement; raw.uvRect = new Rect(0f, 0f, 1f, 1f); tipsDone++; } catch { }
+                        LoadingTarget = raw;
+                    }
+                    if (tipsDone > 0 && Time.realtimeSinceStartup >= nextLoadingLog)
+                    {
+                        nextLoadingLog = Time.realtimeSinceStartup + 5f;
+                        BrandingPlugin.Trace.LogInfo("chargement : " + tipsDone + " image(s) d'ecran de chargement remplacee(s).");
+                    }
+                }
+                catch { }
                 sweepQueue = null;
             }
             catch { sweepQueue = null; }
@@ -2602,12 +3126,183 @@ namespace RecBlueBranding
                 || p.Contains("image - change icon here");
         }
 
+        // Le logo du login vit sous un panneau "TitleScreen..." / "Cached Account".
+        // L'ecran de chargement ("Title Loading Screen") et les splashs sont exclus : eux
+        // ont deja la bonne taille et un agrandissement masquerait le panneau.
+        private static bool IsLoginLogoPath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+            string p = path.ToLowerInvariant();
+            if (p.Contains("loading") || p.Contains("splash")) return false;
+            return p.Contains("titlescreen")
+                || p.Contains("title screen")
+                || p.Contains("cached account")
+                || p.Contains("login");
+        }
+
+        private static bool IsLoadingLogoPath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+            string p = path.ToLowerInvariant();
+            return p.Contains("loading") || p.Contains("splash");
+        }
+
+        // Applique l'echelle du logo Rec Room d'origine, une seule fois par objet. Le logo
+        // du login arrive apres le chargement (~10 s) : passe 9 s, tout logo qui n'est ni
+        // un chargement ni un splash est celui du login.
+        private void EnlargeLoginLogo(Image image)
+        {
+            if (image == null) return;
+            Transform t = null;
+            try { t = image.transform; } catch { return; }
+            if (t == null) return;
+            string path = PathOf(t, 6);
+            bool login = IsLoginLogoPath(path)
+                || (!IsLoadingLogoPath(path) && Time.realtimeSinceStartup > 9f);
+            if (!login) return;
+            Vector3 baseScale;
+            if (!logoBaseScales.TryGetValue(t, out baseScale))
+            {
+                baseScale = t.localScale;
+                logoBaseScales[t] = baseScale;
+            }
+            Vector3 target = baseScale * LoginLogoScale;
+            if ((t.localScale - target).sqrMagnitude <= 0.000001f) return;
+            t.localScale = target;
+            if (!loginScaleLogged)
+            {
+                loginScaleLogged = true;
+                BrandingPlugin.Trace.LogInfo("logo login : taille Rec Room x" + LoginLogoScale.ToString("0.000") + " (" + path + ")");
+            }
+        }
+
+        // Appele avant chaque affectation de sprite : le logo Rec Room n'est jamais pose.
+        internal static void GuardSprite(Image image, ref Sprite value)
+        {
+            if (safeMode || value == null) return;
+            string name;
+            try { name = value.name ?? ""; } catch { return; }
+            if (LoadingArt.IsLoadingTexture(name) || IsLoadingSpriteValue(value))
+            {
+                Sprite loading = LoadingArt.PickFor(image.GetInstanceID());
+                if (loading != null) { value = loading; try { image.preserveAspect = false; } catch { } }
+                return;
+            }
+            if (!IsBrandSprite(name)) return;
+            if (IsBrandShadowSprite(name))
+            {
+                try { image.enabled = false; } catch { }
+                value = null;
+                return;
+            }
+            if (titleSprite == null) return;
+            value = titleSprite;
+            try { image.preserveAspect = true; } catch { }
+        }
+
+        // Appele a l'activation : couvre les sprites poses par les donnees du prefab.
+        internal static void GuardExisting(Image image)
+        {
+            if (safeMode || image == null) return;
+            Sprite current;
+            try { current = image.sprite; } catch { return; }
+            if (current == null) return;
+            string name;
+            try { name = current.name ?? ""; } catch { return; }
+            if (LoadingArt.IsLoadingTexture(name) || IsLoadingSpriteValue(current))
+            {
+                Sprite loading = LoadingArt.PickFor(image.GetInstanceID());
+                if (loading != null) { try { image.sprite = loading; image.preserveAspect = false; } catch { } }
+                return;
+            }
+            if (!IsBrandSprite(name)) return;
+            if (IsBrandShadowSprite(name))
+            {
+                try { image.enabled = false; } catch { }
+                return;
+            }
+            if (titleSprite == null) return;
+            try { image.sprite = titleSprite; image.preserveAspect = true; } catch { }
+        }
+
+        private static bool IsLoadingSpriteValue(Sprite sprite)
+        {
+            if (sprite == null) return false;
+            string name = "";
+            try { name = sprite.name ?? ""; } catch { }
+            if (LoadingArt.IsLoadingTexture(name)) return true;
+            try
+            {
+                Texture2D texture = sprite.texture;
+                if (texture != null && LoadingArt.IsLoadingTexture(texture.name ?? "")) return true;
+            }
+            catch { }
+            return false;
+        }
+
+        internal static void GuardTexture(RawImage raw, ref Texture value)
+        {
+            if (safeMode || value == null) return;
+            string name = "";
+            try { name = value.name ?? ""; } catch { return; }
+            if (!LoadingArt.IsLoadingTexture(name) && !IsLoadingBackground(raw)) return;
+            Texture2D replacement = LoadingArt.TextureFor(raw.GetInstanceID());
+            if (replacement == null) return;
+            value = replacement;
+            LoadingTarget = raw;
+            try { raw.uvRect = new Rect(0f, 0f, 1f, 1f); } catch { }
+        }
+
+        private static bool IsLoadingBackground(RawImage raw)
+        {
+            try
+            {
+                string path = PathOf(raw.transform, 8).ToLowerInvariant();
+                return path.Contains("[loadingscreen]") && path.Contains("backgroundimage");
+            }
+            catch { return false; }
+        }
+
+        private static void ApplyLoading(Image image)
+        {
+            Sprite sprite = LoadingArt.PickFor(image.GetInstanceID());
+            if (sprite == null) return;
+            try { image.sprite = sprite; image.preserveAspect = false; } catch { }
+        }
+
         private static bool IsBrandSprite(string name)
         {
             if (string.IsNullOrEmpty(name) || name == "RecBlueTitle") return false;
             foreach (string target in LogoSprites)
                 if (name.StartsWith(target, StringComparison.OrdinalIgnoreCase)) return true;
             return false;
+        }
+
+        // Le jeu reaffecte sa texture de chargement apres notre passe : on impose la notre
+        // en fin de frame, juste avant le rendu, tant que l'ecran est affiche.
+        private void LateUpdate()
+        {
+            RawImage target = LoadingTarget;
+            if (safeMode || target == null) return;
+            try
+            {
+                if (!target.isActiveAndEnabled)
+                {
+                    if (loadingHiddenAt == 0f) loadingHiddenAt = Time.realtimeSinceStartup;
+                    else if (Time.realtimeSinceStartup - loadingHiddenAt > 1f)
+                    {
+                        LoadingTarget = null;
+                        loadingHiddenAt = 0f;
+                        LoadingArt.ResetCycle();
+                    }
+                    return;
+                }
+                loadingHiddenAt = 0f;
+                Texture2D wanted = LoadingArt.TextureFor(target.GetInstanceID());
+                if (wanted == null) return;
+                if (target.texture != wanted) target.texture = wanted;
+            }
+            catch { LoadingTarget = null; }
         }
 
         private void Update()
@@ -2637,6 +3332,7 @@ namespace RecBlueBranding
                 ReadMode();
                 if (!safeMode) Prepare();
 
+
                 // Diagnostic A/B : si le marqueur existe, les passes s'arretent apres 45 s
                 // mais la sonde de fps continue. On mesure ainsi le cout reel du plugin
                 // dans la meme piece, au lieu de comparer deux ecrans differents.
@@ -2662,11 +3358,13 @@ namespace RecBlueBranding
                 // revenait jusqu'a la passe de securite (30 s plus tard).
                 ApplyPerf();
                 CheckCanaries(now);
+                WatchLogoRoots(now);
                 QualityGuard.Enforce(BrandingPlugin.Trace, now);
                 CheckSelection();
                 if (age < 8f) RequestPaint(2f);
                 PaintSlice();
                 DumpLogoOnce(now);
+                DumpLoadingOnce(now);
 
 
                 if (!sceneHooked)

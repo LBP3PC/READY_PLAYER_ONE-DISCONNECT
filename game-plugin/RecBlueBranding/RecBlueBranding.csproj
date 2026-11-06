@@ -25,4 +25,7 @@
     <Reference Include="Unity.TextMeshPro"><HintPath>$(BepInEx)\interop\Unity.TextMeshPro.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.TextRenderingModule"><HintPath>$(BepInEx)\interop\UnityEngine.TextRenderingModule.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="DefaultLoading.png"><LogicalName>RecBlueLoadingDefault.png</LogicalName></EmbeddedResource>
+  </ItemGroup>
 </Project>
