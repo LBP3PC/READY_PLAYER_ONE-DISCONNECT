@@ -2360,6 +2360,76 @@ namespace RecBlueBranding
             catch (Exception error) { BrandingPlugin.Trace.LogWarning("login : " + error.Message); }
         }
 
+        // Diagnostic : liste les grands elements d'image de l'ecran courant (nom du sprite,
+        // de la texture, chemin d'objets) pour retrouver le logo du login et du chargement.
+        // Ne s'execute que si RECBLUE_DUMP_LOGOS.txt existe dans plugins.
+        private bool logoScreenDumped;
+        private float nextLogoDumpAt;
+        private int logoDumpPass;
+
+        private void DumpLogoOnce(float now)
+        {
+            if (logoScreenDumped) return;
+            try { if (!System.IO.File.Exists("C:/RecRoom2023/BepInEx/plugins/RECBLUE_DUMP_LOGOS.txt")) return; } catch { return; }
+            if (now < nextLogoDumpAt) return;
+            nextLogoDumpAt = now + 5f;
+            if (logoDumpPass >= 12) { logoScreenDumped = true; return; }
+            logoDumpPass++;
+            BrandingPlugin.Trace.LogInfo("diag logo : --- passe " + logoDumpPass + " (" + Mathf.RoundToInt(now - startedAt) + " s)");
+            try
+            {
+                Image[] images = UnityEngine.Object.FindObjectsOfType<Image>();
+                int shown = 0;
+                foreach (Image image in images)
+                {
+                    if (image == null) continue;
+                    Rect rect;
+                    try { rect = image.rectTransform.rect; } catch { continue; }
+                    string path = PathOf(image.transform, 5);
+                    string lower = path.ToLowerInvariant();
+                    bool boot = lower.Contains("bootui") || lower.Contains("title loading screen");
+                    if (!boot && (rect.width < 150f || rect.height < 60f)) continue;
+                    Sprite sprite = null;
+                    try { sprite = image.sprite; } catch { }
+                    string spriteName = "aucun";
+                    string textureName = "aucune";
+                    if (sprite != null)
+                    {
+                        try { spriteName = sprite.name ?? "?"; } catch { }
+                        try { textureName = sprite.texture != null ? (sprite.texture.name ?? "?") : "?"; } catch { }
+                    }
+                    BrandingPlugin.Trace.LogInfo("diag logo : " + Mathf.RoundToInt(rect.width) + "x" + Mathf.RoundToInt(rect.height) + " sprite=" + spriteName + " tex=" + textureName + " chemin=" + path);
+                    if (++shown >= 25) break;
+                }
+            }
+            catch { }
+            try
+            {
+                RawImage[] raws = UnityEngine.Object.FindObjectsOfType<RawImage>();
+                int shownRaw = 0;
+                foreach (RawImage raw in raws)
+                {
+                    if (raw == null) continue;
+                    Rect rect;
+                    try { rect = raw.rectTransform.rect; } catch { continue; }
+                    if (rect.width < 150f || rect.height < 60f) continue;
+                    string tex = "aucune";
+                    try { tex = raw.texture != null ? (raw.texture.name ?? "?") : "aucune"; } catch { }
+                    string path = "";
+                    try
+                    {
+                        Transform t = raw.transform;
+                        int guard = 0;
+                        while (t != null && guard++ < 4) { path = t.name + "/" + path; t = t.parent; }
+                    }
+                    catch { }
+                    BrandingPlugin.Trace.LogInfo("diag logo : " + Mathf.RoundToInt(rect.width) + "x" + Mathf.RoundToInt(rect.height) + " raw tex=" + tex + " chemin=" + path);
+                    if (++shownRaw >= 10) break;
+                }
+            }
+            catch { }
+        }
+
         // Une passe de logo est decoupee : la liste est gardee entre les frames et
         // parcourue par tranches de 0,30 ms. La passe complete coutait 170 ms d'un coup,
         // ce qui se voyait comme un gel a chaque nouvelle image du jeu.
@@ -2410,7 +2480,18 @@ namespace RecBlueBranding
                         {
                             try { name = current.name ?? ""; } catch { name = ""; }
                         }
-                        if (IsBrandSprite(name))
+                        bool brand = IsBrandSprite(name);
+                        if (!brand)
+                        {
+                            // Le logo du login et celui du chargement ne portent pas toujours un
+                            // sprite au nom attendu : sur une image assez grande pour etre un
+                            // logo, on regarde aussi le nom des objets au-dessus d'elle.
+                            Rect box = default(Rect);
+                            try { box = image.rectTransform.rect; } catch { }
+                            if (box.width >= 300f && box.height >= 120f)
+                                brand = IsBrandPath(PathOf(image.transform, 5));
+                        }
+                        if (brand)
                         {
                             try
                             {
@@ -2442,9 +2523,57 @@ namespace RecBlueBranding
                     titleSwapped = true;
                     BrandingPlugin.Trace.LogInfo("marque : " + sweepSwapped + " sprite(s) remplace(s).");
                 }
+                // Certains logos passent par une RawImage (texture et non sprite) : on leur
+                // substitue la planche du titre pour ne pas laisser un logo orange.
+                try
+                {
+                    RawImage[] raws = UnityEngine.Object.FindObjectsOfType<RawImage>();
+                    int rawsDone = 0;
+                    foreach (RawImage raw in raws)
+                    {
+                        if (raw == null) continue;
+                        Rect box = default(Rect);
+                        try { box = raw.rectTransform.rect; } catch { }
+                        if (box.width < 300f || box.height < 120f) continue;
+                        if (!IsBrandPath(PathOf(raw.transform, 5))) continue;
+                        try { raw.texture = title; rawsDone++; } catch { }
+                    }
+                    if (rawsDone > 0)
+                        BrandingPlugin.Trace.LogInfo("marque : " + rawsDone + " texture(s) de logo remplacee(s).");
+                }
+                catch { }
                 sweepQueue = null;
             }
             catch { sweepQueue = null; }
+        }
+
+        // Chemin des objets au-dessus d'un element, borne en profondeur : sert a
+        // reconnaitre les logos dont le sprite n'a pas un nom parlant.
+        private static string PathOf(Transform start, int depth)
+        {
+            string path = "";
+            try
+            {
+                Transform t = start;
+                int guard = 0;
+                while (t != null && guard++ < depth)
+                {
+                    string n = t.name ?? "?";
+                    path = n + "/" + path;
+                    t = t.parent;
+                }
+            }
+            catch { }
+            return path;
+        }
+
+        private static bool IsBrandPath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+            string p = path.ToLowerInvariant();
+            return p.Contains("rec room logo")
+                || p.Contains("recroomlogo")
+                || p.Contains("image - change icon here");
         }
 
         private static bool IsBrandSprite(string name)
@@ -2511,6 +2640,7 @@ namespace RecBlueBranding
                 CheckSelection();
                 if (age < 8f) RequestPaint(2f);
                 PaintSlice();
+                DumpLogoOnce(now);
 
 
                 if (!sceneHooked)
@@ -2536,6 +2666,9 @@ namespace RecBlueBranding
                         burstUntil = now + 8f;
                         // Nouveau panneau : on repeint tout de suite ses textes.
                         RequestPaint(4f);
+                        // Nouvel ecran : on relance la passe de logo sans attendre le balayage
+                        // suivant (20 s), sinon le logo du jeu reste visible tout ce temps.
+                        if (now - lastSweepAt >= 2f) nextSweep = now;
                         // On ne repousse plus la passe : chaque canvas qui apparait la repoussait
                         // de 1,5 s et le balayage n'etait jamais execute (titre jamais pose).
                         // Le plancher de 8 s entre deux passes suffit a eviter les rafales.

@@ -24,6 +24,12 @@ Les sprites dont le nom commence par `RecRoomLogo`, `RecRoom_Logo`,
 l'image embarquée `RecBlueTitle.png` (`1673x935`, contour blanc, fond transparent).
 Le cadre d'origine est conservé (`preserveAspect = true`), sans agrandissement.
 
+Le logo est aussi reconnu par le **nom des objets** quand le sprite n'a pas un nom
+parlant : `[Icon] Rec Room Logo / Image - Change Icon Here`, sur l'écran de login comme
+sur l'écran de chargement (`Title Loading Screen`). Une `RawImage` de logo, si elle
+existe, reçoit directement la texture du titre. Le remplacement est relancé dès qu'un
+nouvel écran apparaît, donc le logo du jeu ne reste pas visible 20 s.
+
 Journal : `titre REC BLUE charge : <largeur>x<hauteur>` puis
 `marque : N sprite(s) remplace(s).`
 
