@@ -418,6 +418,35 @@
       await refreshAccount();
     } catch (error) { announce(error.message); }
   }
+  // ---- Mot de passe oublié ----------------------------------------------------
+  // Le lien part vers l’adresse enregistrée sur le compte : un compte créé avec un seul
+  // pseudo porte une adresse technique qui ne reçoit rien, d’où le renvoi vers Mon compte
+  // pour en ajouter une.
+  const forgotForm = byId('account-forgot');
+  byId('forgot-open')?.addEventListener('click', () => {
+    if (!forgotForm) return;
+    forgotForm.hidden = false;
+    byId('account-login').hidden = true;
+    byId('forgot-email').focus();
+  });
+  byId('forgot-cancel')?.addEventListener('click', () => {
+    if (!forgotForm) return;
+    forgotForm.hidden = true;
+    byId('account-login').hidden = false;
+  });
+  forgotForm?.addEventListener('submit', event => {
+    event.preventDefault();
+    run(byId('forgot-submit'), async () => {
+      const email = byId('forgot-email').value.trim().toLowerCase();
+      if (!email.includes('@')) throw new Error('Indiquez l’adresse email enregistrée sur le compte.');
+      const { error } = await client.auth.resetPasswordForEmail(email, {
+        redirectTo: (config?.siteOrigin || 'https://recblue.net') + '/compte.html?reset=1'
+      });
+      if (error) throw error;
+      announce('Si un compte utilise ' + email + ', un lien de réinitialisation vient de partir. Vérifiez aussi les indésirables.');
+    });
+  });
+
   byId('account-login').addEventListener('submit', event => {
     event.preventDefault();
     run(byId('login-submit'), async () => {

@@ -549,20 +549,8 @@
   byId('music').addEventListener('change', () => { savePref('recblue.musicOff', String(!byId('music').checked)); say(byId('music').checked ? 'Musique activée sur ce navigateur.' : 'Musique désactivée sur ce navigateur.'); });
   byId('pings').addEventListener('change', () => { savePref('recblue.updatePings', String(byId('pings').checked)); say('Préférence de notifications enregistrée.'); });
 
-  byId('reset-request').addEventListener('submit', event => {
-    event.preventDefault();
-    guard(event.submitter, async () => {
-      const pseudo = byId('reset-pseudo').value.trim().toLowerCase();
-      const email = byId('reset-email').value.trim().toLowerCase();
-      const message = byId('reset-message').value.trim();
-      if (!PSEUDO_PATTERN.test(pseudo)) throw new Error('Pseudo invalide : 3 à 20 lettres, chiffres, tiret ou souligné.');
-      if (email && !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(email)) throw new Error('Adresse email de contact invalide.');
-      const { error } = await client.from('recblue_reset_requests').insert({ pseudo, contact_email: email || null, message: message || null });
-      if (error) throw new Error('Demande non envoyée : ' + (error.message || 'réessayez plus tard.'));
-      byId('reset-request').reset();
-      say('Demande envoyée : un administrateur réinitialisera votre mot de passe.');
-    });
-  });
+
+
   async function loadResetRequests() {
     const { data, error } = await client.from('recblue_reset_requests').select('id,pseudo,contact_email,message,created_at').eq('status', 'nouveau').order('created_at', { ascending: true }).limit(50);
     if (error) throw error;
@@ -701,18 +689,94 @@
     await loadProfile();
   }));
 
+  // ---- Mot de passe oublié ----------------------------------------------------
+  // Un compte créé avec un pseudo porte une adresse technique (.invalid) qui ne reçoit
+  // rien : le lien de réinitialisation ne peut donc partir que vers une vraie adresse,
+  // enregistrée ici depuis Mon compte (confirmation Supabase) ou à l’inscription.
+  byId('reset-request')?.addEventListener('submit', event => {
+    event.preventDefault();
+    guard(event.target.querySelector('button[type="submit"]'), async () => {
+      if (!client) throw new Error('Service de comptes indisponible.');
+      const email = byId('reset-email').value.trim().toLowerCase();
+      if (!email.includes('@')) throw new Error('Indiquez l’adresse email enregistrée sur le compte.');
+      const { error } = await client.auth.resetPasswordForEmail(email, {
+        redirectTo: (config?.siteOrigin || 'https://recblue.net') + location.pathname + '?reset=1'
+      });
+      if (error) throw error;
+      say('Si un compte utilise ' + email + ', un lien de réinitialisation vient de partir. Pensez à regarder les indésirables.');
+      byId('reset-request').reset();
+    });
+  });
+
+  // Retour depuis le lien de réinitialisation : le jeton de récupération ouvre une session,
+  // on propose donc le nouveau mot de passe, puis on se reconnecte avec.
+  byId('reset-apply-form')?.addEventListener('submit', event => {
+    event.preventDefault();
+    guard(event.target.querySelector('button[type="submit"]'), async () => {
+      if (!client) throw new Error('Service de comptes indisponible.');
+      const password = byId('reset-pw').value;
+      if (password.length < 12) throw new Error('12 caractères minimum pour le nouveau mot de passe.');
+      const { error } = await client.auth.updateUser({ password });
+      if (error) throw error;
+      byId('reset-pw').value = '';
+      say('Mot de passe enregistré : vous pouvez vous connecter avec le nouveau.');
+      document.getElementById('reset-apply').hidden = true;
+      await loadProfile();
+    });
+  });
+
+  // Adresse de récupération : c’est l’adresse de connexion du compte, donc celle que
+  // Supabase utilise pour le lien « mot de passe oublié ».
+  byId('recovery-email')?.addEventListener('submit', event => {
+    event.preventDefault();
+    guard(event.target.querySelector('button[type="submit"]'), async () => {
+      if (!client) throw new Error('Service de comptes indisponible.');
+      const email = byId('recovery-email-input').value.trim().toLowerCase();
+      if (!email.includes('@')) throw new Error('Indiquez une adresse email valide.');
+      const { error } = await client.auth.updateUser({ email });
+      if (error) throw error;
+      say('Adresse de récupération enregistrée : une confirmation part vers ' + email + '. Cliquez son lien pour l’activer.');
+    });
+  });
+
+  function showResetCard() {
+    const card = document.getElementById('reset-apply');
+    if (!card) return;
+    card.hidden = false;
+    card.scrollIntoView({ block: 'start' });
+  }
+
   async function init() {
     if (!config?.supabaseUrl || !config?.publishableKey) { say('Service de comptes non configuré.'); return; }
+    // Un ancien lien (ou une demande faite depuis un apercu) peut arriver sur un autre
+    // domaine : on repart sur le vrai site en conservant le jeton du lien.
+    const canonique = new URL(config.siteOrigin || 'https://recblue.net');
+    const jeton = /(?:access_token=|type=recovery)/.test(location.hash);
+    const local = /^(localhost|127.0.0.1|[::1])$/.test(location.hostname);
+    if (jeton && !local && location.hostname !== canonique.hostname) {
+      location.replace(canonique.origin + '/compte.html' + location.hash);
+      return;
+    }
     try {
       const url = new URL(config.supabaseUrl);
       if (url.protocol !== 'https:' || !/^[a-z0-9-]+\.supabase\.co$/i.test(url.hostname) || !/^(sb_publishable_|eyJ)/.test(config.publishableKey)) throw new Error('Configuration Supabase invalide.');
       if (!window.supabase?.createClient) throw new Error('Service de comptes indisponible.');
       client = window.supabase.createClient(url.href, config.publishableKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
-      client.auth.onAuthStateChange(() => { loadProfile().catch(() => say('Session non vérifiée.')); });
+      client.auth.onAuthStateChange((event) => {
+        // Retour du lien email : Supabase ouvre une session de recuperation.
+        if (event === 'PASSWORD_RECOVERY') showResetCard();
+        loadProfile().catch(() => say('Session non vérifiée.'));
+      });
       byId('lang').value = readPref('recblue.language', 'fr');
       byId('music').checked = readPref('recblue.musicOff', 'false') !== 'true';
       byId('pings').checked = readPref('recblue.updatePings', 'false') === 'true';
       await loadProfile();
+      // Retour depuis le lien de réinitialisation : la carte « nouveau mot de passe »
+      // s’affiche au-dessus, que la session de récupération soit ouverte ou non.
+      if (new URLSearchParams(location.search).get('reset') === '1' || /type=recovery/.test(location.hash)) {
+        showResetCard();
+        say('Lien de réinitialisation reconnu : choisissez votre nouveau mot de passe.');
+      }
     } catch (error) { say(error.message); }
   }
   init();

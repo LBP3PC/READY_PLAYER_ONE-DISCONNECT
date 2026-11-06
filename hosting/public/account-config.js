@@ -4,6 +4,9 @@
 // projet (« Invalid API key ») : la connexion et l'inscription utilisent donc la
 // clé anon historique, qui fonctionne.
 window.RECBLUE_ACCOUNTS = Object.freeze({
+  // Adresse officielle : le lien de réinitialisation doit toujours y revenir, même si
+  // la demande a été faite depuis un aperçu (Vercel, www, préversion Cloudflare).
+  siteOrigin: 'https://recblue.net',
   supabaseUrl: 'https://nnftdqrbagynbblthkfg.supabase.co',
   publishableKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZnRkcXJiYWd5bmJibHRoa2ZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM3MDA5OTEsImV4cCI6MjEwOTI3Njk5MX0.JHTNOWkI9DY1xhU8PKco4KqxsIxp_-IsSZL211NGEE8'
 });

@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+<script>
+    // Un lien de reinitialisation ouvert sur l'apercu doit revenir au vrai site.
+    if (/(?:access_token=|type=recovery)/.test(location.hash) && location.hostname !== 'recblue.net') {
+      location.replace('https://recblue.net/compte.html' + location.hash);
+    }
+  </script>
+
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#004cff">
