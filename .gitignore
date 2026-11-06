@@ -18,3 +18,8 @@ badges-agrandis-2.png
 hosting/public/download/REC-BLUE-Launcher.exe
 hosting/public/download/rec-blue/
 hosting/public/download/*.log
+
+# Sorties de compilation du plugin BepInEx (regenerables, jamais versionnees)
+game-plugin/**/bin/
+game-plugin/**/obj/
+game-plugin/**/*.bak
