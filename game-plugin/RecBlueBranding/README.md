@@ -46,12 +46,19 @@ Journal : `teintes : N element(s) passe(s) en bleu`, `textes 3D : N`.
 | Réglage | Valeur posée | Effet |
 | --- | --- | --- |
 | `QualitySettings.vSyncCount` | `0` | pas de synchronisation verticale |
-| `Application.targetFrameRate` | `-1` | pas de plafond d'images |
-| `QualitySettings.maxQueuedFrames` | `1` | une seule image en file (latence) |
+| `Application.targetFrameRate` | fréquence de l'écran (`240` ici) | plafond calé sur l'affichage, pas au-delà |
+| `QualitySettings.maxQueuedFrames` | `2` (valeur du moteur) | pipeline CPU/GPU non bloqué |
 | priorité du processus | `High` | priorité Windows |
 
-Journal : `perf : vsync X -> 0`, `perf : plafond fps X -> illimite`,
-`perf : maxQueuedFrames 1`, `perf : priorite process = High`.
+Journal : `perf : vsync X -> 0`, `perf : plafond fps illimite -> 240 (ecran 240 Hz)`,
+`perf : maxQueuedFrames 1 -> 2 (pipeline)`, `perf : priorite process = High`,
+`perf : priorite remise a High (le jeu l'avait baissee)`.
+
+Aucune passe ne bloque une frame : la recherche du logo est parcourue par tranches de
+0,30 ms (avec une seule passe profonde, pendant le chargement, parce que les gabarits
+inactifs portent le sprite d'origine), la teinte travaille avec le même budget, et les
+énumérations en régime normal ne portent que sur les objets actifs. Une énumération ou
+un bloc de balayage qui dépasse 20 ms est signalé dans le journal.
 
 À noter : le plugin expose aussi une sonde `fpsprobe` (`N fps | pire frame X ms |
 frames lentes Y`) sur une vingtaine d'échantillons de 5 s, pour mesurer sans supposer.
@@ -122,15 +129,16 @@ les couleurs du login restent ceux du jeu.
 Lignes attendues au lancement :
 
 ```
-REC BLUE 2.5.0 : plugin charge (vsync off, plafond off, priorite high).
+REC BLUE 2.6.0 : plugin charge (vsync off, plafond ecran, priorite high).
 console : filtre reseau actif.
 qualite : verrouillee (ombres=All, AA=4, mip=0, LOD=2,0, lumieres=4, 2560x1440)
 titre REC BLUE charge : 1673x935
 marque : 4 sprite(s) remplace(s).
 reglage : mode=branding (textures=False, planches<=512 px)
-perf : maxQueuedFrames 1
+perf : maxQueuedFrames 1 -> 2 (pipeline)
 perf : priorite process = High
 perf : vsync 1 -> 0
+perf : plafond fps illimite -> 240 (ecran 240 Hz)
 surveillance : veille active (salve a chaque changement d'ecran, passe de securite toutes les 30 s).
 ```
 

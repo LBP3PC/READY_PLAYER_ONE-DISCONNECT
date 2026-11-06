@@ -16,7 +16,7 @@ namespace RecBlueBranding
     // - bleu : palette RRUI + teintes runtime (Graphic.color, ColorBlock) + recoloration
     //   des TEXTURES orange (c'est la que vivaient le bouton JOUER et le fond a motifs).
     // Tout le travail est fait une seule fois au demarrage, puis le plugin se desactive.
-    [BepInPlugin("net.recblue.branding", "REC BLUE - marque du jeu", "2.5.0")]
+    [BepInPlugin("net.recblue.branding", "REC BLUE - marque du jeu", "2.6.0")]
     public class BrandingPlugin : BasePlugin
     {
         internal static ManualLogSource Trace;
@@ -26,7 +26,7 @@ namespace RecBlueBranding
             Trace = Log;
             QuietConsole.Install(Log);
             QualityGuard.Capture(Log);
-            Log.LogInfo("REC BLUE 2.5.0 : plugin charge (vsync off, plafond off, priorite high).");
+            Log.LogInfo("REC BLUE 2.6.0 : plugin charge (vsync off, plafond ecran, priorite high).");
             AddComponent<BrandingScan>();
             AddComponent<FpsProbe>();
         }
@@ -444,19 +444,26 @@ namespace RecBlueBranding
 
         // ---------------------------------------------------------------- perf
         private static bool perfPriorityDone;
+        private static float nextPerfAt;
 
         private void ApplyPerf()
         {
+            // Le jeu remet parfois ses propres reglages (priorite, cadence) : on verifie
+            // regulierement, sans ouvrir un handle de processus a chaque image.
+            float now = Time.realtimeSinceStartup;
+            if (now < nextPerfAt) return;
+            nextPerfAt = now + 5f;
             try
             {
-                // Une seule frame en file : supprime une latence d'image et des a-coups
-                // sur les changements de scene.
+                // maxQueuedFrames n'est plus force a 1 : avec une seule image en file,
+                // le CPU attend le GPU a chaque image et la cadence plafonne. On remet
+                // la valeur par defaut du moteur (2) si une ancienne build l'avait laissee.
                 try
                 {
-                    if (QualitySettings.maxQueuedFrames != 1)
+                    if (QualitySettings.maxQueuedFrames == 1)
                     {
-                        QualitySettings.maxQueuedFrames = 1;
-                        BrandingPlugin.Trace.LogInfo("perf : maxQueuedFrames 1");
+                        QualitySettings.maxQueuedFrames = 2;
+                        BrandingPlugin.Trace.LogInfo("perf : maxQueuedFrames 1 -> 2 (pipeline)");
                     }
                 }
                 catch { }
@@ -469,24 +476,42 @@ namespace RecBlueBranding
             catch { }
             try
             {
-                if (Application.targetFrameRate != -1)
+                // Plafond = frequence de l'ecran. Au-dela, le GPU fabrique des images que
+                // l'ecran ne montre pas : chaleur et tearing sans fluidite en plus.
+                int cap = ScreenCap();
+                if (cap > 0 && Application.targetFrameRate != cap)
                 {
-                    BrandingPlugin.Trace.LogInfo("perf : plafond fps " + Application.targetFrameRate + " -> illimite");
-                    Application.targetFrameRate = -1;
+                    BrandingPlugin.Trace.LogInfo("perf : plafond fps " + (Application.targetFrameRate < 0 ? "illimite" : Application.targetFrameRate.ToString()) + " -> " + cap + " (ecran " + cap + " Hz)");
+                    Application.targetFrameRate = cap;
                 }
             }
             catch { }
-            if (!perfPriorityDone)
+            try
             {
-                perfPriorityDone = true;
-                try
+                // Le client remet sa priorite a Normal apres son initialisation : on la
+                // remonte des qu'elle a bouge, sinon le gain ne tient pas la session.
+                System.Diagnostics.Process current = System.Diagnostics.Process.GetCurrentProcess();
+                if (current.PriorityClass != System.Diagnostics.ProcessPriorityClass.High)
                 {
-                    System.Diagnostics.Process current = System.Diagnostics.Process.GetCurrentProcess();
                     current.PriorityClass = System.Diagnostics.ProcessPriorityClass.High;
-                    BrandingPlugin.Trace.LogInfo("perf : priorite process = High");
+                    if (!perfPriorityDone)
+                        BrandingPlugin.Trace.LogInfo("perf : priorite process = High");
+                    else
+                        BrandingPlugin.Trace.LogInfo("perf : priorite remise a High (le jeu l'avait baissee)");
+                    perfPriorityDone = true;
                 }
-                catch (Exception error) { BrandingPlugin.Trace.LogWarning("perf : priorite refusee (" + error.Message + ")"); }
             }
+            catch (Exception error) { if (!perfPriorityDone) BrandingPlugin.Trace.LogWarning("perf : priorite refusee (" + error.Message + ")"); }
+        }
+
+        // Frequence de l'ecran, relue a chaque passage : un changement d'affichage
+        // (casque, moniteur secondaire, mode fenetre) doit se refleter dans le plafond.
+        private static int ScreenCap()
+        {
+            int hz = 0;
+            try { hz = Screen.currentResolution.refreshRate; } catch { }
+            if (hz < 30 || hz > 500) hz = 0;
+            return hz;
         }
 
         // ---------------------------------------------------------------- couleurs
@@ -1035,7 +1060,12 @@ namespace RecBlueBranding
             {
                 nextGraphicsRefresh = now + 8f;
                 frameRefresh = true;
-                try { paintGraphics = Resources.FindObjectsOfTypeAll<Graphic>(); } catch { paintGraphics = new Graphic[0]; }
+                // Objets actifs uniquement : Resources.FindObjectsOfTypeAll parcourt aussi tous
+                // les gabarits charges en memoire et a ete mesure a 2,3 s de gel.
+                System.Diagnostics.Stopwatch scan = System.Diagnostics.Stopwatch.StartNew();
+                try { paintGraphics = UnityEngine.Object.FindObjectsOfType<Graphic>(); } catch { paintGraphics = new Graphic[0]; }
+                if (scan.ElapsedMilliseconds >= 20)
+                    BrandingPlugin.Trace.LogInfo("perf : enumeration graphic " + scan.ElapsedMilliseconds + " ms (" + paintGraphics.Length + " objets)");
                 // On isole les textes une fois pour toutes : ils sont peu nombreux et ce sont
                 // eux que l'on veut bleus.
                 textGraphics.Clear();
@@ -2027,7 +2057,9 @@ namespace RecBlueBranding
             if (languageMoved4) return;
             try
             {
-                Image[] images = Resources.FindObjectsOfTypeAll<Image>();
+                // Objets actifs seulement : la liste complete des images chargees coutait
+                // plus de 100 ms et bloquait une frame a chaque tentative de placement.
+                Image[] images = UnityEngine.Object.FindObjectsOfType<Image>();
 
                 // 1) notre titre, puis le panneau qui le contient
                 Transform titleTransform = null;
@@ -2328,6 +2360,15 @@ namespace RecBlueBranding
             catch (Exception error) { BrandingPlugin.Trace.LogWarning("login : " + error.Message); }
         }
 
+        // Une passe de logo est decoupee : la liste est gardee entre les frames et
+        // parcourue par tranches de 0,30 ms. La passe complete coutait 170 ms d'un coup,
+        // ce qui se voyait comme un gel a chaque nouvelle image du jeu.
+        private Image[] sweepQueue;
+        private int sweepCursor;
+        private int sweepSwapped;
+        private bool sweepDeep;
+        private float sweepStartedAt;
+
         private void Sweep()
         {
             if (safeMode) return;
@@ -2335,41 +2376,75 @@ namespace RecBlueBranding
             frameSweep = true;
             try
             {
-                // Deux passes completes suffisent a trouver les gabarits inactifs du logo ;
-                // ensuite on ne regarde que les objets actifs, dix fois moins couteux.
-                Image[] images = deepSweeps < 1
-                    ? Resources.FindObjectsOfTypeAll<Image>()
-                    : UnityEngine.Object.FindObjectsOfType<Image>();
-                if (deepSweeps < 1) deepSweeps++;
-                int swapped = 0;
-                foreach (Image image in images)
+                if (sweepQueue == null)
                 {
-                    if (image == null) continue;
-                    Sprite current;
-                    try { current = image.sprite; } catch { continue; }
-                    if (current == null) continue;
-                    string name;
-                    try { name = current.name ?? ""; } catch { name = ""; }
-                    if (!IsBrandSprite(name)) continue;
+                    // Passe profonde tant que le logo n'est pas pose : les gabarits inactifs
+                    // portent le sprite d'origine, et il quitte la scene des que l'ecran de
+                    // chargement est passe. Ensuite uniquement les objets actifs.
+                    bool deep = !titleSwapped;
+                    System.Diagnostics.Stopwatch scan = System.Diagnostics.Stopwatch.StartNew();
                     try
                     {
-                        image.sprite = titleSprite;
-                        // Le cadre d'origine etait prevu pour un logo large : sans ca notre
-                        // image est etiree et deborde de son emplacement.
-                        image.preserveAspect = true;
-                        swapped++;
-                        // Pas d'agrandissement : x1.8 puis x1.25 ont tous deux ete juges trop
-                        // gros et masquaient le panneau. On garde le cadre d'origine du jeu.
+                        sweepQueue = deep
+                            ? Resources.FindObjectsOfTypeAll<Image>()
+                            : UnityEngine.Object.FindObjectsOfType<Image>();
                     }
-                    catch { }
+                    catch { sweepQueue = new Image[0]; }
+                    sweepCursor = 0;
+                    sweepSwapped = 0;
+                    sweepDeep = deep;
+                    sweepStartedAt = Time.realtimeSinceStartup;
+                    if (scan.ElapsedMilliseconds >= 20)
+                        BrandingPlugin.Trace.LogInfo("perf : sweep " + scan.ElapsedMilliseconds + " ms, " + sweepQueue.Length + " image(s)" + (deep ? " (profonde)" : ""));
                 }
-                if (swapped > 0)
+                System.Diagnostics.Stopwatch watch = System.Diagnostics.Stopwatch.StartNew();
+                while (sweepCursor < sweepQueue.Length)
+                {
+                    Image image = sweepQueue[sweepCursor++];
+                    if (image != null)
+                    {
+                        Sprite current = null;
+                        try { current = image.sprite; } catch { }
+                        string name = "";
+                        if (current != null)
+                        {
+                            try { name = current.name ?? ""; } catch { name = ""; }
+                        }
+                        if (IsBrandSprite(name))
+                        {
+                            try
+                            {
+                                image.sprite = titleSprite;
+                                // Le cadre d'origine etait prevu pour un logo large : sans ca
+                                // notre image est etiree et deborde de son emplacement.
+                                image.preserveAspect = true;
+                                sweepSwapped++;
+                                // Pas d'agrandissement : x1.8 puis x1.25 ont tous deux ete
+                                // juges trop gros et masquaient le panneau. On garde le cadre
+                                // d'origine du jeu.
+                            }
+                            catch { }
+                        }
+                    }
+                    // La passe profonde arrive pendant le chargement : elle doit finir tant que
+                    // l'ecran de chargement est la, sinon le logo disparait avant d'etre vu.
+                    // Les passes suivantes, repetees, restent bornees a 0,30 ms par frame.
+                    if (!sweepDeep && watch.Elapsed.TotalMilliseconds >= 0.30) return;
+                }
+                if (sweepDeep)
+                {
+                    int spent = Mathf.RoundToInt((Time.realtimeSinceStartup - sweepStartedAt) * 1000f);
+                    if (spent >= 50)
+                        BrandingPlugin.Trace.LogInfo("perf : sweep profonde " + spent + " ms (" + sweepQueue.Length + " images)");
+                }
+                if (sweepSwapped > 0)
                 {
                     titleSwapped = true;
-                    BrandingPlugin.Trace.LogInfo("marque : " + swapped + " sprite(s) remplace(s).");
+                    BrandingPlugin.Trace.LogInfo("marque : " + sweepSwapped + " sprite(s) remplace(s).");
                 }
+                sweepQueue = null;
             }
-            catch { }
+            catch { sweepQueue = null; }
         }
 
         private static bool IsBrandSprite(string name)
@@ -2430,6 +2505,7 @@ namespace RecBlueBranding
 
                 // Le jeu reconstruit son theme des qu'on clique : sans ce reveil l'orange
                 // revenait jusqu'a la passe de securite (30 s plus tard).
+                ApplyPerf();
                 CheckCanaries(now);
                 QualityGuard.Enforce(BrandingPlugin.Trace, now);
                 CheckSelection();
@@ -2473,8 +2549,12 @@ namespace RecBlueBranding
                 // Le titre doit revenir meme si le logo n'apparait qu'apres la fenetre de 20 s
                 // (constate sur le tableau : "titre REC BLUE introuvable"). Une fois les
                 // premiers remplacements faits, la verification s'espace pour ne rien couter.
+                // Une passe de logo commencee se poursuit a chaque frame, par tranches.
+                if (sweepQueue != null) Sweep();
+
                 if (now >= nextSweep && now - lastSweepAt >= 8f)
                 {
+                    System.Diagnostics.Stopwatch blockWatch = System.Diagnostics.Stopwatch.StartNew();
                     // Une passe enumere toutes les Image vivantes : six passes au demarrage ont
                     // ete mesurees a 2,3 s de gel. Minimum 8 s entre deux, puis 120 s.
                     lastSweepAt = now;
@@ -2506,7 +2586,8 @@ namespace RecBlueBranding
                         palettePasses++;
                         try { PalettePass(); } catch { }
                     }
-                    ApplyPerf();
+                    if (blockWatch.ElapsedMilliseconds >= 40)
+                        BrandingPlugin.Trace.LogInfo("perf : bloc balayage " + blockWatch.ElapsedMilliseconds + " ms");
                 }
 
                 // La sonde mesure 568 ms pour une enumeration complete des Image : elle n'est
@@ -2536,7 +2617,6 @@ namespace RecBlueBranding
                 {
                     rebound = true;
                     RebindSprites();
-                    BrandingPlugin.Trace.LogInfo("fps : " + Mathf.RoundToInt(1f / Mathf.Max(0.0001f, Time.smoothDeltaTime)) + " (apres initialisation)");
                     BrandingPlugin.Trace.LogInfo("surveillance : veille active (salve a chaque changement d'ecran, passe de securite toutes les 30 s).");
                 }
             }
