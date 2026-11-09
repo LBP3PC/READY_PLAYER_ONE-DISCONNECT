@@ -8,6 +8,11 @@
   let client = null;
   let players = [];
   const say = text => { byId('msg').textContent = text; };
+  // Séparateur de milliers visible : l'espace fine de fr-FR (U+202F) est invisible dans
+  // la police d'affichage du site, ce qui collait les gros soldes (« 4635662 »).
+  function formatCredits(value) {
+    return String(Math.round(Number(value) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
 
   if (config && window.supabase) {
     client = window.supabase.createClient(config.supabaseUrl, config.publishableKey, {
@@ -162,8 +167,8 @@
       const tokens = Math.round(Number(String(answer).replace(',', '.')));
       if (!Number.isFinite(tokens) || tokens <= 0) throw new Error('Montant invalide.');
       const result = await call('/api/game/grant', { target: player.username, tokens });
-      say(tokens + ' crédits offerts à ' + player.username +
-        (result && typeof result.credits === 'number' ? ' — nouveau solde : ' + result.credits : '') + '.');
+      say(formatCredits(tokens) + ' crédits offerts à ' + player.username +
+        (result && typeof result.credits === 'number' ? ' — nouveau solde : ' + formatCredits(result.credits) : '') + '.');
       await load();
     }));
 

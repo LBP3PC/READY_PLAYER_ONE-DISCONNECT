@@ -8,6 +8,8 @@
   const client = window.supabase && config.supabaseUrl && projectRef
     ? window.supabase.createClient(config.supabaseUrl, config.publishableKey, { auth: { storageKey: 'sb-' + projectRef + '-auth-token', autoRefreshToken: false, detectSessionInUrl: false } })
     : null;
+  const ONE_TIME = new Set(['pplus', 'pstarter']);
+  const defaultLabels = new WeakMap();
 
   async function token() {
     if (!client) return '';
@@ -15,8 +17,104 @@
     return (data && data.session && data.session.access_token) || '';
   }
 
+  function rememberLabels() {
+    document.querySelectorAll('[data-pack]').forEach(button => {
+      if (!defaultLabels.has(button)) defaultLabels.set(button, button.textContent);
+    });
+  }
+
+  function setOneTimeState(claims) {
+    document.querySelectorAll('[data-pack]').forEach(button => {
+      const pack = button.getAttribute('data-pack');
+      if (!ONE_TIME.has(pack)) return;
+      const already = Boolean(claims && claims[pack]);
+      button.textContent = already ? 'Déjà obtenu' : (defaultLabels.get(button) || 'Obtenir');
+      button.disabled = already;
+    });
+  }
+
+  async function refreshOneTimeState() {
+    if (!client) return;
+    try {
+      const { data: sessionData } = await client.auth.getSession();
+      if (!sessionData || !sessionData.session) {
+        setOneTimeState({});
+        return;
+      }
+      const { data } = await client.auth.getUser();
+      const metadata = data && data.user && data.user.user_metadata;
+      const claims = metadata && metadata.recblue_free_claims;
+      setOneTimeState(claims && typeof claims === 'object' && !Array.isArray(claims) ? claims : {});
+    } catch {
+      /* L’état sera confirmé au moment du clic. */
+    }
+  }
+
+  function formatHistoryDate(value) {
+    try {
+      return new Intl.DateTimeFormat('fr-FR', {
+        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+      }).format(new Date(value));
+    } catch {
+      return '';
+    }
+  }
+
+  function renderHistory(items) {
+    const section = byId('shop-history');
+    const list = byId('shop-history-list');
+    if (!section || !list) return;
+    list.replaceChildren();
+    if (!Array.isArray(items) || items.length === 0) {
+      section.hidden = true;
+      return;
+    }
+    for (const item of items.slice(0, 6)) {
+      const li = document.createElement('li');
+      li.className = 'shop-history-item';
+      const copy = document.createElement('span');
+      const name = document.createElement('strong');
+      name.textContent = String(item.name || 'Réclamation');
+      const date = document.createElement('span');
+      date.className = 'shop-history-date';
+      date.textContent = formatHistoryDate(item.at);
+      copy.append(name, date);
+      const amount = document.createElement('span');
+      amount.className = 'shop-history-credits';
+      const credits = Number(item.credits) || 0;
+      amount.textContent = credits > 0 ? '+' + formatCredits(credits) + ' crédits' : '';
+      li.append(copy, amount);
+      list.append(li);
+    }
+    section.hidden = false;
+  }
+
+  async function loadHistory(accessToken) {
+    if (!accessToken) {
+      renderHistory([]);
+      return;
+    }
+    try {
+      const response = await fetch('api/shop/history', {
+        headers: { Authorization: 'Bearer ' + accessToken },
+        cache: 'no-store'
+      });
+      const data = await response.json().catch(() => ({}));
+      renderHistory(response.ok && Array.isArray(data.history) ? data.history : []);
+    } catch {
+      renderHistory([]);
+    }
+  }
+
+  window.addEventListener('recblue:auth', async () => {
+    try {
+      await refreshOneTimeState();
+      await loadHistory(await token());
+    } catch {}
+  });
+
   async function call(payload, accessToken) {
-    const response = await fetch('api/paypal', {
+    const response = await fetch('api/shop/claim', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + accessToken },
       body: JSON.stringify(payload)
@@ -47,90 +145,123 @@
     return label;
   }
 
+  // Séparateur de milliers VISIBLE : l'espace fine de fr-FR (U+202F) est invisible dans
+  // la police d'affichage du site, ce qui collait les gros soldes (« 4635662 »).
+  function formatCredits(value) {
+    return String(Math.round(Number(value) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+
   function showBalance(total) {
     const value = Number(total) || 0;
     const pill = byId('nav-credits');
     if (pill) {
-      const text = value.toLocaleString('fr-FR') + (value === 1 ? ' crédit' : ' crédits');
+      const text = formatCredits(value) + (value === 1 ? ' crédit' : ' crédits');
       const label = creditsLabel(pill);
       if (label) label.textContent = text;
       pill.hidden = false;
     }
     const card = byId('credits-balance');
-    if (card) card.textContent = value.toLocaleString('fr-FR');
+    if (card) card.textContent = formatCredits(value);
   }
 
-  async function buy(pack, button) {
+  async function refreshBalance(accessToken) {
+    const response = await fetch('api/game/credits', {
+      headers: { Authorization: 'Bearer ' + accessToken },
+      cache: 'no-store'
+    });
+    if (!response.ok) return null;
+    const data = await response.json().catch(() => null);
+    const credits = data && typeof data.credits === 'number' ? data.credits : null;
+    if (credits !== null) showBalance(credits);
+    return credits;
+  }
+
+  function formatDate(value) {
+    try {
+      return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(new Date(value));
+    } catch {
+      return String(value);
+    }
+  }
+
+  async function claim(pack, button) {
     const accessToken = await token();
+    if (accessToken) await refreshOneTimeState();
     if (!accessToken) {
-      say('Connectez-vous d’abord : ouvrez « Mon compte REC BLUE » pour acheter des crédits.');
+      say('Connectez-vous d’abord : ouvrez « Mon compte REC BLUE » pour obtenir ce pack gratuit.');
       const dialog = byId('connexion');
       if (dialog && !dialog.open) dialog.showModal();
       const field = byId('login-identifier');
       if (field) field.focus();
       return;
     }
+
     const label = button.textContent;
     button.disabled = true;
-    button.textContent = 'Ouverture de PayPal…';
-    say('Préparation du paiement sécurisé…');
+    button.textContent = 'Ajout…';
+    say('Ajout du pack gratuit…');
     try {
-      const { ok, data } = await call({ action: 'create', pack }, accessToken);
-      if (!ok || !data.approveUrl) throw new Error(data.error || 'Le paiement n’est pas disponible pour le moment.');
-      sessionStorage.setItem('recblue.paypal.pending', pack);
-      say('Redirection vers PayPal…');
-      location.assign(data.approveUrl);
+      const { ok, data } = await call({ pack }, accessToken);
+      if (!ok) throw new Error(data.error || 'Le pack gratuit n’est pas disponible pour le moment.');
+
+      if (data.alreadyClaimed) {
+        say('Ce pack gratuit a déjà été obtenu sur ce compte.');
+        button.textContent = 'Déjà obtenu';
+        button.disabled = true;
+        return;
+      }
+
+      if (typeof data.credits === 'number') showBalance(data.credits);
+      else await refreshBalance(accessToken);
+
+      const added = Number(data.added) || 0;
+      if (data.plusUntil) {
+        const creditsLine = data.inGame === true
+          ? ' et ' + formatCredits(added) + ' crédits ajoutés.'
+          : '. Le serveur de jeu n’a pas confirmé les crédits.';
+        say('REC BLUE Plus offert jusqu’au ' + formatDate(data.plusUntil) + creditsLine);
+      } else {
+        say(formatCredits(added) + (added === 1 ? ' crédit gratuit ajouté.' : ' crédits gratuits ajoutés.'));
+      }
+      if (data.warning) say((status && status.textContent ? status.textContent + ' ' : '') + data.warning);
+
+      if (ONE_TIME.has(pack)) {
+        button.textContent = 'Obtenu ✓';
+        button.disabled = true;
+      } else {
+        button.textContent = defaultLabels.get(button) || 'Obtenir';
+        button.disabled = false;
+      }
+      loadHistory(accessToken);
     } catch (error) {
-      say(error.message || 'Paiement impossible pour le moment.');
+      say(error.message || 'Pack gratuit impossible pour le moment.');
       button.disabled = false;
       button.textContent = label;
     }
-  }
-
-  document.addEventListener('click', event => {
+  }  document.addEventListener('click', event => {
     const button = event.target.closest('[data-pack]');
     if (!button) return;
+
     event.preventDefault();
-    buy(button.getAttribute('data-pack'), button);
+    claim(button.getAttribute('data-pack'), button);
   });
 
-  async function finish() {
-    const params = new URLSearchParams(location.search);
-    const stage = params.get('paypal');
-    if (!stage) return;
-    const orderId = String(params.get('token') || params.get('orderId') || '').trim();
-    const dialog = byId('boutique');
-    const openShop = () => { if (dialog && !dialog.open) dialog.showModal(); };
-    const clean = () => history.replaceState(null, '', location.pathname + '#boutique');
+  // Recharge l'historique à chaque ouverture de la boutique : le login a pu être
+  // fait après le chargement de la page.
+  document.addEventListener('click', event => {
+    if (!event.target.closest('[data-dialog="boutique"]')) return;
+    setTimeout(async () => {
+      try {
+        await refreshOneTimeState();
+        await loadHistory(await token());
+      } catch {}
+    }, 0);
+  });
 
-    if (stage === 'annule') {
-      openShop();
-      say('Paiement annulé : aucun crédit n’a été débité.');
-      clean();
-      return;
-    }
-    if (stage !== 'retour') return;
-
-    openShop();
-    if (!orderId) { say('Réponse PayPal incomplète : aucun crédit n’a été ajouté.'); clean(); return; }
-    const accessToken = await token();
-    if (!accessToken) {
-      say('Reconnectez-vous : le paiement n’a pas encore été vérifié. Gardez le numéro de commande ' + orderId + '.');
-      return;
-    }
-    say('Vérification du paiement auprès de PayPal…');
-    const { ok, data } = await call({ action: 'capture', orderId }, accessToken);
-    if (!ok) {
-      say(data.error || 'Paiement non confirmé. Gardez le numéro de commande ' + orderId + ' et contactez un administrateur.');
-      return;
-    }
-    showBalance(data.credits);
-    const added = Number(data.added) || 0;
-    say('Payé ! ' + added.toLocaleString('fr-FR') + (added === 1 ? ' crédit ajouté' : ' crédits ajoutés') + ' à votre compte.');
-    sessionStorage.removeItem('recblue.paypal.pending');
-    clean();
+  function initOneTimeState() {
+    rememberLabels();
+    refreshOneTimeState();
   }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', finish);
-  else finish();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initOneTimeState);
+  else initOneTimeState();
 })();

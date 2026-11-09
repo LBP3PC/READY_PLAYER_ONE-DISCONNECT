@@ -60,6 +60,11 @@
     if (!PSEUDO_PATTERN.test(pseudo)) throw new Error('Pseudo invalide : 3 à 20 lettres, chiffres, tiret ou souligné.');
     return pseudo;
   }
+  // Séparateur de milliers VISIBLE : l'espace fine de fr-FR (U+202F) est invisible dans
+  // la police d'affichage du site, ce qui collait les gros soldes (« 4635662 »).
+  function formatCredits(value) {
+    return String(Math.round(Number(value) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
   // Garde la pièce et le texte de crédits dans la pastille, même si elle a été vidée.
   function creditsLabel(pill) {
     if (!pill) return null;
@@ -102,14 +107,16 @@
   async function gameStatus() {
     try {
       const token = await sessionToken();
-      if (!token) return { certified: false, plus: false };
+      if (!token) return { certified: false, plus: false, role: '' };
       const response = await fetch('/api/game/certified', { headers: { Authorization: 'Bearer ' + token } });
       const body = await response.json().catch(() => null);
+      const rang = body && (body.role === 'admin' || body.role === 'moderator') ? body.role : '';
       return {
         certified: !!(response.ok && body && body.certified),
-        plus: !!(response.ok && body && body.plus)
+        plus: !!(response.ok && body && body.plus),
+        role: rang
       };
-    } catch (error) { return { certified: false, plus: false }; }
+    } catch (error) { return { certified: false, plus: false, role: '' }; }
   }
   // La photo du JEU du joueur connecté (le site affiche celle-là, pas une copie).
   async function gameAvatarUrl() {
@@ -194,7 +201,7 @@
     if (creditsBadge) {
       const soldeJeu = await gameCredits();
       const total = soldeJeu === null ? (Number(profile.credits) || 0) : soldeJeu;
-      const creditsText = total.toLocaleString('fr-FR') + (total === 1 ? ' crédit' : ' crédits');
+      const creditsText = formatCredits(total) + (total === 1 ? ' crédit' : ' crédits');
       const creditsValue = creditsLabel(creditsBadge);
       if (creditsValue) creditsValue.textContent = creditsText;
       // Membre REC BLUE Plus : la pastille de crédits passe en or.
@@ -202,7 +209,10 @@
       creditsBadge.hidden = false;
     }
     byId('account-name').value = profile.display_name;
-    byId('account-role').textContent = labels[profile.role] || 'Droit inconnu';
+    // Le rôle affiché est celui du site : un rôle retiré ici ne doit jamais réapparaître.
+    const roleEffectif = profile.role;
+    byId('account-role').textContent = labels[roleEffectif] || 'Droit inconnu';
+    byId('account-role').className = 'badge' + (roleEffectif === 'admin' ? ' admin' : roleEffectif === 'moderator' ? ' mod' : '');
     const certified = jeu.certified;
     const certBadge = byId('account-certified');
     if (certBadge) certBadge.hidden = !certified;
@@ -214,10 +224,11 @@
     // Les crédits et le Plus restent réservés aux administrateurs : un
     // modérateur ne voit que la liste des comptes.
     const isAdminMember = profile.role === 'admin';
-    ['admin-credits', 'admin-plus'].forEach(id => {
+    ['admin-credits', 'admin-plus', 'admin-maintenance', 'admin-announcement'].forEach(id => {
       const block = byId(id);
       if (block) block.hidden = !isAdminMember;
     });
+    if (isAdminMember) loadMaintenanceAdmin();
     const factorList = await client.auth.mfa.listFactors();
     const verifiedFactors = (factorList.data?.all || []).filter(factor => factor.status === 'verified').length;
     const mfaNote = byId('account-mfa-note');
@@ -240,6 +251,28 @@
     byId('account-mfa').hidden = false;
     byId('mfa-hint').textContent = hint || 'Code à 6 chiffres : application d’authentification.';
   }
+  /**
+   * Change le rôle d'un compte : le Worker l'écrit en base avec la clé de service (et
+   * répercute le rôle en jeu) ; la RPC SQL sert de secours.
+   */
+  async function setSiteRole(account, role) {
+    const viaWorker = await gameRequest('/api/game/site-role', {
+      id: account.id,
+      role,
+      target: account.display_name
+    }).catch(() => null);
+    // Le Worker répond même quand la fiche du site refuse : il indique alors lequel des
+    // deux côtés a cédé, au lieu de laisser croire que rien n'a été tenté.
+    if (viaWorker && viaWorker.site) return viaWorker;
+    const { error } = await client.rpc('recblue_set_role', { target_id: account.id, new_role: role });
+    if (error) {
+      await refreshAccount();
+      throw new Error((viaWorker && viaWorker.error) || error.message || 'Changement de rôle refusé.');
+    }
+    const game = await gameRequest('/api/game/role', { target: account.display_name, role }).catch(() => null);
+    return { ok: true, role, game };
+  }
+
   async function listAccounts() {
     const result = await client.from('recblue_accounts').select('id,display_name,role,created_at').order('created_at', { ascending: false }).limit(100);
     if (result.error) throw result.error;
@@ -259,13 +292,13 @@
       const isAdmin = profile.role === 'admin';
       select.disabled = !isAdmin; save.disabled = !isAdmin; save.hidden = !isAdmin;
       save.addEventListener('click', () => run(save, async () => {
-        const { error } = await client.rpc('recblue_set_role', { target_id: account.id, new_role: select.value });
-        if (error) { await refreshAccount(); throw error; }
-        // Le rôle du SITE pilote aussi le rôle EN JEU (modérateur / staff) : sans cet
-        // appel, la personne serait modératrice ici et simple joueuse en jeu.
-        const sync = await gameRequest('/api/game/role', { target: account.display_name, role: select.value });
-        if (sync && sync.ok) announce('Droits de ' + account.display_name + ' : ' + (labels[select.value] || select.value) + ' sur le site ET en jeu (effectif à sa prochaine connexion).');
-        else announce('Droits du site mis à jour, mais le rôle en jeu n’a pas suivi : ' + ((sync && sync.error) || 'serveur de jeu injoignable') + '.');
+        const synced = await setSiteRole(account, select.value);
+        const label = labels[select.value] || select.value;
+        const game = synced.game || {};
+        const site = synced.site || {};
+        if (site.ok && game.ok) announce('Droits de ' + account.display_name + ' : ' + label + ' sur le site ET en jeu (effectif à sa prochaine connexion).');
+        else if (!game.ok) announce('Rôle du site : ' + (site.ok ? label : 'refusé') + '. En jeu, le rôle n’a pas suivi : ' + (game.error || 'serveur de jeu injoignable') + '.');
+        else announce('Rôle de jeu passé à ' + label + ', mais la fiche du site a refusé : ' + (site.error || 'erreur inconnue') + '.');
         await refreshAccount();
         if (profile?.role === 'admin') await listAccounts();
       }));
@@ -284,6 +317,89 @@
     });
     byId('account-users').replaceChildren(fragment);
   }
+  let maintenanceState = { active: false, message: '', code: '' };
+  function applyMaintenanceState(data) {
+    maintenanceState = {
+      active: !!(data && data.active),
+      message: String((data && data.message) || ''),
+      code: String((data && data.code) || '')
+    };
+    const block = byId('admin-maintenance');
+    if (block) block.hidden = !(profile && profile.role === 'admin');
+    const state = byId('maintenance-state');
+    if (state) state.textContent = maintenanceState.active
+      ? 'Maintenance active : les joueurs doivent saisir le code.'
+      : 'Jeu ouvert : le launcher démarre normalement.';
+    const toggle = byId('maintenance-toggle');
+    if (toggle) toggle.textContent = maintenanceState.active ? 'Désactiver la maintenance' : 'Activer la maintenance';
+    const message = byId('maintenance-message');
+    if (message) message.value = maintenanceState.message;
+    const code = byId('maintenance-code');
+    if (code) code.value = maintenanceState.code;
+  }
+  async function loadMaintenanceAdmin() {
+    if (!profile || profile.role !== 'admin') {
+      const block = byId('admin-maintenance');
+      if (block) block.hidden = true;
+      return;
+    }
+    try {
+      const token = await sessionToken();
+      if (!token) return;
+      const response = await fetch('/api/maintenance', {
+        headers: { Authorization: 'Bearer ' + token },
+        cache: 'no-store'
+      });
+      if (!response.ok) return;
+      applyMaintenanceState(await response.json());
+    } catch {}
+  }
+  const maintenanceForm = byId('admin-maintenance-form');
+  if (maintenanceForm) maintenanceForm.addEventListener('submit', event => {
+    event.preventDefault();
+    run(byId('maintenance-toggle'), async () => {
+      if (!profile || profile.role !== 'admin') throw new Error('Accès administrateur requis.');
+      const token = await sessionToken();
+      if (!token) throw new Error('Session absente : reconnecte-toi.');
+      const active = !maintenanceState.active;
+      const message = String(byId('maintenance-message').value || '').trim();
+      const code = String(byId('maintenance-code').value || '').trim();
+      const response = await fetch('/api/maintenance', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active, message, code })
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error((body && body.error) || ('statut ' + response.status));
+      applyMaintenanceState(body);
+      announce(active
+        ? 'Maintenance activée : les joueurs doivent saisir le code.'
+        : 'Maintenance désactivée : le launcher redémarre normalement.');
+    });
+  });
+  // Message général dans le jeu : envoyé au serveur, qui le pousse depuis « Coach ».
+  const announcementForm = byId('admin-announcement-form');
+  if (announcementForm) announcementForm.addEventListener('submit', event => {
+    event.preventDefault();
+    run(byId('admin-announcement-submit'), async () => {
+      if (!profile || profile.role !== 'admin') throw new Error('Accès administrateur requis.');
+      const input = byId('admin-announcement-message');
+      const text = String(input.value || '').trim();
+      if (!text) throw new Error('Écris le message à envoyer.');
+      if (text.length > 500) throw new Error('Message trop long (500 caractères maximum).');
+      const result = await gameRequest('/api/game/announce', { message: text });
+      if (!result || !result.ok) throw new Error((result && result.error) || 'Envoi refusé.');
+      const sent = Number(result.sent) || 0;
+      const status = byId('admin-announcement-result');
+      if (status) status.textContent = sent === 0
+        ? 'Aucun joueur connecté : le message n’a été reçu par personne.'
+        : 'Message Coach envoyé à ' + sent + (sent === 1 ? ' joueur connecté.' : ' joueurs connectés.');
+      input.value = '';
+      announce(sent === 0
+        ? 'Message prêt, mais aucun joueur connecté.'
+        : 'Message général envoyé à ' + sent + ' joueur' + (sent === 1 ? '.' : 's.'));
+    });
+  });
   const creditsForm = byId('admin-credits');
   if (creditsForm) creditsForm.addEventListener('submit', event => {
     event.preventDefault();
@@ -299,11 +415,11 @@
       const jeu = await grantGame(target, amount);
       if (error) {
         if (!jeu || !jeu.ok) throw new Error('Don impossible pour « ' + target + ' » : ' + (jeu && jeu.error ? jeu.error : (error.message || 'compte introuvable')) + '.');
-        announce('Crédits envoyés en jeu à ' + target + ' : solde en jeu ' + Number(jeu.credits || 0).toLocaleString('fr-FR') + ', box envoyée (aucune fiche de site à créditer).');
+        announce('Crédits envoyés en jeu à ' + target + ' : solde en jeu ' + formatCredits(jeu.credits || 0) + ', box envoyée (aucune fiche de site à créditer).');
       } else {
         announce(jeu && jeu.ok
-          ? 'Crédits ajoutés à ' + target + ' : solde en jeu ' + Number(jeu.credits || 0).toLocaleString('fr-FR') + ', box envoyée.'
-          : 'Crédits ajoutés côté site (' + Number(data).toLocaleString('fr-FR') + '), mais le jeu n’a pas été crédité' + (jeu && jeu.error ? ' : ' + jeu.error : '.') + '.');
+          ? 'Crédits ajoutés à ' + target + ' : solde en jeu ' + formatCredits(jeu.credits || 0) + ', box envoyée.'
+          : 'Crédits ajoutés côté site (' + formatCredits(data) + '), mais le jeu n’a pas été crédité' + (jeu && jeu.error ? ' : ' + jeu.error : '.') + '.');
       }
       byId('admin-credits-amount').value = '';
       await refreshAccount();
@@ -323,7 +439,7 @@
       if (!result || !result.ok) throw new Error((result && result.error) || 'Retrait refusé.');
       const reste = Number(result.credits) || 0;
       const retire = Number(result.removed) || 0;
-      announce('Crédits retirés à ' + target + ' : ' + retire.toLocaleString('fr-FR') + ' retirés, nouveau solde en jeu ' + reste.toLocaleString('fr-FR') + '.'
+      announce('Crédits retirés à ' + target + ' : ' + formatCredits(retire) + ' retirés, nouveau solde en jeu ' + formatCredits(reste) + '.'
         + (retire < amount ? ' Le solde ne couvrait pas la totalité.' : ''));
       byId('admin-debit-amount').value = '';
       await refreshAccount();
@@ -407,9 +523,10 @@
       client = window.supabase.createClient(url.href, config.publishableKey, {
         auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
       });
-      client.auth.onAuthStateChange(() => {
+      client.auth.onAuthStateChange((event, session) => {
         ++revision;
         clearPrivateUI();
+        window.dispatchEvent(new CustomEvent('recblue:auth', { detail: { event, signedIn: !!session } }));
         setTimeout(() => { refreshAccount().catch(() => announce('Impossible de vérifier la session.')); }, 0);
       });
       byId('account-setup').hidden = true;

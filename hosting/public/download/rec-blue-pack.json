@@ -1,90 +1,41 @@
 {
-  "version": "2.1.0",
-  "server": "https://ns.recblue.workers.dev",
-  "photon": {
-    "realtime": "f1188190-4175-4fe4-bf99-5f02ab4cb550",
-    "voice": "419db913-5705-4de2-a086-708c051c4746",
-    "chat": "a3948bf6-25dc-460b-82a0-6b30c708459d"
-  },
-  "notes": "Pack REC BLUE verifie par empreinte SHA-256. Le jeu complet est servi depuis R2 en morceaux de 290 Mo, recolles puis extraits par le launcher.",
-  "game": {
-    "exe": "RecRoom.exe",
-    "files": [
-      {
-        "chunks": [
-          "https://dl.recblue.net/game/p1/chunk-000",
-          "https://dl.recblue.net/game/p1/chunk-001",
-          "https://dl.recblue.net/game/p1/chunk-002",
-          "https://dl.recblue.net/game/p1/chunk-003",
-          "https://dl.recblue.net/game/p1/chunk-004",
-          "https://dl.recblue.net/game/p1/chunk-005",
-          "https://dl.recblue.net/game/p1/chunk-006",
-          "https://dl.recblue.net/game/p1/chunk-007"
-        ],
-        "sha256": "cd13246400bc9035c213c9fc1718ab5c6d7055496deb94f27eddce55ac974c2d",
-        "note": "jeu REC BLUE - partie 1/5 (8 morceaux)"
-      },
-      {
-        "chunks": [
-          "https://dl.recblue.net/game/p2/chunk-000",
-          "https://dl.recblue.net/game/p2/chunk-001",
-          "https://dl.recblue.net/game/p2/chunk-002",
-          "https://dl.recblue.net/game/p2/chunk-003",
-          "https://dl.recblue.net/game/p2/chunk-004",
-          "https://dl.recblue.net/game/p2/chunk-005",
-          "https://dl.recblue.net/game/p2/chunk-006"
-        ],
-        "sha256": "731a7ad27c3f5efeb1ff7f32f13201076c172ed5b72d6303c6f823aef7a1bb14",
-        "note": "jeu REC BLUE - partie 2/5 (7 morceaux)"
-      },
-      {
-        "chunks": [
-          "https://dl.recblue.net/game/p3/chunk-000",
-          "https://dl.recblue.net/game/p3/chunk-001",
-          "https://dl.recblue.net/game/p3/chunk-002",
-          "https://dl.recblue.net/game/p3/chunk-003",
-          "https://dl.recblue.net/game/p3/chunk-004",
-          "https://dl.recblue.net/game/p3/chunk-005",
-          "https://dl.recblue.net/game/p3/chunk-006"
-        ],
-        "sha256": "da39f3fdc287584f106c9cae9054dc7793266728d65668c953382560404d4f97",
-        "note": "jeu REC BLUE - partie 3/5 (7 morceaux)"
-      },
-      {
-        "chunks": [
-          "https://dl.recblue.net/game/p4/chunk-000",
-          "https://dl.recblue.net/game/p4/chunk-001",
-          "https://dl.recblue.net/game/p4/chunk-002",
-          "https://dl.recblue.net/game/p4/chunk-003",
-          "https://dl.recblue.net/game/p4/chunk-004",
-          "https://dl.recblue.net/game/p4/chunk-005",
-          "https://dl.recblue.net/game/p4/chunk-006"
-        ],
-        "sha256": "621e3150f90f667d9f58aae6647f57e15a121b9dcfabfdd9353ddc6a2e6e89d5",
-        "note": "jeu REC BLUE - partie 4/5 (7 morceaux)"
-      },
-      {
-        "chunks": [
-          "https://dl.recblue.net/game/p5/chunk-000"
-        ],
-        "sha256": "d104c603153605ec32e8c1a25f8d94cfec53aa259f05c4e835e248b35827c5a6",
-        "note": "jeu REC BLUE - partie 5/5 (1 morceaux)"
-      }
-    ]
-  },
-  "files": [
-    {
-      "url": "download/rec-blue/RecNetPlugin.dll",
-      "dest": "BepInEx/plugins/RecNetPlugin.dll",
-      "sha256": "6c3fcc3bfd17ac3692f47e43add08355e302395dd63f910f4a9d8ef9a2b492d9",
-      "note": "Plugin RecNet 20230414.2"
-    },
-    {
-      "url": "https://dl.recblue.net/game/bepinex-interop.zip",
-      "dest": "",
-      "archive": true,
-      "sha256": "d701cc3f78302f9a805cc287e7739804cfb4b3b053ded154e5bc0e653bb0467c",
-      "note": "Assemblies BepInEx deja generees (evite le premier demarrage de 5 minutes)"
-    }
-  ]
+    "version":  "2.2.3",
+    "server":  "https://ns.recblue.net",
+    "photon":  {
+                   "realtime":  "f1188190-4175-4fe4-bf99-5f02ab4cb550",
+                   "voice":  "419db913-5705-4de2-a086-708c051c4746",
+                   "chat":  "a3948bf6-25dc-460b-82a0-6b30c708459d"
+               },
+    "notes":  "Pack REC BLUE verifie par empreinte SHA-256. Le jeu Rec Room n\u0027est pas distribue : le launcher utilise une installation existante et n\u0027ajoute que le pack et sa configuration.",
+    "files":  [
+                  {
+                      "url":  "https://builds.bepinex.dev/projects/bepinex_be/791/BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.791%2Bb782da4.zip",
+                      "dest":  "",
+                      "archive":  true,
+                      "sha256":  "bb1c510909b69522733791f3a0817a487379a52da6468a492f1c9c19b3ec6f9a",
+                      "skipIf":  "BepInEx/core/BepInEx.Core.dll",
+                      "note":  "Chargeur BepInEx 6 IL2CPP be.791 (open source)"
+                  },
+                  {
+                      "url":  "download/rec-blue/RecNetPlugin.dll",
+                      "dest":  "BepInEx/plugins/RecNetPlugin.dll",
+                      "sha256":  "6c3fcc3bfd17ac3692f47e43add08355e302395dd63f910f4a9d8ef9a2b492d9",
+                      "note":  "Plugin RecNet 20230414.2"
+                  },
+                  {
+                      "url":  "download/rec-blue/net.rec.plugin.cfg",
+                      "dest":  "BepInEx/net.rec.plugin.cfg",
+                      "sha256":  "d4f2e0dc72bd3c70f54667e36d8e775dbc767120545c550ea2a594f85a9ce397",
+                      "skipIf":  "BepInEx/config/net.rec.plugin.cfg",
+                      "note":  "Configuration du plugin : nameserver ns.recblue.net et Photon"
+                  },
+                  {
+                      "url":  "https://dl.recblue.net/game/bepinex-interop.zip",
+                      "dest":  "",
+                      "archive":  true,
+                      "sha256":  "d701cc3f78302f9a805cc287e7739804cfb4b3b053ded154e5bc0e653bb0467c",
+                      "note":  "Assemblies BepInEx deja generees (evite le premier demarrage de 5 minutes)",
+                      "skipIf":  "BepInEx/interop/Assembly-CSharp.dll"
+                  }
+              ]
 }

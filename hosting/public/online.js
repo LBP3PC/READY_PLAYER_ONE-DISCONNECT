@@ -8,6 +8,12 @@
   const presenceDetail = document.getElementById('status-presence-detail');
   const presenceBadge = document.getElementById('status-presence-badge');
   const statusNote = document.getElementById('status-note');
+  const liveStats = document.getElementById('live-stats');
+  const liveOnline = document.getElementById('live-online');
+  const liveDevices = document.getElementById('live-devices');
+  const liveVersions = document.getElementById('live-versions');
+  const liveRooms = document.getElementById('live-rooms');
+  const liveStatsNote = document.getElementById('live-stats-note');
   if (!pill && !note && !gameBadge) return;
 
   let etat = null;
@@ -22,6 +28,45 @@
     return n === 1 ? '1 joueur connecté au jeu' : n + ' joueurs connectés au jeu';
   }
 
+  // Remplit une liste sans jamais interpréter le texte des joueurs comme du HTML :
+  // les noms de salles viennent du jeu, donc de comptes utilisateurs.
+  function fillList(el, rows, labelOf) {
+    if (!el) return;
+    el.replaceChildren();
+    if (!rows || rows.length === 0) {
+      const empty = document.createElement('li');
+      empty.className = 'live-empty';
+      empty.textContent = 'Aucune donnée';
+      el.appendChild(empty);
+      return;
+    }
+    for (const row of rows) {
+      const li = document.createElement('li');
+      const name = document.createElement('span');
+      name.textContent = labelOf(row);
+      const value = document.createElement('span');
+      value.textContent = String(Number(row.count) || 0);
+      li.append(name, value);
+      el.appendChild(li);
+    }
+  }
+
+  function renderLiveStats() {
+    if (!etat || !liveStats) return;
+    liveStats.hidden = false;
+
+    if (liveOnline) liveOnline.textContent = String(etat.online);
+    fillList(liveDevices, etat.devices, row => row.name);
+    fillList(liveVersions, etat.versions, row => row.build);
+    fillList(liveRooms, etat.activeRooms, row => row.name);
+
+    if (liveStatsNote) {
+      liveStatsNote.textContent = etat.hasStats
+        ? 'Statistiques lues sur le serveur de jeu, actualisées toutes les 30 secondes.'
+        : 'Statistiques momentanément indisponibles.';
+    }
+  }
+
   function render() {
     if (!etat) return;
     const n = etat.online;
@@ -30,7 +75,7 @@
     if (note) {
       note.textContent = n === 0
         ? 'Personne n’est connecté au jeu pour le moment.'
-        : joueurs(n) + (n === 1 ? ' en ce moment.' : ' en ce moment.') + ' Les chambres actuelles sont sur la page Chambres.';
+        : joueurs(n) + ' en ce moment. Les chambres actuelles sont sur la page Chambres.';
     }
 
     if (gameDetail) {
@@ -47,6 +92,8 @@
     }
     badge(presenceBadge, etat.presence ? 'Connecté' : 'Indisponible', etat.presence);
 
+    renderLiveStats();
+
     if (statusNote) {
       statusNote.textContent = 'Vérifié à ' + new Date().toLocaleTimeString() + ', actualisé toutes les 30 secondes.';
     }
@@ -61,7 +108,11 @@
           game: Boolean(data.game),
           rooms: Boolean(data.rooms),
           presence: Boolean(data.presence),
-          online: Number(data.online) || 0
+          online: Number(data.online) || 0,
+          hasStats: Boolean(data.presence),
+          devices: Array.isArray(data.devices) ? data.devices : [],
+          versions: Array.isArray(data.versions) ? data.versions : [],
+          activeRooms: Array.isArray(data.activeRooms) ? data.activeRooms : []
         };
         render();
       })

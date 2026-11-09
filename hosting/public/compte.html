@@ -41,7 +41,7 @@
           <label>Pseudo · 3 à 20 lettres, chiffres, tiret ou souligné<input id="signup-pseudo" required minlength="3" maxlength="20" pattern="[A-Za-z0-9_][A-Za-z0-9_\-]{2,19}" spellcheck="false" autocomplete="username"></label>
           <label>Mot de passe · 12 caractères minimum<input id="signup-pw" type="password" required minlength="12" maxlength="128" autocomplete="new-password"></label>
           <button class="btn" type="submit">Créer mon compte</button>
-          <p class="note">Aucune adresse email n’est demandée. Les nouveaux comptes sont membres.</p>
+          <p class="note">Aucune adresse email n’est demandée. Les nouveaux comptes sont membres. Le même pseudo et le même mot de passe servent aussi à se connecter dans le jeu.</p>
         </form>
         <form class="card" id="reset-request">
           <h2>Mot de passe oublié ?</h2>
@@ -125,6 +125,15 @@
               <button class="btn" type="submit">Utiliser cette adresse</button>
             </form>
             <p class="note">C’est à cette adresse que part le lien « mot de passe oublié ». Un compte créé avec un simple pseudo n’en a aucune : sans cette adresse, la récupération automatique est impossible. Une confirmation est envoyée au changement, cliquez le lien qu’elle contient.</p>
+          </section>
+          <section class="card" id="game-account-card">
+            <h2>Compte Rec Room</h2>
+            <p class="note">Le site et le jeu utilisent le même pseudo et le même mot de passe. Si ton compte a été créé avant cette liaison et que Rec Room refuse la connexion, active ici le compte de jeu.</p>
+            <form id="game-account">
+              <label>Mot de passe du site<input id="game-password" type="password" required minlength="8" maxlength="128" autocomplete="current-password"></label>
+              <button class="btn" id="game-create" type="submit">Activer mon compte de jeu</button>
+            </form>
+            <p class="note" id="game-status" role="status" aria-live="polite"></p>
           </section>
           <section class="card">
             <h2>Sécurité</h2>
@@ -212,7 +221,7 @@
   <script src="account-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.js" integrity="sha384-3wY11tldQ5+yWqAvmTN4XtQvnjoTva0cV15O/O/O5NTtp0ivVopSzLOzsVXWZse9" crossorigin="anonymous" defer></script>
   <script src="countdown.js?v=1" defer></script>
-  <script src="compte.js?v=13" defer></script>
+  <script src="compte.js?v=14" defer></script>
   <script src="music.js?v=3" defer></script>
 </body>
 </html>

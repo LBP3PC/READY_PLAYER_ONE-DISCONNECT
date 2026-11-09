@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#004cff">
+  <meta name="description" content="Où obtenir Rec Room officiellement, et comment vérifier ton dossier installé avant d'utiliser REC BLUE.">
+  <title>Obtenir Rec Room officiellement · REC BLUE</title>
+  <link rel="icon" type="image/svg+xml" href="rec-blue-icon.svg">
+  <script src="theme.js?v=1"></script>
+  <link rel="stylesheet" href="obtenir-rec-room.css?v=1">
+</head>
+<body>
+  <header class="bar">
+    <a href="index.html"><img src="rec-blue-logo.png" alt="REC BLUE" width="693" height="180"></a>
+    <nav class="links">
+      <a href="index.html">Accueil</a>
+      <a href="chambres.html">Chambres</a>
+      <a href="compte.html">Mon compte</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <p class="eyebrow">Guide officiel</p>
+    <h1>Obtenir Rec Room officiellement</h1>
+    <p class="lead">REC BLUE est un serveur communautaire pour Rec Room. Le jeu lui-même ne se télécharge pas ici : il s'installe uniquement depuis les canaux officiels de Rec Room Inc.</p>
+
+    <section class="panel" aria-labelledby="sources-title">
+      <h2 id="sources-title">Les sources officielles</h2>
+      <div class="sources">
+        <article class="source">
+          <span class="tag">Toutes plateformes</span>
+          <h3>Page de téléchargement officielle</h3>
+          <p>iOS, Android, Meta Quest, Rift, Pico, Switch, Xbox, PlayStation et Steam : Rec Room Inc. centralise les liens officiels sur son site.</p>
+          <a class="btn" href="https://recroom.com/download" target="_blank" rel="noopener noreferrer">Ouvrir recroom.com/download</a>
+        </article>
+        <article class="source">
+          <span class="tag warn">PC · Steam</span>
+          <h3>Rec Room sur Steam</h3>
+          <p>La fiche Steam indique que Rec Room n'est plus proposé sur le Steam Store. Elle reste la référence pour les joueurs qui possèdent déjà le jeu dans leur bibliothèque.</p>
+          <a class="btn ghost" href="https://store.steampowered.com/app/471710/Rec_Room/" target="_blank" rel="noopener noreferrer">Voir la fiche Steam</a>
+        </article>
+        <article class="source">
+          <span class="tag">VR autonome</span>
+          <h3>Meta Quest</h3>
+          <p>La version Quest s'installe depuis le Meta Horizon Store, éditée par Rec Room Inc.</p>
+          <a class="btn ghost" href="https://www.meta.com/experiences/rec-room/2173678582678296" target="_blank" rel="noopener noreferrer">Voir sur Meta</a>
+        </article>
+      </div>
+      <p class="note">REC BLUE n'est affilié ni à Rec Room Inc., ni à Steam, ni à Meta. Aucun fichier du jeu n'est hébergé sur ce site.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="check-title">
+      <h2 id="check-title">Vérifier ton dossier installé</h2>
+      <p>Choisis le dossier qui contient <code>RecRoom.exe</code>. La vérification tourne entièrement dans ton navigateur : aucun fichier n'est envoyé, rien n'est installé.</p>
+      <div class="actions">
+        <button class="btn" id="pick-folder" type="button">Choisir mon dossier Rec Room</button>
+        <label class="btn ghost" for="pick-folder-input">Autre navigateur : choisir un dossier</label>
+        <input id="pick-folder-input" class="visually-hidden" type="file" webkitdirectory multiple tabindex="-1" aria-hidden="true">
+      </div>
+      <p class="status" id="check-status" role="status" aria-live="polite">Aucune vérification lancée.</p>
+      <div class="summary" id="check-summary" hidden></div>
+      <div class="table-wrap">
+        <table class="check-table">
+          <caption>Fichiers attendus dans le dossier Rec Room</caption>
+          <thead>
+            <tr><th scope="col">Fichier</th><th scope="col">Attendu</th><th scope="col">Trouvé</th><th scope="col">État</th></tr>
+          </thead>
+          <tbody id="check-rows"></tbody>
+        </table>
+      </div>
+      <details class="help">
+        <summary>Où trouver mon dossier Rec Room ?</summary>
+        <ol>
+          <li>Ouvre Steam, puis ta bibliothèque.</li>
+          <li>Fais un clic droit sur Rec Room → Gérer → Parcourir les fichiers locaux.</li>
+          <li>Le dossier contient <code>RecRoom.exe</code>. C'est celui à sélectionner.</li>
+        </ol>
+        <p>Emplacement par défaut : <code>C:\Program Files (x86)\Steam\steamapps\common\Rec Room</code>.</p>
+        <p>Le launcher REC BLUE peut être lancé depuis n'importe où : il détecte ce dossier et installe le pack à côté de <code>RecRoom.exe</code>.</p>
+      </details>
+      <p class="note">Le contrôle lit seulement les noms et les tailles. Il ne peut pas vérifier l'authenticité du jeu : pour cela, passe par Steam ou par la page officielle.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="facts-title">
+      <h2 id="facts-title">Bon à savoir pour REC BLUE</h2>
+      <ul class="facts">
+        <li>La version PC utilisée par REC BLUE est la version Steam de 2023. Elle nécessite le client Steam lancé et connecté, avec le jeu présent dans la bibliothèque.</li>
+        <li>REC BLUE ne fournit ni clé, ni fichier de jeu, ni contournement de Steam.</li>
+        <li>Le launcher détecte ton installation Rec Room existante et n'ajoute que le pack (BepInEx, plugin serveur, configuration) : aucun fichier du jeu n'est copié ni redistribué.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p>REC BLUE · Serveur communautaire. Rec Room est une marque de Rec Room Inc.</p>
+    <p><a href="index.html">Accueil</a> · <a href="chambres.html">Chambres</a> · <a href="compte.html">Mon compte</a></p>
+  </footer>
+
+  <script src="obtenir-rec-room.js?v=1" defer></script>
+</body>
+</html>

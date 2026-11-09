@@ -38,6 +38,14 @@ function card(room) {
     node('span', room.isOfficial ? 'tag official' : 'tag', room.isOfficial ? 'Officielle' : 'Communauté')
   );
   box.append(head);
+  // Les joueurs présents DANS la chambre à cet instant (présences du serveur de jeu).
+  const enLigne = Number(room.online) || 0;
+  const presence = node(
+    'span',
+    enLigne > 0 ? 'room-live on' : 'room-live',
+    enLigne === 0 ? 'Personne en jeu' : enLigne === 1 ? '1 joueur en jeu' : enLigne + ' joueurs en jeu'
+  );
+  box.append(presence);
   if (room.description) box.append(node('p', 'room-desc', room.description));
   const visites = room.visitors === 1 ? '1 visite' : room.visitors + ' visites';
   // Les « likes » sont les cheers du jeu (CheerCount) : le compteur réel de la chambre.

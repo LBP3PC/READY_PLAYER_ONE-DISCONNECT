@@ -1,15 +1,31 @@
-import { handleGameSignup, handleGameCredits, handleGameGrant, handleGamePlus, handleGameBan, handleGameRole, handleGameCertify, handleGameCertified, handleGamePlayers, handleGameAvatar, handleGameRooms, handleGameDebit, handleGameOnline, handleGameStatus, handleGamePhotos } from './game-bridge.js';
-import { handlePaypal } from './paypal.js';
+import { handleGameSignup, handleGameCredits, handleGameGrant, handleGameAnnounce, handleGamePlus, handleGameBan, handleGameRole, handleGameSiteRole, handleGameSitePlus, handleSiteAccountAdmin, handleGameCertify, handleGameCertified, handleGamePlayers, handleCommunityPlayers, handleCommunityLike, handleGameAvatar, handleGameRooms, handleGameDebit, handleGameOnline, handleGameStatus, handleGamePhotos } from './game-bridge.js';
+import { handleFreeClaim, handleClaimHistory } from './shop.js';
+import { handleMaintenanceStatus, handleMaintenanceAdmin, handleMaintenanceAccess } from './maintenance.js';
 
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
 
-    // La boutique : le paiement PayPal tourne ici, pas en fichier statique.
-    if (path === '/api/paypal') {
-      return handlePaypal(request, env);
+    // La boutique est gratuite : les packs de crédits sont réutilisables, le Plus et
+    // le pack de démarrage restent uniques. L’historique est propre au compte connecté.
+    if (path === '/api/shop/claim' || path === '/api/shop/claim/') {
+      return handleFreeClaim(request, env);
+    }
+    if (path === '/api/shop/history' || path === '/api/shop/history/') {
+      return handleClaimHistory(request, env);
     }
 
+    // Maintenance du jeu : l’état public sert au launcher, le réglage est réservé
+    // aux administrateurs, et l’accès vérifie le rôle ou le code d’été.
+    if (path === '/api/maintenance/status' || path === '/api/maintenance/status/') {
+      return handleMaintenanceStatus(request, env);
+    }
+    if (path === '/api/maintenance/access' || path === '/api/maintenance/access/') {
+      return handleMaintenanceAccess(request, env);
+    }
+    if (path === '/api/maintenance' || path === '/api/maintenance/') {
+      return handleMaintenanceAdmin(request, env);
+    }
     // Le compte du site crée le compte de jeu (même pseudo, même mot de passe).
     if (path === '/api/game/signup') {
       return handleGameSignup(request, env);
@@ -25,6 +41,11 @@ export default {
       return handleGameGrant(request, env);
     }
 
+    // Message général « Coach » affiché à tous les joueurs connectés dans le jeu.
+    if (path === '/api/game/announce') {
+      return handleGameAnnounce(request, env);
+    }
+
     // REC BLUE Plus (avec sa date de fin) et bannissements : décidés par l'administration,
     // appliqués sur le compte de JEU.
     if (path === '/api/game/plus') {
@@ -37,6 +58,19 @@ export default {
     if (path === '/api/game/role') {
       return handleGameRole(request, env);
     }
+    // Le rôle du SITE écrit en base avec la clé de service, puis le rôle de jeu : un seul
+    // appel, pour que les deux ne puissent plus diverger.
+    if (path === '/api/game/site-role') {
+      return handleGameSiteRole(request, env);
+    }
+    // La date de fin du REC BLUE Plus écrite en base avec la clé de service, puis en jeu.
+    if (path === '/api/game/site-plus') {
+      return handleGameSitePlus(request, env);
+    }
+    // Inspection et nettoyage des fiches du site (serveur uniquement, jeton partagé).
+    if (path === '/api/game/site-accounts') {
+      return handleSiteAccountAdmin(request, env);
+    }
     // Le badge « Certifié REC BLUE » : accordé par l'administration, lu par le joueur.
     if (path === '/api/game/certify') {
       return handleGameCertify(request, env);
@@ -47,6 +81,15 @@ export default {
     // Les comptes du jeu et les joueurs en ligne, pour la page d'administration.
     if (path === '/api/game/players') {
       return handleGamePlayers(request, env);
+    }
+    // L'annuaire public de la communauté : aucune donnée privée ne sort d'ici.
+    if (path === '/api/community/players' || path === '/api/community/players/') {
+      return handleCommunityPlayers(request, env);
+    }
+    // Like d'un profil : le navigateur envoie seulement son jeton Supabase ; le Worker
+    // vérifie le compte, puis transmet au jeu sans exposer le jeton du pont.
+    if (path === '/api/community/like' || path === '/api/community/like/') {
+      return handleCommunityLike(request, env);
     }
     // La photo de profil du JEU, affichée sur le site à la place d'une copie.
     if (path === '/api/game/avatar') {
