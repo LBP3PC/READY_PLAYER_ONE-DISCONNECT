@@ -103,3 +103,21 @@ body.mfa-required .stack > .card:not(#mfa-card) { opacity:.45; pointer-events:no
 @keyframes plus-sheen { 0% { transform:translate(-120%,0) rotate(8deg); } 100% { transform:translate(120%,0) rotate(8deg); } }
 @keyframes plus-name-pulse { 0%,100% { text-shadow:0 0 8px rgba(247,201,72,.25); } 50% { text-shadow:0 0 16px rgba(247,201,72,.7); } }
 @media (prefers-reduced-motion: reduce) { .avatar.plus-ring, .avatar.plus-ring::after, .plus-name { animation:none; } }
+
+/* Inventaire et boutique du jeu — lisibles sur un téléphone, donc dans l'app iOS. */
+.search { display:block; margin:14px 0 4px; font-size:13px; color:var(--muted); font-weight:800; }
+.search input { display:block; width:100%; margin-top:6px; padding:11px 12px; border-radius:10px; border:1px solid var(--line); background:#ffffff0d; color:#fff; font:inherit; font-size:16px; }
+.tabs { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 10px; }
+.tab { border:1px solid var(--line); background:#ffffff0d; color:var(--muted); border-radius:999px; padding:9px 15px; font:inherit; font-size:13px; cursor:pointer; }
+.tab.is-on { background:var(--blue); border-color:var(--blue); color:#fff; }
+.item-grid { list-style:none; margin:12px 0 0; padding:0; display:grid; gap:10px; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); }
+.item { background:#ffffff0a; border:1px solid var(--line); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px; }
+.item-name { font-size:13px; line-height:1.3; overflow-wrap:anywhere; }
+.item-meta { display:flex; flex-wrap:wrap; gap:6px; font-size:11px; color:var(--muted); }
+.item-price { color:#ffd977; font-size:13px; }
+.item-price small { color:var(--muted); font-size:11px; font-weight:800; }
+.item .btn { width:100%; padding:9px 10px; font-size:12px; }
+.item.is-owned .item-price { color:var(--muted); }
+.item .item-owned { font-size:12px; color:var(--muted); }
+.tag { border-radius:999px; background:#ffffff14; padding:2px 8px; font-size:10px; }
+.tag.plus { background:#f7c94822; color:#ffd977; }

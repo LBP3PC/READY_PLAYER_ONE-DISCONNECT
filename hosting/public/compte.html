@@ -7,7 +7,13 @@
   <meta name="description" content="Espace compte REC BLUE : pseudo, rôle, sécurité, préférences et administration.">
   <title>Mon compte · REC BLUE</title>
   <link rel="icon" type="image/svg+xml" href="rec-blue-icon.svg">
-  <link rel="stylesheet" href="compte.css?v=4">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="REC BLUE">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="stylesheet" href="compte.css?v=5">
   <script src="theme.js?v=1"></script>
 </head>
 <body>
@@ -38,7 +44,7 @@
         </form>
         <form class="card" id="signup">
           <h2>Créer un compte</h2>
-          <label>Pseudo · 3 à 20 lettres, chiffres, tiret ou souligné<input id="signup-pseudo" required minlength="3" maxlength="20" pattern="[A-Za-z0-9_][A-Za-z0-9_\-]{2,19}" spellcheck="false" autocomplete="username"></label>
+          <label>Pseudo · 3 à 20 lettres ou chiffres<input id="signup-pseudo" required minlength="3" maxlength="20" pattern="[A-Za-z0-9]{3,20}" spellcheck="false" autocomplete="username"></label>
           <label>Mot de passe · 12 caractères minimum<input id="signup-pw" type="password" required minlength="12" maxlength="128" autocomplete="new-password"></label>
           <button class="btn" type="submit">Créer mon compte</button>
           <p class="note">Aucune adresse email n’est demandée. Les nouveaux comptes sont membres. Le même pseudo et le même mot de passe servent aussi à se connecter dans le jeu.</p>
@@ -107,7 +113,7 @@
           <section class="card" id="credits-card">
             <h2>Mes crédits</h2>
             <p class="credits-balance"><img class="credits-coin" src="credits-coin.svg" alt="" width="34" height="34" aria-hidden="true"><strong id="credits-balance">—</strong><span>crédits</span></p>
-            <p class="note">Votre solde de crédits REC BLUE. Les achats ne sont pas encore activés : le solde est géré par l’équipe.</p>
+            <p class="note">Votre solde de crédits REC BLUE, le même que dans le jeu : il baisse à chaque achat en boutique.</p>
           </section>
 
             <h2>Profil</h2>
@@ -126,9 +132,29 @@
             </form>
             <p class="note">C’est à cette adresse que part le lien « mot de passe oublié ». Un compte créé avec un simple pseudo n’en a aucune : sans cette adresse, la récupération automatique est impossible. Une confirmation est envoyée au changement, cliquez le lien qu’elle contient.</p>
           </section>
+          <section class="card" id="wardrobe-card" hidden>
+            <h2>Inventaire</h2>
+            <p class="note" id="wardrobe-note">Les objets possédés par votre compte de jeu.</p>
+            <label class="search">Rechercher dans l’inventaire<input id="wardrobe-search" type="search" maxlength="40" autocomplete="off" spellcheck="false" placeholder="nom de l’objet"></label>
+            <ul class="item-grid" id="wardrobe-list"></ul>
+            <button class="btn ghost small" id="wardrobe-more" type="button" hidden>Afficher plus</button>
+          </section>
+          <section class="card" id="boutique-card" hidden>
+            <h2>Boutique du jeu</h2>
+            <div class="tabs" id="boutique-tabs" role="tablist">
+              <button class="tab is-on" type="button" role="tab" aria-selected="true" data-storefront="3">Magasin général</button>
+              <button class="tab" type="button" role="tab" aria-selected="false" data-storefront="2">Rec Center</button>
+            </div>
+            <p class="note">Prix catalogue du jeu. Membre REC BLUE Plus : −10 % appliqués automatiquement à l’achat.</p>
+            <label class="search">Rechercher un article<input id="boutique-search" type="search" maxlength="40" autocomplete="off" spellcheck="false" placeholder="nom de l’article"></label>
+            <p class="note" id="boutique-loading">Chargement de la boutique…</p>
+            <ul class="item-grid" id="boutique-list"></ul>
+            <button class="btn ghost small" id="boutique-more" type="button" hidden>Afficher plus</button>
+            <p class="note" id="boutique-status" role="status" aria-live="polite"></p>
+          </section>
           <section class="card" id="game-account-card">
             <h2>Compte Rec Room</h2>
-            <p class="note">Le site et le jeu utilisent le même pseudo et le même mot de passe. Si ton compte a été créé avant cette liaison et que Rec Room refuse la connexion, active ici le compte de jeu.</p>
+            <p class="note">À la création, le jeu utilise le même pseudo et le même mot de passe que le site. Si ton compte est ancien et que Rec Room refuse la connexion, active ici le compte de jeu. Un changement de mot de passe sur le site ne change pas automatiquement celui du jeu.</p>
             <form id="game-account">
               <label>Mot de passe du site<input id="game-password" type="password" required minlength="8" maxlength="128" autocomplete="current-password"></label>
               <button class="btn" id="game-create" type="submit">Activer mon compte de jeu</button>
@@ -222,6 +248,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.js" integrity="sha384-3wY11tldQ5+yWqAvmTN4XtQvnjoTva0cV15O/O/O5NTtp0ivVopSzLOzsVXWZse9" crossorigin="anonymous" defer></script>
   <script src="countdown.js?v=1" defer></script>
   <script src="compte.js?v=14" defer></script>
+  <script src="boutique.js?v=1" defer></script>
   <script src="music.js?v=3" defer></script>
 </body>
 </html>

@@ -57,6 +57,7 @@
     };
     if (player.online) add('En ligne', 'live');
     add(labels[player.role] || 'Membre', player.role === 'admin' ? 'admin' : player.role === 'moderator' ? 'mod' : '');
+    if (player.isDeveloper) add('Dev');
     if (player.plus) add('Plus');
     if (player.banned) add('Banni', 'banned');
     return wrap;
@@ -144,6 +145,19 @@
       await load();
     }));
 
+    // Rôle developer seul : le badge Créateur/Dev de la plaque de nom en jeu, sans changer
+    // le rôle du site ni la modération.
+    const devBtn = document.createElement('button');
+    devBtn.type = 'button';
+    devBtn.className = 'btn ghost';
+    devBtn.textContent = player.isDeveloper ? 'Retirer le rôle dev' : 'Rôle dev';
+    devBtn.addEventListener('click', () => act(devBtn, async () => {
+      await call('/api/game/developer', { target: player.username, developer: !player.isDeveloper });
+      say((player.isDeveloper ? 'Rôle dev retiré à ' : 'Rôle dev accordé à ') + player.username +
+        ' (badge Créateur/Dev à sa prochaine connexion en jeu).');
+      await load();
+    }));
+
     // Plus : un an d'un clic, ou retrait s'il l'a déjà.
     const plusBtn = document.createElement('button');
     plusBtn.type = 'button';
@@ -193,7 +207,7 @@
       await load();
     }));
 
-    actions.append(select, apply, certify, plusBtn, creditsBtn, banBtn);
+    actions.append(select, apply, certify, devBtn, plusBtn, creditsBtn, banBtn);
     el.append(who, badges(player), actions);
     return el;
   }

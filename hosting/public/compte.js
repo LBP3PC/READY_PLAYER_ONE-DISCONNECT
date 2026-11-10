@@ -462,7 +462,11 @@
       const pseudo = byId('signup-pseudo').value.trim().toLowerCase();
       const password = byId('signup-pw').value;
       byId('signup-pw').value = '';
-      if (!PSEUDO_PATTERN.test(pseudo)) throw new Error('Pseudo invalide : 3 à 20 lettres, chiffres, tiret ou souligné.');
+      if (!/^[a-z0-9]{3,20}$/.test(pseudo)) throw new Error('Pour jouer, choisis un pseudo de 3 à 20 lettres ou chiffres, sans tiret ni souligné.');
+      const availability = await fetch('/api/game/username-availability?pseudo=' + encodeURIComponent(pseudo));
+      const availabilityData = await availability.json().catch(() => null);
+      if (!availability.ok || !availabilityData) throw new Error('Impossible de vérifier le pseudo en jeu. Réessaie plus tard.');
+      if (!availabilityData.available) throw new Error('Ce pseudo existe déjà dans le jeu. Choisis-en un autre.');
       const { data, error } = await client.auth.signUp({ email: pseudo + '@' + PSEUDO_DOMAIN, password });
       if (error) {
         if (error.code === 'user_already_exists' || /already/i.test(error.message || '')) throw new Error('Ce pseudo est déjà pris.');
@@ -478,7 +482,7 @@
       const game = await activateGameAccount(pseudo, password);
       if (game.ok) {
         gameNote = game.renamed
-          ? ' Ton compte de jeu est prêt : connecte-toi dans Rec Room avec « ' + pseudo + ' » et ce mot de passe.'
+          ? ' Ton compte de jeu est prêt : connecte-toi dans Rec Room avec « ' + pseudo + ' » et ce mot de passe.' + (game.linked ? '' : ' La liaison sécurisée n’a pas pu être enregistrée ; contacte un administrateur.')
           : ' Compte de jeu créé, mais ' + (game.warning || 'le pseudo en jeu n’a pas pu être appliqué.') + ' Réessaie depuis Mon espace compte si besoin.';
       } else {
         gameNote = ' Compte de jeu non créé : ' + (game.error || 'serveur de jeu indisponible') + ' — tu peux réessayer depuis Mon espace compte.';
@@ -497,13 +501,13 @@
       byId('game-password').value = '';
       if (password.length < 8) throw new Error('Le mot de passe du site doit contenir au moins 8 caractères.');
       const pseudo = pseudoOf(user.email) || String(profile.display_name || '').trim().toLowerCase();
-      if (!PSEUDO_PATTERN.test(pseudo)) {
-        throw new Error('Pseudo de jeu invalide : 3 à 20 lettres, chiffres, tiret ou souligné. Modifie d’abord ton pseudo affiché.');
+      if (!/^[a-z0-9]{3,20}$/.test(pseudo)) {
+        throw new Error('Pseudo de jeu invalide : 3 à 20 lettres ou chiffres, sans tiret ni souligné. Contacte un administrateur pour ton compte existant.');
       }
       const result = await activateGameAccount(pseudo, password);
       if (!result.ok) throw new Error('Compte de jeu non créé : ' + (result.error || 'serveur de jeu indisponible.'));
       const text = result.renamed
-        ? 'Compte de jeu prêt : connecte-toi dans Rec Room avec « ' + pseudo + ' » et ce mot de passe.'
+        ? 'Compte de jeu prêt : connecte-toi dans Rec Room avec « ' + pseudo + ' » et ce mot de passe.' + (result.linked ? '' : ' La liaison sécurisée n’a pas pu être enregistrée ; contacte un administrateur.')
         : 'Compte de jeu créé, mais ' + (result.warning || 'le pseudo en jeu n’a pas pu être appliqué.') + ' Utilise le pseudo indiqué par le jeu.';
       byId('game-status').textContent = text;
       say(text);
@@ -534,7 +538,7 @@
       if (first !== second) throw new Error('Les deux mots de passe ne sont pas identiques.');
       const { error } = await client.auth.updateUser({ password: first });
       if (error) throw new Error('Changement refusé : ' + (error.message || 'réessayez.'));
-      say('Mot de passe modifié. Il sera demandé à la prochaine connexion.');
+      say('Mot de passe du site modifié. Le mot de passe du jeu ne change pas automatiquement.');
     });
   });
 
@@ -812,7 +816,7 @@
       const { error } = await client.auth.updateUser({ password });
       if (error) throw error;
       byId('reset-pw').value = '';
-      say('Mot de passe enregistré : vous pouvez vous connecter avec le nouveau.');
+      say('Mot de passe du site enregistré. Le mot de passe du jeu ne change pas automatiquement.');
       document.getElementById('reset-apply').hidden = true;
       await loadProfile();
     });

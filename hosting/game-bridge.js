@@ -11,7 +11,7 @@
 // Le pont vers econ est authentifié par SITE_BRIDGE_TOKEN, un secret partagé entre ce
 // Worker et le serveur de jeu : il ne sort jamais vers le navigateur.
 
-const json = (status, body) =>
+export const json = (status, body) =>
   new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }
@@ -19,6 +19,7 @@ const json = (status, body) =>
 
 /** Mêmes règles de pseudo que le site. */
 const PSEUDO = /^[a-z0-9_][a-z0-9_-]{2,19}$/;
+const GAME_SIGNUP_PSEUDO = /^[a-z0-9]{3,20}$/;
 
 function keep(value, fallback) {
   const text = String(value || '').trim();
@@ -43,7 +44,7 @@ export function gameSettings(env) {
 }
 
 /** Le joueur derrière le jeton de session Supabase, ou null. */
-async function currentUser(request, cfg) {
+export async function currentUser(request, cfg) {
   const header = request.headers.get('authorization') || '';
   const match = /^Bearer\s+(.+)$/i.exec(header);
   if (!match) return null;
@@ -53,6 +54,30 @@ async function currentUser(request, cfg) {
   if (!response.ok) return null;
   const data = await response.json().catch(() => null);
   return data && data.id ? data : null;
+}
+
+/** Vérifie avant l'inscription si le pseudo existe déjà dans le jeu. */
+export async function handleGameUsernameAvailability(request, env) {
+  if (request.method !== 'GET') return json(405, { error: 'Méthode non autorisée.' });
+  const pseudo = String(new URL(request.url).searchParams.get('pseudo') || '').trim().toLowerCase();
+  if (!GAME_SIGNUP_PSEUDO.test(pseudo)) return json(400, { error: 'Pseudo invalide : 3 à 20 lettres ou chiffres.' });
+  const lookup = await fetch(gameSettings(env).accountsHost + '/account/username/' + encodeURIComponent(pseudo)).catch(() => null);
+  if (!lookup || (lookup.status !== 404 && !lookup.ok)) return json(503, { error: 'Impossible de vérifier le pseudo en jeu.' });
+  return json(200, { available: lookup.status === 404 });
+}
+
+// Le serveur auth vérifie le jeton du jeu et le secret du pont ; aucun identifiant de jeu
+// fourni par le navigateur n'est accepté comme preuve de possession.
+async function linkSiteIdentity(cfg, siteUserId, gameToken) {
+  if (!cfg.bridgeToken || !gameToken) return false;
+  const result = await fetch(cfg.authHost + '/internal/site/link', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + gameToken, 'X-Site-Bridge-Token': cfg.bridgeToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ siteUserId })
+  }).catch(() => null);
+  if (!result || !result.ok) return false;
+  const data = await result.json().catch(() => null);
+  return data?.ok === true;
 }
 
 /**
@@ -74,12 +99,59 @@ export async function handleGameSignup(request, env) {
   }
   const pseudo = String(body.pseudo || '').trim().toLowerCase();
   const password = String(body.password || '');
-  if (!PSEUDO.test(pseudo)) {
-    return json(400, { error: 'Pseudo invalide : 3 à 20 lettres, chiffres, tiret ou souligné.' });
+  if (!GAME_SIGNUP_PSEUDO.test(pseudo)) {
+    return json(400, { error: 'Pseudo de jeu invalide : 3 à 20 lettres ou chiffres, sans tiret ni souligné.' });
   }
   if (password.length < 8) {
     return json(400, { error: 'Mot de passe trop court pour le jeu (8 caractères minimum).' });
   }
+
+  // La session seule ne prouve pas le mot de passe envoyé, ni que le pseudo est celui
+  // du compte site. Sans ces contrôles, une erreur crée un compte de jeu inutilisable.
+  const siteEmail = String(user.email || '').trim().toLowerCase();
+  if (!siteEmail) return json(400, { error: 'Identifiant du compte site introuvable.' });
+  const suffix = '@players.recblue.invalid';
+  let sitePseudo = siteEmail.endsWith(suffix) ? siteEmail.slice(0, -suffix.length) : '';
+  if (!sitePseudo && cfg.serviceKey) {
+    const profile = await fetch(cfg.supabaseUrl + '/rest/v1/recblue_accounts?select=display_name&id=eq.' + encodeURIComponent(String(user.id)), {
+      headers: { apikey: cfg.serviceKey, Authorization: 'Bearer ' + cfg.serviceKey }
+    }).catch(() => null);
+    if (!profile || !profile.ok) return json(503, { error: 'Impossible de vérifier le pseudo du compte site.' });
+    const rows = await profile.json().catch(() => null);
+    sitePseudo = Array.isArray(rows) && rows[0] ? String(rows[0].display_name || '').trim().toLowerCase() : '';
+  }
+  if (pseudo !== sitePseudo) return json(403, { error: 'Le pseudo doit correspondre au compte site connecté.' });
+
+  const verified = await fetch(cfg.supabaseUrl + '/auth/v1/token?grant_type=password', {
+    method: 'POST',
+    headers: { apikey: cfg.supabaseKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: siteEmail, password })
+  }).catch(() => null);
+  if (!verified) return json(503, { error: 'Impossible de vérifier le mot de passe du site.' });
+  if (!verified.ok) return json(401, { error: 'Mot de passe du site refusé ou vérification indisponible.' });
+  const identity = await verified.json().catch(() => null);
+  if (!identity || !identity.user || identity.user.id !== user.id) {
+    return json(401, { error: 'Impossible de confirmer le compte site.' });
+  }
+
+  // Ne jamais attribuer un pseudo déjà utilisé à un nouveau compte. En cas de nouvel
+  // essai, accepter le compte existant seulement si le même mot de passe l'ouvre.
+  const lookup = await fetch(cfg.accountsHost + '/account/username/' + encodeURIComponent(pseudo)).catch(() => null);
+  if (!lookup) return json(503, { error: 'Impossible de vérifier le pseudo en jeu.' });
+  if (lookup.ok) {
+    const login = await fetch(cfg.authHost + '/connect/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ grant_type: 'password', username: pseudo, password }).toString()
+    }).catch(() => null);
+    const existing = login && login.ok ? await login.json().catch(() => null) : null;
+    if (existing && existing.access_token) {
+      const linked = await linkSiteIdentity(cfg, user.id, existing.access_token);
+      return json(200, { ok: true, renamed: true, username: pseudo, existing: true, linked });
+    }
+    return json(409, { error: 'Ce pseudo existe déjà dans le jeu avec un autre mot de passe. Contacte un administrateur.' });
+  }
+  if (lookup.status !== 404) return json(503, { error: 'Impossible de vérifier le pseudo en jeu.' });
 
   // 1. Le compte de jeu (le serveur attribue un nom au hasard).
   let created;
@@ -120,7 +192,7 @@ export async function handleGameSignup(request, env) {
           ? result.error
           : JSON.stringify(result.error)
         : '';
-    renamed = rename.ok && error === '';
+    renamed = rename.ok && !!result && result.success === true && error === '';
     if (!renamed) {
       warning =
         error === ''
@@ -131,10 +203,12 @@ export async function handleGameSignup(request, env) {
     warning = 'Pseudo en jeu non appliqué (serveur des comptes injoignable).';
   }
 
+  const linked = renamed ? await linkSiteIdentity(cfg, user.id, token.access_token) : false;
   return json(200, {
     ok: true,
     username: pseudo,
     renamed,
+    linked,
     warning,
     gameUsername: token.game_username || token.username || null,
     gameAccountId: token.account_id || null
@@ -152,7 +226,7 @@ export async function handleGameSignup(request, env) {
  * de l'adresse de connexion `pseudo@players.recblue.invalid` (les deux sont identiques
  * pour un compte créé par pseudo). Le jeu tranche : celui qu'il connaît est le bon.
  */
-async function gameUsernames(cfg, userId, loginPseudo) {
+export async function gameUsernames(cfg, userId, loginPseudo) {
   const names = [];
   if (cfg.serviceKey) {
     try {
@@ -675,6 +749,46 @@ export async function handleGameCertify(request, env) {
     if (response.status === 404) continue;
     if (!response.ok) return json(502, { error: 'Le serveur de jeu a refusé (' + response.status + ').' });
     return json(200, { ok: true, username, certified });
+  }
+  return json(404, { error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' });
+}
+
+/**
+ * Le rôle `developer` (le badge Créateur/Dev de la plaque de nom), accordé ou retiré d'un
+ * clic par un administrateur. Rangé sur le compte de JEU (`isDeveloper`) : `auth` le recopie
+ * dans le claim `role` au login suivant, et le client dessine l'étiquette sur le nametag.
+ * Le rôle du site et la modération ne bougent pas.
+ */
+export async function handleGameDeveloper(request, env) {
+  if (request.method !== 'POST') return json(405, { error: 'Méthode non autorisée.' });
+  const cfg = gameSettings(env);
+  const verdict = await adminVerdict(request, cfg);
+  if (verdict.error) return verdict.error;
+
+  let body = {};
+  try {
+    body = await request.json();
+  } catch {
+    body = {};
+  }
+  const developer = body.developer !== false;
+  const { raw, names } = await resolveGameTargets(cfg, body.target);
+  if (names.length === 0) return json(400, { error: 'Indiquez un pseudo de jeu valide.' });
+
+  for (const username of names) {
+    const response = await fetch(cfg.econHost + '/api/site/developer', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + cfg.bridgeToken,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ username, developer })
+    }).catch(() => null);
+
+    if (response === null) return json(502, { error: 'Le serveur de jeu est injoignable.' });
+    if (response.status === 404) continue;
+    if (!response.ok) return json(502, { error: 'Le serveur de jeu a refusé (' + response.status + ').' });
+    return json(200, { ok: true, username, developer });
   }
   return json(404, { error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' });
 }

@@ -1,10 +1,17 @@
-import { handleGameSignup, handleGameCredits, handleGameGrant, handleGameAnnounce, handleGamePlus, handleGameBan, handleGameRole, handleGameSiteRole, handleGameSitePlus, handleSiteAccountAdmin, handleGameCertify, handleGameCertified, handleGamePlayers, handleCommunityPlayers, handleCommunityLike, handleGameAvatar, handleGameRooms, handleGameDebit, handleGameOnline, handleGameStatus, handleGamePhotos } from './game-bridge.js';
+import { handleGameSignup, handleGameUsernameAvailability, handleGameCredits, handleGameGrant, handleGameAnnounce, handleGamePlus, handleGameBan, handleGameRole, handleGameSiteRole, handleGameSitePlus, handleSiteAccountAdmin, handleGameCertify, handleGameCertified, handleGameDeveloper, handleGamePlayers, handleCommunityPlayers, handleCommunityLike, handleGameAvatar, handleGameRooms, handleGameDebit, handleGameOnline, handleGameStatus, handleGamePhotos } from './game-bridge.js';
 import { handleFreeClaim, handleClaimHistory } from './shop.js';
+import { handleGameInventory, handleGameShopBuy, handleGameStorefront } from './game-shop.js';
 import { handleMaintenanceStatus, handleMaintenanceAdmin, handleMaintenanceAccess } from './maintenance.js';
 
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
+
+    // L’ancienne page « Obtenir Rec Room officiellement » est retirée du site : les liens
+    // encore indexés renvoient vers l’accueil, pas vers une page morte.
+    if (path === '/obtenir-rec-room' || path === '/obtenir-rec-room.html') {
+      return Response.redirect(new URL('/', request.url).toString(), 301);
+    }
 
     // La boutique est gratuite : les packs de crédits sont réutilisables, le Plus et
     // le pack de démarrage restent uniques. L’historique est propre au compte connecté.
@@ -25,6 +32,10 @@ export default {
     }
     if (path === '/api/maintenance' || path === '/api/maintenance/') {
       return handleMaintenanceAdmin(request, env);
+    }
+    // Vérifier le pseudo avant de créer le compte du site.
+    if (path === '/api/game/username-availability') {
+      return handleGameUsernameAvailability(request, env);
     }
     // Le compte du site crée le compte de jeu (même pseudo, même mot de passe).
     if (path === '/api/game/signup') {
@@ -79,6 +90,10 @@ export default {
       return handleGameCertified(request, env);
     }
     // Les comptes du jeu et les joueurs en ligne, pour la page d'administration.
+    // Le rôle `developer` seul : le badge Créateur/Dev de la plaque de nom.
+    if (path === '/api/game/developer') {
+      return handleGameDeveloper(request, env);
+    }
     if (path === '/api/game/players') {
       return handleGamePlayers(request, env);
     }
@@ -119,6 +134,18 @@ export default {
     // Les photos prises en jeu, pour la galerie du site.
     if (path === '/api/game/photos') {
       return handleGamePhotos(request, env);
+    }
+
+    // Boutique et garde-robe du jeu dans l'app : le catalogue est servi avec ce que le
+    // joueur possède déjà, et l'achat passe par le pont econ (même débit que le jeu).
+    if (path === '/api/game/inventory') {
+      return handleGameInventory(request, env);
+    }
+    if (path === '/api/game/storefront') {
+      return handleGameStorefront(request, env);
+    }
+    if (path === '/api/game/buy') {
+      return handleGameShopBuy(request, env);
     }
 
     const response = await env.ASSETS.fetch(request);

@@ -612,8 +612,13 @@
     event.preventDefault();
     run(byId('signup-submit'), async () => {
       const pseudo = checkPseudo(byId('signup-pseudo').value);
+      if (!/^[a-z0-9]{3,20}$/.test(pseudo)) throw new Error('Pour jouer, choisis un pseudo de 3 à 20 lettres ou chiffres, sans tiret ni souligné.');
       const password = byId('signup-password').value;
       byId('signup-password').value = '';
+      const availability = await fetch('/api/game/username-availability?pseudo=' + encodeURIComponent(pseudo));
+      const availabilityData = await availability.json().catch(() => null);
+      if (!availability.ok || !availabilityData) throw new Error('Impossible de vérifier le pseudo en jeu. Réessaie plus tard.');
+      if (!availabilityData.available) throw new Error('Ce pseudo existe déjà dans le jeu. Choisis-en un autre.');
       const { data, error } = await client.auth.signUp({ email: pseudoEmail(pseudo), password });
       if (error) {
         if (error.code === 'user_already_exists' || /already/i.test(error.message || '')) throw new Error('Ce pseudo est déjà pris. Choisissez-en un autre.');
@@ -636,7 +641,7 @@
         const result = await game.json().catch(() => ({}));
         if (game.ok && result && result.ok) {
           gameNote = result.renamed
-            ? ' Votre compte de jeu est prêt : connectez-vous dans Rec Room avec « ' + pseudo + ' » et ce mot de passe.'
+            ? ' Votre compte de jeu est prêt : connectez-vous dans Rec Room avec « ' + pseudo + ' » et ce mot de passe.' + (result.linked ? '' : ' La liaison sécurisée du compte n’a pas pu être enregistrée ; contactez un administrateur.')
             : ' Compte de jeu créé, mais ' + (result.warning || 'le pseudo en jeu n’a pas pu être appliqué.');
         } else {
           gameNote = ' Compte de jeu non créé : ' + ((result && result.error) || 'serveur de jeu indisponible') + ' — signale-le à un administrateur.';
