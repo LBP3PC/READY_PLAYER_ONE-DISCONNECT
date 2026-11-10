@@ -77,6 +77,39 @@ export function toAvatarItemV4(item: Record<string, unknown>): AvatarItemV4 {
 	}
 }
 
+/** Give each distinct legacy wardrobe item a non-zero id without changing its descriptor. */
+export function legacyWardrobeItems(items: AvatarItemV4[]): AvatarItemV4[] {
+	const unique = new Map<string, AvatarItemV4>()
+	for (const item of items) {
+		const key = `${item.avatarItemType}:${item.avatarItemDesc}`
+		const previous = unique.get(key)
+		if (!previous || (previous.avatarItemId <= 0 && item.avatarItemId > 0)) unique.set(key, item)
+	}
+
+	const ordered = [...unique.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+	const ids = new Map<string, number>()
+	const used = new Set<number>()
+	// Retain the catalog's real ids wherever possible; resolve collisions deterministically.
+	for (const [key, item] of ordered) {
+		const id = item.avatarItemId
+		if (Number.isInteger(id) && id > 0 && id <= 0x7fffffff && !used.has(id)) {
+			ids.set(key, id)
+			used.add(id)
+		}
+	}
+	for (const [key] of ordered) {
+		if (ids.has(key)) continue
+		let hash = 2166136261
+		for (let i = 0; i < key.length; i++) hash = Math.imul(hash ^ key.charCodeAt(i), 16777619)
+		let id = (hash >>> 0) & 0x7fffffff
+		if (id === 0) id = 1
+		while (used.has(id)) id = id === 0x7fffffff ? 1 : id + 1
+		ids.set(key, id)
+		used.add(id)
+	}
+	return [...unique.entries()].map(([key, item]) => ({ ...item, avatarItemId: ids.get(key)! }))
+}
+
 /**
  * Grant an item into a player's inventory. Upserts on (account_id, avatar_item_desc):
  * owning an item is boolean, so re-buying it refreshes the stored DTO rather than

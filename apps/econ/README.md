@@ -21,7 +21,7 @@ missing/invalid). `~` = optional auth: served to anyone, personalised for a vali
 | GET      | `/api/avatar/v4/items`                               | ✓    | Owned items + the default catalog       |
 | GET      | `/econ/customAvatarItems/v1/owned`                   | ✓    | Owned custom avatar items (stub)        |
 | GET      | `/api/objectives/v1/myprogress`                      |      | Objectives progress (static)            |
-| GET/POST | `/api/objectives/v1/cleargroup`                      |      | Clear an objectives group (no-op `[]`)  |
+| GET/POST | `/api/objectives/v1/cleargroup`                      |      | Clear an objectives group (no-op object) |
 | GET      | `/api/avatar/v2`                                     | ✓    | The player's own avatar                 |
 | POST     | `/api/avatar/v2/set`                                 | ✓    | Save the player's avatar                |
 | GET      | `/api/checklist/v1/current`                          | ✓    | NUX checklist (stub `[]`)               |

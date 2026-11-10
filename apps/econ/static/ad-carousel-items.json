@@ -1,9 +1,23 @@
 [
 	{
 		"AdCarouselItemId": 1,
-		"Description": "No description.",
-		"ImageName": "AdCarouselItem.png",
-		"PurchasableItemIds": [],
-		"Title": "Lorem ipsum"
+		"Description": "Nouveautés et tenues du magasin general.",
+		"ImageName": "RecCenter.jpg",
+		"PurchasableItemIds": [2, 3, 4],
+		"Title": "La boutique est ouverte"
+	},
+	{
+		"AdCarouselItemId": 2,
+		"Description": "Les tenues gratuites sont deja dans ton inventaire.",
+		"ImageName": "DormRoom.jpg",
+		"PurchasableItemIds": [23184],
+		"Title": "Ton dortoir t attend"
+	},
+	{
+		"AdCarouselItemId": 3,
+		"Description": "Sport, quete et jeux d arene.",
+		"ImageName": "Paintball.jpg",
+		"PurchasableItemIds": [23185],
+		"Title": "Envie de jouer ?"
 	}
 ]

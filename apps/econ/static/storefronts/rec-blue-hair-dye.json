@@ -1,0 +1,865 @@
+[
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "aziIarpSREmcT6vihduPwA",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (Rebel Rose)",
+			"GiftDropId": 2670,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1195,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "xyHGGFKNWEOTnXloDFahPQ",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (KREQ Red)",
+			"GiftDropId": 2671,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1196,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "XCwNFMT1i0i9Q9gJYTLPUQ",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (Cauldron Crimson)",
+			"GiftDropId": 2672,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1197,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "0RUmjv2bL0ydbKU61dlqlg",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (PVPeach)",
+			"GiftDropId": 2673,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1198,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "1I8AD333gku-iOQlS6WWlw",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (Bucket Orange)",
+			"GiftDropId": 2718,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1227,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "yTdx1nVVtECU8Vh7EC8dGA",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (Butterfly Blue)",
+			"GiftDropId": 2728,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1228,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "W5E2gDCKY0SXaKytP89-OA",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (Circuit Cerulean)",
+			"GiftDropId": 2726,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1229,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "wXJZbYCkZE-NMbPVf2YuFA",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (EDM Emerald)",
+			"GiftDropId": 2723,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1230,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "LBz3a9520kiOOMMOwsTExg",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (Frontier Forest)",
+			"GiftDropId": 2722,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1231,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "QmgjYhH_L0q58eF5SWeDhQ",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (Gizmo Grape)",
+			"GiftDropId": 2732,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1232,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "TylV8M6zjUaadhxHPWAS-w",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (Goblin Green)",
+			"GiftDropId": 2721,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1233,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "Bjsgo9ddeUCk3zW1-DdJbw",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (H2Oasis Blue)",
+			"GiftDropId": 2725,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1234,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "Sc8S3QiTIUuXNJZD6geY1Q",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (Jungle Jade)",
+			"GiftDropId": 2724,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1235,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "qp_vRXZQPU2rlx_IU1Vr8Q",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (Witch Attack Lilac)",
+			"GiftDropId": 2730,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1236,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "G129V_kVXkSLN2OG8EjSqQ",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (Maker Mauve)",
+			"GiftDropId": 2733,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1237,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "8k_gZA_lrEyJxI19GrcAZg",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (Mousebot Magenta)",
+			"GiftDropId": 2734,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1238,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "_2QGtfHzuUSq0eyI84rImw",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (Paula's Periwinkle)",
+			"GiftDropId": 2727,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1239,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "pQNfh-3DsEGWfiIls6Qf6g",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (Pirate Gold)",
+			"GiftDropId": 2720,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1240,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "53y1prYATU2drZDS-jpaqg",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (Propulsion Purple)",
+			"GiftDropId": 2731,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1241,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "3ksu_FLaukeJ-YE90jb4Ow",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (Ranger Roy-Al Blue)",
+			"GiftDropId": 2729,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1242,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "H65ddsxAY0m2sccMrF48Aw",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (Standee Sandy)",
+			"GiftDropId": 2719,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1243,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"AvatarItemDesc": "yejur5BbR0mevbH-rzgXYA",
+			"AvatarItemType": 1,
+			"ConsumableItemDesc": "",
+			"Context": 0,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"EquipmentModificationGuid": "",
+			"EquipmentPrefabName": "",
+			"FriendlyName": "Permanent Hair Dye (Recreational Raspberry)",
+			"GiftDropId": 2674,
+			"IsQuery": false,
+			"ItemSetFriendlyName": "",
+			"ItemSetId": null,
+			"Rarity": 50,
+			"SubscribersOnly": false,
+			"Tooltip": "Permanently unlocks this hair color on your dorm room mirror.",
+			"Unique": false
+		},
+		"IsFeatured": false,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"PurchasableItemId": 1257,
+		"SubscriberPrices": null,
+		"Type": 0
+	},
+	{
+		"GiftDrop": {
+			"GiftDropId": 15722,
+			"FriendlyName": "Blue Hair Pulse Potion",
+			"Tooltip": "",
+			"TagList": "",
+			"ConsumableItemDesc": "xf8N5LJbAEGrk0IE2O8Gqw",
+			"AvatarItemDesc": "",
+			"CustomAvatarItemId": null,
+			"AvatarItemType": null,
+			"EquipmentPrefabName": "",
+			"EquipmentModificationGuid": "",
+			"IsQuery": false,
+			"QueryRedirectContext": null,
+			"QueryRedirectTag": null,
+			"QueryRedirectRarity": null,
+			"Unique": false,
+			"SubscribersOnly": false,
+			"Rarity": -1,
+			"Context": 1003,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"ItemCount": 1,
+			"ItemSetId": null,
+			"ItemSetFriendlyName": "",
+			"AvatarItemId": 0,
+			"EquipmentItemId": 0,
+			"ThumbnailImageName": "",
+			"AvatarItemInfo": null
+		},
+		"PurchasableItemId": 32319,
+		"Type": 0,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"SubscriberPrices": [
+			{
+				"CurrencyType": 2,
+				"Price": 4500,
+				"StorefrontSaleData": null
+			}
+		],
+		"IsFeatured": false,
+		"NewUntil": null,
+		"AvailableAt": null,
+		"AvailableUntil": null,
+		"CanBeGifted": true,
+		"OnlyAvailableThroughCv2": false
+	},
+	{
+		"GiftDrop": {
+			"GiftDropId": 15805,
+			"FriendlyName": "Orange Hair Pulse Potion",
+			"Tooltip": "",
+			"TagList": "",
+			"ConsumableItemDesc": "bbdq1PSnt0aE_ZbyysmXZw",
+			"AvatarItemDesc": "",
+			"CustomAvatarItemId": null,
+			"AvatarItemType": null,
+			"EquipmentPrefabName": "",
+			"EquipmentModificationGuid": "",
+			"IsQuery": false,
+			"QueryRedirectContext": null,
+			"QueryRedirectTag": null,
+			"QueryRedirectRarity": null,
+			"Unique": false,
+			"SubscribersOnly": false,
+			"Rarity": -1,
+			"Context": 1003,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"ItemCount": 1,
+			"ItemSetId": null,
+			"ItemSetFriendlyName": "",
+			"AvatarItemId": 0,
+			"EquipmentItemId": 0,
+			"ThumbnailImageName": "",
+			"AvatarItemInfo": null
+		},
+		"PurchasableItemId": 32320,
+		"Type": 0,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"SubscriberPrices": [
+			{
+				"CurrencyType": 2,
+				"Price": 4500,
+				"StorefrontSaleData": null
+			}
+		],
+		"IsFeatured": false,
+		"NewUntil": null,
+		"AvailableAt": null,
+		"AvailableUntil": null,
+		"CanBeGifted": true,
+		"OnlyAvailableThroughCv2": false
+	},
+	{
+		"GiftDrop": {
+			"GiftDropId": 15860,
+			"FriendlyName": "Red Hair Pulse Potion",
+			"Tooltip": "",
+			"TagList": "",
+			"ConsumableItemDesc": "hTbFiYVzxE6-cUuRr82x4g",
+			"AvatarItemDesc": "",
+			"CustomAvatarItemId": null,
+			"AvatarItemType": null,
+			"EquipmentPrefabName": "",
+			"EquipmentModificationGuid": "",
+			"IsQuery": false,
+			"QueryRedirectContext": null,
+			"QueryRedirectTag": null,
+			"QueryRedirectRarity": null,
+			"Unique": false,
+			"SubscribersOnly": false,
+			"Rarity": -1,
+			"Context": 1003,
+			"Currency": 0,
+			"CurrencyType": 0,
+			"ItemCount": 1,
+			"ItemSetId": null,
+			"ItemSetFriendlyName": "",
+			"AvatarItemId": 0,
+			"EquipmentItemId": 0,
+			"ThumbnailImageName": "",
+			"AvatarItemInfo": null
+		},
+		"PurchasableItemId": 32321,
+		"Type": 0,
+		"Prices": [
+			{
+				"CurrencyType": 2,
+				"Price": 5000,
+				"StorefrontSaleData": null
+			}
+		],
+		"SubscriberPrices": [
+			{
+				"CurrencyType": 2,
+				"Price": 4500,
+				"StorefrontSaleData": null
+			}
+		],
+		"IsFeatured": false,
+		"NewUntil": null,
+		"AvailableAt": null,
+		"AvailableUntil": null,
+		"CanBeGifted": true,
+		"OnlyAvailableThroughCv2": false
+	}
+]

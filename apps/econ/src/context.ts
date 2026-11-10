@@ -35,6 +35,18 @@ export type Env = SharedHonoEnv & {
 	 * sweep maintain, so this only ever pays players who have claimed on the website.
 	 */
 	DISCORD_ROLE_TOKENS?: string
+	/**
+	 * Jeton partagé du pont « boutique du site » (`POST /api/site/grant`). Le Worker de
+	 * recblue.net le présente en `Authorization: Bearer …` ; vide ou absent, le pont
+	 * refuse tout (401) et aucun crédit ne peut être poussé depuis le site.
+	 */
+	SITE_BRIDGE_TOKEN?: string
+	/**
+	 * La boutique Halloween (voir halloween-shop.ts) : `on` la sert à la place du catalogue,
+	 * tout le reste la laisse éteinte. S'ajoute à l'échéance codée dans le module, donc
+	 * laisser le drapeau en place n'empêche pas l'évènement de se terminer tout seul.
+	 */
+	HALLOWEEN_SHOP?: string
 }
 
 /** Variables can be extended */

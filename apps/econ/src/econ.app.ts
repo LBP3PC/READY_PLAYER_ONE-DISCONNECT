@@ -7,7 +7,9 @@ import {
 	addXp,
 	canManageRoomById,
 	consumeGift,
+	countPlayersByRoom,
 	createGift,
+	GAME_VERSION,
 	getAccount,
 	getGift,
 	getOutfits,
@@ -19,6 +21,7 @@ import {
 	levelsReached,
 	listInfluencerIds,
 	ownsInvention,
+	SavedImageType,
 	setOutfit,
 	updateAccount,
 } from '@repo/domain'
@@ -63,7 +66,12 @@ import {
 import { getCatalogItem, getStoreListings, toCatalogAvatarItem } from './catalog-db'
 // `LEGACY_CLIENT_BUILD` is shared with the storefront generator rather than restated: it picks
 // which store FILE a caller is served here, and is what the generator's help names.
-import { CatalogKind, LEGACY_CLIENT_BUILD } from './catalog-load'
+import {
+	CatalogKind,
+	LEGACY_CLIENT_BUILD,
+	type StoreListing,
+	type StorefrontDump,
+} from './catalog-load'
 import { claimChallengeGift, getChallengeStatuses, recordChallengeProgress } from './challenge-db'
 import { buildRotation, rotationMapId, withWeeklyGift } from './challenge-rotation'
 import {
@@ -79,7 +87,7 @@ import {
 	grantCustomAvatarItem,
 	ownedCustomAvatarItemIds,
 } from './inventory-custom-db'
-import { getInventory, grantItem, toAvatarItemV4 } from './inventory-db'
+import { getInventory, grantItem, legacyWardrobeItems, toAvatarItemV4 } from './inventory-db'
 import {
 	AUTHED,
 	AvatarItemV4Dto,
@@ -215,6 +223,8 @@ import {
 	updateRoomKey,
 } from './room-key-db'
 import { getRoomPurchasables } from './room-purchasables-db'
+import { halloweenCatalog, halloweenIsLive } from './halloween-shop'
+import { basePriceListings, basePriceStorefront } from './storefront-pricing'
 import {
 	addWishlistItem,
 	getWishlist,
@@ -845,15 +855,15 @@ async function supportedInfluencer(db: D1Database, accountId: number): Promise<n
  * applied the discount itself and then had the buy refused as a price mismatch is exactly
  * what one definition prevents.
  *
- * Nothing SELLS subscriptions here. Plus is `account.hasPlus`, claimed on the website by
- * proving a qualifying role in the community Discord (`www` `POST /api/benefits/claim`),
- * and it reaches this worker as the token's `rn.plus` claim — stamped by `auth` at login
- * from that flag. So this is a pure token read: no database, no binding, nothing to load.
+ * Nothing SELLS subscriptions here. Plus is `account.hasPlus`, granted from the website
+ * (`www` `POST /api/game/plus`), and it reaches this worker twice: as the token's `rn.plus`
+ * claim (stamped by `auth` at login) and as the live `plusUntil` of the account row.
  *
- * The cost is FRESHNESS, deliberately accepted. The claim is only as current as the token,
- * which lasts a day and is never refreshed (see TOKEN_TTL_SECONDS), so a player who claims
- * on the website has to sign in again — and restart the game — before Plus applies. The
- * website's claim page says so.
+ * The claim is the fast path; the row is what makes a fresh grant apply IMMEDIATELY. Relying
+ * on the claim alone meant a player had to sign in again — and restart the game — before
+ * Plus appeared, while credits were already live. So a token without the claim now falls
+ * back to the account, and the client's repeated `UpdateAndGetSubscription` calls pick the
+ * subscription up mid-session.
  *
  * The `developer` role does NOT grant Plus. It used to, as a stand-in while nothing else
  * could confer it; now that the Discord claim exists, Plus is one thing with one source.
@@ -863,7 +873,15 @@ async function supportedInfluencer(db: D1Database, accountId: number): Promise<n
  * Never read from the body. No token, or an invalid one, is "not subscribed".
  */
 async function isSubscriber(c: Context<App>): Promise<boolean> {
-	return validateAndGetPlus(c.req.raw, await c.env.JWT_SECRET.get())
+	if (await validateAndGetPlus(c.req.raw, await c.env.JWT_SECRET.get())) return true
+	// Le Plus peut être accordé depuis le site à tout moment : un jeton sans le claim n'est
+	// donc plus une réponse définitive, on relit le compte pour qu'il s'applique sans
+	// reconnexion (le client redemande son abonnement plusieurs fois par session).
+	const id = await authedId(c)
+	if (id === null) return false
+	const { readAccountFlags } = await import('./site-flags')
+	const flags = await readAccountFlags(c.env.DB, id)
+	return flags.plusUntil !== null && Date.parse(flags.plusUntil) > Date.now()
 }
 
 /** `SubscriptionLevel.Gold`. 1 is Platinum. */
@@ -897,12 +915,19 @@ const STUB_SUBSCRIPTION_ID = 1
  * subscription with no way to renew it. `IsAutoRenewing` tells the client the same thing.
  * The dates are milliseconds-precision ISO like the rest of this worker's timestamps.
  */
-function plusSubscription(accountId: number) {
+function plusSubscription(accountId: number, until: string | null = null) {
 	const now = new Date()
-	// Calendar arithmetic, not now + 365 days: setUTCFullYear lands on the same date next
-	// year whether or not a leap day falls in between.
-	const expires = new Date(now)
-	expires.setUTCFullYear(expires.getUTCFullYear() + 1)
+	// La date vient du SITE quand il en a une : recblue.net vend REC BLUE Plus avec sa date
+	// de fin, et la page d'abonnement du jeu doit afficher CETTE date. Sans date connue, on
+	// retombe sur « dans un an » (arithmétique calendaire : pas d'expiration surprise).
+	const expires =
+		until !== null && !Number.isNaN(Date.parse(until))
+			? new Date(until)
+			: (() => {
+					const d = new Date(now)
+					d.setUTCFullYear(d.getUTCFullYear() + 1)
+					return d
+				})()
 	return {
 		SubscriptionId: STUB_SUBSCRIPTION_ID,
 		RecNetPlayerId: accountId,
@@ -1018,6 +1043,20 @@ interface StoreGiftDrop {
 interface StorePrice {
 	CurrencyType: number
 	Price: number
+	/**
+	 * La remise que le catalogue porte sur ce prix. Le CLIENT l'applique avant d'envoyer
+	 * `RequestedPrice` : le tableau du Rec Center affiche 200 pour sf2 1518 (1000 à 80 %),
+	 * et c'est 200 qu'il poste.
+	 */
+	StorefrontSaleData?: StorefrontSale | null
+}
+
+/** Le bloc `StorefrontSaleData` d'un prix de catalogue. Un `null` d'un côté ou de l'autre
+ * (début ou fin) laisse la fenêtre ouverte de ce côté, ce que portent les captures. */
+interface StorefrontSale {
+	SalePercent: number
+	SaleStartDate: string | null
+	SaleEndDate: string | null
 }
 interface StoreItem {
 	GiftDrop: StoreGiftDrop
@@ -1068,14 +1107,25 @@ type PriceCheck =
 /**
  * Confirms what the buyer's client rendered, and answers what to charge them.
  *
- * A non-subscriber pays the `Prices` entry, exactly. A subscriber pays whatever they asked to
- * pay within a BAND: the regular price at the top (their client posts it for items it doesn't
- * discount) down to the catalog's `SubscriberPrices` entry or
- * {@link SUBSCRIBER_DISCOUNT_PERCENT} off, whichever is lower.
+ * The price a client renders is a CHAIN, and each step is one the server has to reproduce:
+ * the catalog price, then `StorefrontSaleData` while its window is open, then the Rec Room
+ * Plus discount on top of THAT. The catalogues this server serves carry no sale at all
+ * (`basePriceStorefront`), so in practice the chain collapses to the catalog price and the
+ * Plus discount — the sale step stays because a client can hold a cached store page from
+ * before, and the chain then has to be reproduced exactly as that client rendered it. The
+ * captured refusals fix the order — sf2's 1518 was sent
+ * as 180 (1000 at 80 % off = 200, minus the 10 % Plus discount), sf600's 1378 as 360 (2000
+ * → 400 → 360) and sf102's 1562 as 144 (800 → 160 → 144). Checking `Prices` alone 409'd every
+ * discounted item on the Rec Center board, which the player sees as the client's bare
+ * "An error occurred".
  *
- * Charging `RequestedPrice` rather than a server-picked end of the band keeps the debit equal
- * to the price the buyer was shown. The floor is what bounds the discount: a modified client
- * can shave at most {@link SUBSCRIBER_DISCOUNT_PERCENT} off, and only while subscribed.
+ * A non-subscriber pays the rendered price, exactly — or the catalog price, for the items the
+ * client doesn't discount. A subscriber pays whatever they asked to pay within a BAND: the
+ * catalog price at the top down to the catalog's `SubscriberPrices` entry or
+ * {@link SUBSCRIBER_DISCOUNT_PERCENT} off the RENDERED price, whichever is lower. Charging
+ * `RequestedPrice`
+ * rather than a server-picked end of the band keeps the debit equal to the price the buyer was
+ * shown, and the floor is what bounds the discount a modified client can shave off.
  */
 function priceCheck(
 	item: StoreItem,
@@ -1087,11 +1137,38 @@ function priceCheck(
 	if (regular === undefined) return 'no-currency'
 	if (!Number.isInteger(requestedPrice)) return 'mismatch'
 	const requested = requestedPrice as number
+	// Le prix catalogue : ce que le client poste pour un article qu'il ne remise pas.
 	if (requested === regular.Price) return { charge: requested }
+	const rendered = renderedPrice(regular, Date.now())
+	// Le prix soldé, que poste un client sans Plus.
+	if (requested === rendered) return { charge: requested }
 	if (!subscriber) return 'mismatch'
+	// Le plancher part de ce qui est AFFICHÉ : avec une solde, c'est 10 % sous le prix soldé
+	// (180 pour sf2 1518), sinon 10 % sous le catalogue. Le `SubscriberPrices` du catalogue
+	// (sf300 2089 : 95/85) reste une seconde borne basse — un client qui poste ce prix-là
+	// plutôt que la solde est dans son droit, et c'est ce que le plafond ci-dessous borne.
 	const listed = item.SubscriberPrices?.find((p) => p.CurrencyType === currencyType)
-	const floor = Math.min(subscriberFloor(regular.Price), listed?.Price ?? regular.Price)
+	const floor = Math.min(subscriberFloor(rendered), listed?.Price ?? regular.Price)
 	return requested >= floor && requested < regular.Price ? { charge: requested } : 'mismatch'
+}
+
+/** La fenêtre de solde couvre-t-elle `now` ? Un côté manquant est ouvert de ce côté. */
+function saleIsOpen(sale: StorefrontSale, now: number): boolean {
+	const start = sale.SaleStartDate === null ? -Infinity : Date.parse(sale.SaleStartDate)
+	const end = sale.SaleEndDate === null ? Infinity : Date.parse(sale.SaleEndDate)
+	if (Number.isNaN(start) || Number.isNaN(end)) return false
+	return start <= now && now < end
+}
+
+/**
+ * Le prix que le client AFFICHE pour une entrée de catalogue : le prix soldé tant que la
+ * fenêtre est ouverte, sinon le prix catalogue. `SalePercent` se déduit du prix catalogue.
+ */
+function renderedPrice(entry: StorePrice, now: number): number {
+	const sale = entry.StorefrontSaleData
+	if (!sale || !saleIsOpen(sale, now)) return entry.Price
+	const percent = Math.min(100, Math.max(0, sale.SalePercent))
+	return Math.round((entry.Price * (100 - percent)) / 100)
 }
 
 interface Storefront {
@@ -1157,10 +1234,415 @@ const STOREFRONT_BY_BUILD: Record<string, string> = {
 function storefrontAssetPath(id: string, build: number | null): string {
 	const aliased = STOREFRONT_ALIASES[id] ?? id
 	const variant = STOREFRONT_BY_BUILD[aliased]
+	// A build past LEGACY_CLIENT_BUILD gets the newer file; the 2023 build — and a caller whose
+	// version can't be read, which is the old client — keeps the frozen 2023 store. The two
+	// catalogs number their items differently, so serving the newer one to an old build is not a
+	// cosmetic mismatch: the Rec Center's shop slots carry 2023 ids, and every one of them comes
+	// back "Item not found" from `buyItem`. The client shows that as a bare "An error occurred"
+	// and leaves its purchase guard set, so the shop then says a purchase is already in progress.
 	if (variant !== undefined && build !== null && build > LEGACY_CLIENT_BUILD) {
 		return `/${variant}.json`
 	}
 	return `/sf${aliased}.json`
+}
+
+/**
+ * L'item « REC BLUE Plus » — l'abonnement vendu EN TOKENS dans la boutique du jeu.
+ *
+ * C'est le seul item du catalogue qui ne donne aucun objet : l'acheter pose le Plus sur le
+ * compte de celui qui le reçoit (voir {@link grantRecBluePlus}). Il est ajouté au catalogue
+ * servi plutôt que dans les fichiers `sf*.json`, pour que la boutique de 2023 comme celle
+ * de 2025 le proposent sans dupliquer l'item dans deux exports figés.
+ *
+ * Le prix est celui des skins du haut de gamme (1000–6000 tokens) : c'est un abonnement
+ * mensuel payé en argent du jeu, pas une monnaie réelle.
+ */
+const REC_BLUE_PLUS_ITEM_ID = 990001
+const REC_BLUE_PLUS_PRICE = 5000
+const REC_BLUE_PLUS_DAYS = 30
+
+/**
+ * Un item fabriqué de toutes pièces, dans la FORME EXACTE d'un item du catalogue.
+ *
+ * Le client décode `StoreItem` avec un schéma strict : un item auquel il manque `Type`,
+ * `IsFeatured`, `CanBeGifted` ou `ThumbnailImageName` est rejeté, et un item rejeté ne
+ * s'affiche pas du tout dans la boutique (c'est ce qui est arrivé avec la première
+ * version, écrite à la main). On part donc d'un item réel du même catalogue — celui que
+ * le joueur regarde — et on n'écrase que ce qui nous appartient : l'identité, le nom et
+ * le prix. Tout le reste (contexte de rayon, type, champs optionnels) est hérité du
+ * catalogue, donc forcément valide pour ce build.
+ */
+function syntheticStoreItem(
+	template: StoreItem | undefined,
+	id: number,
+	name: string,
+	tooltip: string,
+	price: number,
+	tokens: number
+): StoreItem {
+	const item = JSON.parse(
+		JSON.stringify(template ?? FALLBACK_STORE_ITEM)
+	) as Record<string, any>
+	item.PurchasableItemId = id
+	item.Prices = [{ CurrencyType: CurrencyType.RecCenterTokens, Price: price, StorefrontSaleData: null }]
+	item.SubscriberPrices = null
+	const drop = item.GiftDrop as Record<string, any>
+	drop.GiftDropId = id
+	drop.FriendlyName = name
+	drop.Tooltip = tooltip
+	drop.ConsumableItemDesc = ''
+	drop.AvatarItemDesc = ''
+	drop.CustomAvatarItemId = null
+	drop.AvatarItemType = null
+	drop.EquipmentPrefabName = ''
+	drop.EquipmentModificationGuid = ''
+	drop.IsQuery = false
+	drop.QueryRedirectContext = null
+	drop.QueryRedirectTag = null
+	drop.QueryRedirectRarity = null
+	drop.Unique = false
+	drop.SubscribersOnly = false
+	drop.Rarity = -1
+	drop.Currency = tokens
+	drop.CurrencyType = tokens > 0 ? CurrencyType.RecCenterTokens : 0
+	drop.ItemCount = 1
+	drop.ItemSetId = 0
+	drop.ItemSetFriendlyName = ''
+	drop.AvatarItemId = 0
+	drop.EquipmentItemId = 0
+	drop.ThumbnailImageName = ''
+	drop.AvatarItemInfo = null
+	// Les articles maison (abonnement, bundles) sont PERMANENTS : ils ne doivent pas hériter
+	// d'une fenêtre de disponibilité du premier article du catalogue, sans quoi l'abonnement
+	// expirerait avec la boutique thématique du moment (voir halloween-shop.ts).
+	item.AvailableAt = null
+	item.AvailableUntil = null
+	return item as unknown as StoreItem
+}
+
+/** La forme d'un item de boutique, pour le cas où le catalogue serait illisible. */
+const FALLBACK_STORE_ITEM = {
+	PurchasableItemId: 0,
+	Type: 0,
+	GiftDrop: {
+		GiftDropId: 0,
+		FriendlyName: '',
+		Tooltip: '',
+		TagList: '',
+		ConsumableItemDesc: '',
+		AvatarItemDesc: '',
+		CustomAvatarItemId: null,
+		AvatarItemType: null,
+		EquipmentPrefabName: '',
+		EquipmentModificationGuid: '',
+		IsQuery: false,
+		QueryRedirectContext: null,
+		QueryRedirectTag: null,
+		QueryRedirectRarity: null,
+		Unique: false,
+		SubscribersOnly: false,
+		Rarity: -1,
+		Context: 0,
+		Currency: 0,
+		CurrencyType: 0,
+		ItemCount: 1,
+		ItemSetId: 0,
+		ItemSetFriendlyName: '',
+		AvatarItemId: 0,
+		EquipmentItemId: 0,
+		ThumbnailImageName: '',
+		AvatarItemInfo: null,
+	},
+	Prices: [],
+	SubscriberPrices: null,
+	IsFeatured: false,
+	NewUntil: null,
+	AvailableAt: null,
+	AvailableUntil: null,
+	CanBeGifted: true,
+	OnlyAvailableThroughCv2: false,
+} as unknown as StoreItem
+
+function recBluePlusItem(template?: StoreItem): StoreItem {
+	return syntheticStoreItem(
+		template,
+		REC_BLUE_PLUS_ITEM_ID,
+		'REC BLUE Plus (30 jours)',
+		'L abonnement REC BLUE Plus pendant 30 jours : tenues réservées au Plus, remise de 10 % et crédits de niveau débloqués.',
+		REC_BLUE_PLUS_PRICE,
+		0
+	)
+}
+
+/**
+ * Ajoute l'item REC BLUE Plus au catalogue de la boutique GÉNÉRALE (storefront 1, et son
+ * équivalent 2025 sous l'id 3). Les autres storefronts — sets d'objets, bundles de tokens —
+ * n'en vendent pas.
+ */
+function withRecBluePlus(storefront: Storefront, storefrontType: number): Storefront {
+	if (storefrontType !== 1 && storefrontType !== 3) return storefront
+	if (storefront.StoreItems.some((it) => it.PurchasableItemId === REC_BLUE_PLUS_ITEM_ID)) return storefront
+	// Hérité d'un item réel de CE catalogue : la forme que ce build sait décoder.
+	const template = storefront.StoreItems[0]
+	return {
+		...storefront,
+		StoreItems: [
+			...storefront.StoreItems,
+			recBluePlusItem(template),
+			...Object.entries(REC_BLUE_BUNDLES).map(([id, bundle]) =>
+				recBlueBundleStoreItem(Number(id), bundle, template)
+			),
+		],
+	}
+}
+
+/**
+ * Les teintures de cheveux permanentes, vendues à PRIX FIXE dans la boutique générale (3).
+ *
+ * Le catalogue 2025 (`sf3-2025.json`) les liste ; le catalogue 2023 servi au build 20230414
+ * (`sf3.json`) ne les a pas du tout, donc le magasin de ce client ne les proposait pas. Elles
+ * sont ajoutées au moment de servir plutôt que dans `sf3.json`, qui reste la capture du
+ * magasin d'origine. Le client 2023 les connaît — son `resources.assets` embarque le
+ * catalogue des teintures (« Rebel Rose Hair Dye » et son GUID `AvatarItemDesc`) — donc
+ * `AvatarItemType: 1` et un desc compact sont exactement ce qu'il attend ; les ids
+ * 1195–1257 sont sous la plage du catalogue 2023 (2168+), donc aucune collision.
+ *
+ * Prix : 5000 tokens la bouteille, comme tout le magasin au prix de base — les soldes du
+ * catalogue 2025 sont retirées par `basePriceStorefront` (storefront-pricing.ts). Comme pour
+ * chaque article, un membre Rec Room Plus paie 10 % de moins (4500), et rien d'autre.
+ *
+ * Le fichier porte aussi les trois potions de couleur TEMPORAIRES (« Hair Pulse » — bleu,
+ * orange, rouge), au même prix fixe de 5000 (4500 en Plus). Elles sont des consommables
+ * (`ConsumableItemDesc`, pas d'`AvatarItemDesc`), pas des déblocages permanents. Le catalogue
+ * 2025 les vend à 150/135 tokens : c'est justement pour ça que le prix des entrées DÉJÀ
+ * listées est réécrit au passage, et pas seulement celui des entrées ajoutées — sinon le même
+ * pot coûterait 5000 sur le build 2023 et 150 sur un build récent.
+ */
+const HAIR_DYE_ASSET = '/rec-blue-hair-dye.json'
+
+async function withRecBlueHairDye(
+	c: Context<App>,
+	storefront: Storefront,
+	storefrontType: number
+): Promise<Storefront> {
+	if (storefrontType !== 3) return storefront
+	const res = await c.env.ASSETS.fetch(new URL(HAIR_DYE_ASSET, c.req.url))
+	// Un asset absent ne doit pas casser la boutique : on sert le catalogue tel quel.
+	if (!res.ok) return storefront
+	const products = (await res.json()) as StoreItem[]
+	const fixedPrice = new Map(products.map((item) => [item.PurchasableItemId, item]))
+	// Le catalogue 2025 liste déjà les potions « Hair Pulse », à son propre prix : on réécrit
+	// le prix de ces entrées au lieu de les dupliquer, pour qu'un pot coûte le prix fixe quel
+	// que soit le build du client.
+	const items = storefront.StoreItems.map((item) => {
+		const priced = fixedPrice.get(item.PurchasableItemId)
+		if (priced === undefined) return item
+		return { ...item, Prices: priced.Prices, SubscriberPrices: priced.SubscriberPrices }
+	})
+	// Les teintures, elles, manquent au catalogue 2023 : elles s'ajoutent.
+	const known = new Set(items.map((item) => item.PurchasableItemId))
+	const missing = products.filter((item) => !known.has(item.PurchasableItemId))
+	return { ...storefront, StoreItems: [...items, ...missing] }
+}
+
+const SKINS_ASSET = '/rec-blue-skins.json'
+
+/** Les vitrines de l'onglet « Skins » du magasin, et la boutique générale (3). */
+const SKIN_PAGES = [401, 402, 403, 404, 405, 406] as const
+const SKIN_STOREFRONTS = new Set<number>([3, ...SKIN_PAGES])
+
+/**
+ * Les skins d'équipement (« Plaid Paintball Pistol Skin », « Shield Skin (Gold) »…) dans la
+ * boutique générale (3) et dans l'onglet « Skins » (401 à 406).
+ *
+ * Le catalogue 2023 servi au build 20230414 n'en contient AUCUNE : ce client n'avait pas une
+ * seule skin en magasin, alors que le catalogue 2025 en liste 284 (les 99 du vrai magasin plus
+ * celles que `runx storefront build` ajoute depuis `static/db/skins.json`).
+ * `rec-blue-skins.json` reprend ces listings — sauf les 3 que le dump ne price pas, donc
+ * invendables — sous des ids NEUFS (2 000 001+), parce que les petits ids du catalogue 2025
+ * désignent d'autres objets dans le catalogue 2023.
+ *
+ * Le dédoublonnage se fait sur `EquipmentModificationGuid`, jamais sur l'id : un build récent
+ * reçoit déjà ces skins de son propre catalogue, avec ses ids, et n'a donc rien à ajouter — son
+ * prix est simplement aligné sur le nôtre, ce qui rend enfin achetables les deux Maker Pen que
+ * le dump laisse sans prix (`SUPER PUMA Maker Pen` 3000, `Creator Expo 2025 Makerpen Skin`
+ * 5000) et garde un même prix sur les deux builds. Le prix est celui du vrai magasin — 3000
+ * tokens pour la plupart, 5 000 000 pour les treize skins « (Gold) » — et la remise Rec Room
+ * Plus reste la seule, bornée à l'achat par `priceCheck`.
+ */
+async function withRecBlueSkins(
+	c: Context<App>,
+	storefront: Storefront,
+	storefrontType: number
+): Promise<Storefront> {
+	if (!SKIN_STOREFRONTS.has(storefrontType)) return storefront
+	const res = await c.env.ASSETS.fetch(new URL(SKINS_ASSET, c.req.url))
+	// Un asset absent ne doit pas casser la boutique : on sert le catalogue tel quel.
+	if (!res.ok) return storefront
+	const skins = (await res.json()) as StoreItem[]
+	// L'onglet « Skins » (401 à 406) : le catalogue est RÉPARTI sur les six pages — tri stable
+	// par outil puis par nom, puis un article sur six. Les six ensemble servent donc tout le
+	// catalogue sans doublon, et chaque page garde un éventail d'outils. Les 284 articles servis
+	// à l'identique dans CHAQUE page ne faisaient au contraire apparaître que ce que la page
+	// veut bien dessiner (les skins Maker Pen, en 36e position, n'apparaissaient jamais).
+	if (storefrontType !== 3) {
+		const ordered = [...skins].sort(
+			(a, b) =>
+				a.GiftDrop.EquipmentPrefabName.localeCompare(b.GiftDrop.EquipmentPrefabName) ||
+				a.GiftDrop.FriendlyName.localeCompare(b.GiftDrop.FriendlyName)
+		)
+		const page = storefrontType - SKIN_PAGES[0]
+		return { ...storefront, StoreItems: ordered.filter((_, index) => index % SKIN_PAGES.length === page) }
+	}
+	const byGuid = new Map(skins.map((item) => [item.GiftDrop.EquipmentModificationGuid, item]))
+	// Un catalogue qui liste déjà la skin garde SON article, mais prend notre prix : c'est ce
+	// qui rend achetables les deux Maker Pen sans prix, sur les deux builds à la fois.
+	const items = storefront.StoreItems.map((item) => {
+		const priced = byGuid.get(item.GiftDrop.EquipmentModificationGuid)
+		if (priced === undefined) return item
+		return { ...item, Prices: priced.Prices, SubscriberPrices: priced.SubscriberPrices }
+	})
+	const known = new Set(
+		items.map((item) => item.GiftDrop.EquipmentModificationGuid).filter((guid) => guid !== '')
+	)
+	const missing = skins.filter((item) => !known.has(item.GiftDrop.EquipmentModificationGuid))
+	// Les skins passent DEVANT, et c'est un choix d'affichage, pas de tri : le magasin
+	// général sert plus de 3 000 articles, donc une skin rangée en fin de liste n'était
+	// trouvable par personne — « il manque des skins » alors qu'elles étaient toutes servies.
+	// Un achat n'y perd rien : chaque case garde son propre id et son propre article.
+	return { ...storefront, StoreItems: [...missing, ...items] }
+}
+
+/** Les extras maison d'un catalogue : teintures et potions, puis les skins d'équipement. */
+async function withRecBlueExtras(
+	c: Context<App>,
+	storefront: Storefront,
+	storefrontType: number
+): Promise<Storefront> {
+	const hair = await withRecBlueHairDye(c, storefront, storefrontType)
+	return withRecBlueSkins(c, hair, storefrontType)
+}
+
+/**
+ * Les offres « bundle » du magasin, vendues EN TOKENS puisqu'un achat en argent réel est
+ * refusé par le client (le Token Store répond « You are not allowed to make in-app
+ * purchases »). Le prix en tokens reprend l'offre d'origine au taux du jeu (≈ 550 tokens
+ * pour 1 $), arrondi : 69,99 $ → 38 500, 19,99 $ → 17 000, 9,99 $ → 5 750.
+ *
+ * `items` nomme les pièces RÉELLEMENT au catalogue, retrouvées par leur nom à l'achat :
+ * les deux catalogues (2023 et 2025) numérotent leurs items différemment, mais gardent les
+ * mêmes noms, donc un bundle marche sur les deux sans table d'ids parallèle.
+ */
+interface RecBlueBundle {
+	name: string
+	tooltip: string
+	price: number
+	items: string[]
+	/** Tokens crédités avec le bundle, dans leur propre boîte. */
+	tokens: number
+}
+
+const REC_BLUE_BUNDLES: Record<number, RecBlueBundle> = {
+	990002: {
+		name: 'Rec Trooper Bundle',
+		tooltip: 'Les cinq sets Rec Trooper complets : casque, gilet et gants (rouge, bleu, jaune, rose, noir).',
+		price: 38500,
+		tokens: 0,
+		items: [
+			'Rec Trooper Helmet (Red)',
+			'Rec Trooper Vest (Red)',
+			'Rec Trooper Gloves (Red)',
+			'Rec Trooper Helmet (Blue)',
+			'Rec Trooper Vest (Blue)',
+			'Rec Trooper Gloves (Blue)',
+			'Rec Trooper Helmet (Yellow)',
+			'Rec Trooper Vest (Yellow)',
+			'Rec Trooper Gloves (Yellow)',
+			'Rec Trooper Helmet (Pink)',
+			'Rec Trooper Vest (Pink)',
+			'Rec Trooper Gloves (Pink)',
+			'Rec Trooper Helmet (Black)',
+			'Rec Trooper Vest (Black)',
+			'Rec Trooper Gloves (Black)',
+		],
+	},
+	990003: {
+		// La paire de RecPods de l'offre d'origine n'existe pas dans les catalogues servis :
+		// le bundle ne vend que les tokens, au prix de l'offre (5 500 pour 5 750).
+		name: '5 500 Tokens',
+		tooltip: 'Un sac de 5 500 tokens, au tarif du pack du jeu.',
+		price: 5750,
+		tokens: 5500,
+		items: [],
+	},
+	990004: {
+		// La « 5 Star Unique Box » de l'offre d'origine n'existe pas au catalogue (les boîtes
+		// vont de 2 à 4 étoiles) : c'est la 4 étoiles qui la remplace.
+		name: 'Weekly Bundle: 5 Star Bundle',
+		tooltip: 'La boîte 4 étoiles et 16 000 tokens de la semaine.',
+		price: 17000,
+		tokens: 16000,
+		items: ['4-Star Unique Box'],
+	},
+}
+
+function bundleById(id: number): RecBlueBundle | undefined {
+	return REC_BLUE_BUNDLES[id]
+}
+
+function recBlueBundleStoreItem(
+	id: number,
+	bundle: RecBlueBundle,
+	template?: StoreItem
+): StoreItem {
+	return syntheticStoreItem(template, id, bundle.name, bundle.tooltip, bundle.price, bundle.tokens)
+}
+
+/**
+ * Le contenu d'un bundle est PAYÉ ici, en une boîte par pièce plus une boîte pour les
+ * tokens — `Currency` sur un gift drop est crédité par `grantGiftDrop`, c'est ce que fait
+ * déjà la boîte de passage de niveau.
+ */
+async function grantRecBlueBundle(
+	c: Context<App>,
+	accountId: number,
+	bundle: RecBlueBundle
+): Promise<void> {
+	const message = `REC BLUE : ${bundle.name}`
+	const storefront = await loadStorefront(c, 3)
+	for (const name of bundle.items) {
+		const found = storefront?.StoreItems.find((it) => it.GiftDrop.FriendlyName === name)
+		if (found === undefined) continue
+		const granted = await grantGiftDrop(c, accountId, found.GiftDrop, message)
+		await pushGiftReceived(c, accountId, granted, message, COACH_ACCOUNT_ID)
+	}
+	if (bundle.tokens > 0) {
+		const drop: StoreGiftDrop = {
+			...syntheticStoreItem(undefined, 0, bundle.name, bundle.tooltip, bundle.price, bundle.tokens)
+				.GiftDrop,
+			Currency: bundle.tokens,
+			CurrencyType: CurrencyType.RecCenterTokens,
+		}
+		const granted = await grantGiftDrop(c, accountId, drop, message)
+		await pushGiftReceived(c, accountId, granted, message, COACH_ACCOUNT_ID)
+	}
+	logger.info('rec blue bundle granted', { accountId, bundle: bundle.name })
+}
+
+/**
+ * Pose (ou prolonge) le Plus sur un compte : 30 jours à partir de la fin actuelle s'il en
+ * reste, du moment présent sinon. `hasPlus` et `plusUntil` vont ensemble — c'est le drapeau
+ * que le site et `auth` lisent — et `isSubscriber` relit ce même champ, donc la remise et
+ * les items réservés au Plus s'appliquent dès l'achat, sans reconnexion.
+ */
+async function grantRecBluePlus(c: Context<App>, accountId: number): Promise<void> {
+	const { readAccountFlags, setPlus } = await import('./site-flags')
+	const flags = await readAccountFlags(c.env.DB, accountId)
+	const current = flags.plusUntil === null ? Number.NaN : Date.parse(flags.plusUntil)
+	const start = Number.isNaN(current) || current < Date.now() ? Date.now() : current
+	const until = new Date(start + REC_BLUE_PLUS_DAYS * 24 * 60 * 60 * 1000).toISOString()
+	await setPlus(c.env.DB, accountId, until)
+	logger.info('rec blue plus granted', { accountId, until })
 }
 
 /**
@@ -1171,13 +1653,54 @@ function storefrontAssetPath(id: string, build: number | null): string {
  * storefront reads (and parses) it once: sf3 alone is over two thousand items and sf3-2025
  * over three, and a bulk purchase carries up to `BULK_PURCHASE_CAP` lines.
  */
+/** L'id du tableau du Rec Center, la seule vitrine dont les articles sont câblés un par case. */
+const REC_CENTER_BOARD_STOREFRONT = 2
+
+/**
+ * Le catalogue d'une vitrine, boutique Halloween comprise (voir halloween-shop.ts) : la
+ * sélection du moment à la place du catalogue pendant l'évènement, le catalogue tel quel
+ * sinon. Appliqué aux DEUX chemins (servi et acheté), sinon ce qui est affiché et ce qui est
+ * facturé divergeraient.
+ */
+async function themedCatalog(
+	c: Context<App>,
+	catalog: Storefront,
+	storefrontType: number,
+	build: number | null
+): Promise<Storefront> {
+	if (!halloweenIsLive(c.env.HALLOWEEN_SHOP)) return catalog
+	// Le tableau du Rec Center ne vend aucun article Halloween dans son propre fichier : la
+	// sélection est puisée dans le magasin général du MÊME build.
+	if (storefrontType === REC_CENTER_BOARD_STOREFRONT) {
+		const res = await c.env.ASSETS.fetch(new URL(storefrontAssetPath('3', build), c.req.url))
+		if (res.ok) {
+			// Les extras maison compris : deux cases du tableau servent les Maker Pen, qui ne sont
+			// dans aucun `sf*.json` (`rec-blue-skins.json` les ajoute).
+			const source = await withRecBlueSkins(
+				c,
+				basePriceStorefront((await res.json()) as Storefront),
+				3
+			)
+			return halloweenCatalog(catalog, storefrontType, c.env.HALLOWEEN_SHOP, Date.now(), source)
+		}
+	}
+	return halloweenCatalog(catalog, storefrontType, c.env.HALLOWEEN_SHOP)
+}
+
 async function loadStorefront(c: Context<App>, storefrontType: number): Promise<Storefront | null> {
 	const build = await authedBuild(c)
 	const res = await c.env.ASSETS.fetch(
 		new URL(storefrontAssetPath(String(storefrontType), build), c.req.url)
 	)
 	if (!res.ok) return null
-	return (await res.json()) as Storefront
+	// Les prix de base sont appliqués ICI, le chemin que lit aussi l'achat : le prix que le
+	// joueur a vu sur le tableau est donc celui que `priceCheck` vérifie.
+	const catalog = basePriceStorefront((await res.json()) as Storefront)
+	// La boutique Halloween remplace le catalogue AVANT les extras maison : l'abonnement REC
+	// BLUE Plus, les bundles et les teintures restent achetables pendant l'évènement.
+	const themed = await themedCatalog(c, catalog, Number(storefrontType), build)
+	const extras = await withRecBlueExtras(c, themed, Number(storefrontType))
+	return withRecBluePlus(extras, Number(storefrontType))
 }
 
 /**
@@ -1191,6 +1714,15 @@ async function findStoreItem(
 	purchasableItemId: number
 ): Promise<StoreItem | null> {
 	const storefront = await loadStorefront(c, storefrontType)
+	// L'abonnement et les bundles ne sont dans aucun fichier de catalogue : ils sont ajoutés
+	// à la volée, donc l'achat doit les résoudre ici aussi (et pas seulement à l'affichage).
+	if (bundleById(purchasableItemId) !== undefined) {
+		const bundle = bundleById(purchasableItemId) as RecBlueBundle
+		return recBlueBundleStoreItem(purchasableItemId, bundle, storefront?.StoreItems[0])
+	}
+	if (purchasableItemId === REC_BLUE_PLUS_ITEM_ID) {
+		return recBluePlusItem(storefront?.StoreItems[0])
+	}
 	if (storefront === null) return null
 	return storefront.StoreItems.find((it) => it.PurchasableItemId === purchasableItemId) ?? null
 }
@@ -2245,6 +2777,11 @@ function resolveBulkLine(
 	if (item === undefined) {
 		return { method, code: UpdateResponse.NoItemAvailable, error: 'Item not found' }
 	}
+	// Une tenue Rec Room Plus ne se vend qu'à un abonné, exactement comme dans buyItem — sans
+	// ce refus, un panier serait le chemin pour l'acheter sans Plus.
+	if (item.GiftDrop.SubscribersOnly === true && !subscriber) {
+		return { method, code: UpdateResponse.NoItemAvailable, error: 'Rec Room Plus required' }
+	}
 	// Only a consumable stacks. An avatar item or an equipment skin is owned once, so a
 	// second copy would grant nothing while charging for it — and the bag answers ONE entry
 	// (one box) per requested item, which is the same statement from the wire's side.
@@ -2601,6 +3138,10 @@ function toLevelUpDrop(rarity: number): StoreGiftDrop {
  *
  * Which reward is per level, not per tier: the early levels pay CONSUMABLES and the rest pay
  * clothing at a rising star rating. The catalog is read once and shared across the boxes.
+ * Every level also PAYS {@link LEVEL_UP_TOKENS} tokens, credited to the balance before the box
+ * is created so the box can show them: being levelled is worth the same whatever the item
+ * roll does, so a roll that comes up empty still pays.
+ *
  * Best-effort as a whole: the XP is banked and the levels are already stored, so a failed
  * roll costs a prize, not the level.
  */
@@ -2613,19 +3154,38 @@ async function grantLevelUpGifts(
 	if (levels.length === 0) return
 	try {
 		const rollCatalog = await loadRollCatalog(c)
+		const startingTokens = intVar(c.env.STARTING_TOKENS, DEFAULT_STARTING_TOKENS)
 		for (const level of levels) {
 			const reward = levelReward(level)
 			if (reward === null) continue
 			const message = `Level ${level}!`
+			// Les crédits du niveau d'abord : la boîte qui suit les annonce et les montre, donc
+			// ils doivent déjà être au solde quand elle est créée.
+			await ensureStartingBalances(c.env.DB, accountId, startingTokens)
+			const balance = await creditCurrency(
+				c.env.DB,
+				accountId,
+				CurrencyType.RecCenterTokens,
+				LEVEL_UP_TOKENS,
+				startingTokens
+			)
+			await pushBalanceUpdate(c, accountId, CurrencyType.RecCenterTokens, balance)
 			// A consumable is rolled to a concrete drop up front; clothing rides the query path,
 			// which rolls it against what the player already owns.
-			const drop =
+			const rolled =
 				reward.kind === 'consumable'
 					? rollConsumableDrop(rollCatalog)
 					: toLevelUpDrop(reward.rarity)
-			if (drop === null) {
+			if (rolled === null) {
 				logger.warn('level up reward rolled nothing', { accountId, level, kind: reward.kind })
 				continue
+			}
+			// La boîte porte l'item ET les crédits du niveau : une seule boîte par niveau, qui dit
+			// tout ce que le niveau a payé.
+			const drop: StoreGiftDrop = {
+				...rolled,
+				Currency: LEVEL_UP_TOKENS,
+				CurrencyType: CurrencyType.RecCenterTokens,
 			}
 			const granted = await grantGiftDrop(c, accountId, drop, message, {
 				avatarItemsOnly: reward.kind === 'clothing',
@@ -2650,6 +3210,13 @@ async function grantLevelUpGifts(
 		})
 	}
 }
+
+/**
+ * What reaching a level pays in tokens, on top of the level's item. Credited once per level
+ * crossed — a grant that takes a player up three levels pays three times — and shown on the
+ * level-up box beside the item.
+ */
+const LEVEL_UP_TOKENS = 250
 
 /** The message on the gift box the weekly reward arrives in. */
 const CHALLENGE_GIFT_MESSAGE = 'Weekly challenge complete!'
@@ -3047,13 +3614,41 @@ const app = new Hono<App>({ strict: false })
 			)
 				.bind(CatalogKind.AvatarItem)
 				.all<CatalogRow>()
-			const catalogue = results.map(toCatalogAvatarItem)
+			// 2025's BGJHOEKDNED carries `AvatarItemId` as a non-nullable int, while a catalogue
+			// row for a store listing can have no id (null). A null in that field costs the
+			// 2025 client the whole response, so only that build gets 0 there; 2023 keeps the
+			// raw nulls it has always received.
+			const build = await authedBuild(c)
+			const modern = build !== null && build > Number(GAME_VERSION)
+			const catalogue = results
+				.map(toCatalogAvatarItem)
+				.map((item) => (modern ? { ...item, AvatarItemId: item.AvatarItemId ?? 0 } : item))
 			if (requested.length === 0) return c.json(catalogue)
 
 			// A Set rather than `Array.includes` per item: the reference's nested scan is
 			// quadratic.
 			const wanted = new Set(requested)
-			return c.json(catalogue.filter((item) => wanted.has(item.AvatarItemDesc)))
+			const filtered = catalogue.filter((item) => wanted.has(item.AvatarItemDesc))
+			if (!modern) return c.json(filtered)
+
+			// 2025's OutfitManager asks for every item in the outfit, including descriptors
+			// the catalog does not know. Omitting one leaves it with a null slot and costs
+			// the whole apply; a neutral numeric record is better than a missing entry.
+			const found = new Set(filtered.map((item) => item.AvatarItemDesc))
+			const placeholders = [...new Set(requested)]
+				.filter((desc) => !found.has(desc))
+				.map((desc) => ({
+					AvatarItemDesc: desc,
+					AvatarItemType: 0,
+					PlatformMask: -1,
+					FriendlyName: '',
+					Tooltip: '',
+					Rarity: 0,
+					TagList: '',
+					AvatarItemId: 0,
+					IsBaseAvatarItem: false,
+				}))
+			return c.json([...filtered, ...placeholders])
 		}
 	)
 
@@ -3061,7 +3656,19 @@ const app = new Hono<App>({ strict: false })
 	.get(
 		'/api/avatar/v1/defaultunlocked',
 		listRoute('Default-unlocked avatar items', 'The bundled default avatar-item catalog'),
-		(c) => c.json(defaultAvatarItems)
+		// The captured catalog carries `TagList: null` and `Tooltip: null` on many rows. The
+		// 2023 client runs LINQ transforms over those fields and throws
+		// `ArgumentNullException: source` on a null list, so serve the empty-string/zero form
+		// the v4 projection already uses.
+		(c) =>
+			c.json(
+				defaultAvatarItems.map((item) => ({
+					...item,
+					TagList: item.TagList ?? '',
+					Tooltip: item.Tooltip ?? '',
+					AvatarItemId: item.AvatarItemId ?? 0,
+				}))
+			)
 	)
 
 	// The base items UGC clothing is built on top of — served from bundled static JSON,
@@ -3069,7 +3676,15 @@ const app = new Hono<App>({ strict: false })
 	.get(
 		'/api/avatar/v1/defaultbaseavataritems',
 		listRoute('Default base avatar items', 'The bundled base items UGC clothing builds on'),
-		(c) => c.json(defaultBaseAvatarItems)
+		(c) =>
+			c.json(
+				defaultBaseAvatarItems.map((item) => ({
+					...item,
+					TagList: item.TagList ?? '',
+					Tooltip: item.Tooltip ?? '',
+					AvatarItemId: item.AvatarItemId ?? 0,
+				}))
+			)
 	)
 
 	// The player's avatar items — the items they've bought (from `buyItem`, stored in
@@ -3096,7 +3711,29 @@ const app = new Hono<App>({ strict: false })
 			const id = await authedId(c)
 			if (id === null) return unauthorized(c)
 			const owned = await getInventory(c.env.DB, id)
-			return c.json([...owned, ...defaultAvatarItems].map(toAvatarItemV4))
+
+			// 2025's locker gets every avatar item the served store sells. This is a
+			// READ-ONLY overlay: nothing is written to the shared inventory, and the
+			// 2023 response is exactly the owned items plus the default catalog.
+			const build = await authedBuild(c)
+			let wardrobe: WardrobeItem2025[] = []
+			if (build !== null && build > Number(GAME_VERSION)) {
+				wardrobe = allAvatarItems2025(await store2025Listings(c.env.ASSETS, c.req.url))
+			}
+			const known = new Set(
+				[...owned, ...defaultAvatarItems].map((item) =>
+					String((item as Record<string, unknown>).AvatarItemDesc ?? '')
+				)
+			)
+			const items = [
+				...owned,
+				...defaultAvatarItems,
+				...wardrobe.filter((item) => !known.has(item.AvatarItemDesc)),
+			].map(toAvatarItemV4)
+			// A 2023 wardrobe is keyed by item id. Old purchases lack ids entirely and are
+			// returned as 0; duplicates of default items can also appear in the inventory.
+			// Correct only the response, leaving stored inventory and descriptors unchanged.
+			return c.json(build === null || build <= Number(GAME_VERSION) ? legacyWardrobeItems(items) : items)
 		}
 	)
 
@@ -3248,19 +3885,32 @@ const app = new Hono<App>({ strict: false })
 		(c) => c.json(myProgress)
 	)
 
-	// Clears a group of objectives. No per-player progress to clear yet, so this
-	// is a no-op that returns an empty array (a 404 here breaks the client). Accepts
-	// GET or POST since the client may use either.
+	// Clears a group of objectives. No per-player progress to clear yet, so this is
+	// a no-op — but the response has to be a JSON OBJECT. The client deserialises this
+	// body as one, and a bare `[]` makes it log `expected '}', actual: '['` and throw
+	// away the local objective state ("Local objective state will not be reflected in
+	// server!"), so we echo the posted group back as cleared instead. Accepts GET or
+	// POST since the client may use either.
 	.on(
 		['GET', 'POST'],
 		'/api/objectives/v1/cleargroup',
 		describeRoute({
 			tags: ['Econ'],
 			summary: 'Clear an objectives group (no-op)',
-			description: 'No per-player progress to clear yet → []. Accepts GET or POST.',
-			responses: { 200: json(JsonArray, 'Always empty for now') },
+			description:
+				'Nothing is persisted yet: echoes the posted group back as cleared. Always an object, never an array.',
+			responses: { 200: json(UpdateObjectiveResponse, 'The echoed group, cleared now') },
 		}),
-		(c) => c.json([])
+		async (c) => {
+			const body = await c.req
+				.json<{ Group?: string | number }>()
+				.catch(() => ({}) as Record<string, never>)
+			return c.json({
+				group: Number(body.Group) || 0,
+				isCompleted: false,
+				clearedAt: new Date().toISOString(),
+			})
+		}
 	)
 
 	// Report one objective's progress. The client posts the whole objective as it now
@@ -3768,6 +4418,20 @@ const app = new Hono<App>({ strict: false })
 					// If the box carried a consumable, tell the client it now has it (so it shows
 					// up in inventory without a refetch). Avatar-item boxes carry no ConsumableItemDesc.
 					if (gift.ConsumableItemDesc !== '') await pushConsumableAdded(c, id, gift)
+					// A box carrying CURRENCY pays out HERE. Every purchased item is granted at buy
+					// time, so its box is cosmetic — but a token box has nothing granted until it is
+					// opened, and crediting the balance is what makes the drop real instead of an
+					// animation over nothing. `CurrencyType` 0 means the box named no currency, which
+					// is not a token box and is left alone.
+					if (gift.Currency > 0 && gift.CurrencyType > 0) {
+						await creditCurrency(
+							c.env.DB,
+							id,
+							gift.CurrencyType,
+							gift.Currency,
+							intVar(c.env.STARTING_TOKENS, DEFAULT_STARTING_TOKENS)
+						)
+					}
 				} else {
 					// Nothing was consumed: either the box is already gone (a harmless no-op —
 					// re-opening your own consumed box still succeeds) or it belongs to another
@@ -5653,7 +6317,27 @@ const app = new Hono<App>({ strict: false })
 			const ids = ((raw as unknown[] | null | undefined) ?? []).filter((id): id is number =>
 				Number.isInteger(id)
 			)
-			return c.json(await getStoreListings(c.env.DB, ids))
+			const listings = await getStoreListings(c.env.DB, ids)
+			const build = await authedBuild(c)
+			// Les prix de base, les mêmes que le catalogue servi : le tableau du Rec Center
+			// affiche ces fiches, donc c'est ici que passe son prix.
+			if (build === null || build <= Number(GAME_VERSION) || ids.length === 0)
+				return c.json(basePriceListings(listings))
+
+			// The catalog table is populated from the 2025 store by `runx catalog load`,
+			// which is not part of a worker deploy. A 2025 client must still get the exact
+			// listings its bundled store page shows, so fall back to the served dump for ids
+			// the table does not know yet (2023 never enters this branch).
+			const store = await store2025Listings(c.env.ASSETS, c.req.url)
+			const byId = new Map(listings.map((listing) => [listing.PurchasableItemId, listing]))
+			return c.json(
+				basePriceListings(
+					Array.from(new Set(ids)).flatMap((id) => {
+						const listing = byId.get(id) ?? store.get(id)
+						return listing === undefined ? [] : [listing]
+					})
+				)
+			)
 		}
 	)
 
@@ -5911,10 +6595,20 @@ const app = new Hono<App>({ strict: false })
 			const id = c.req.param('id')
 			// The same resolution `loadStorefront` uses, so what is browsed is what a purchase is
 			// checked against — see `storefrontAssetPath`.
-			const path = storefrontAssetPath(id, await authedBuild(c))
+			const build = await authedBuild(c)
+			const path = storefrontAssetPath(id, build)
 			const res = await c.env.ASSETS.fetch(new URL(path, c.req.url))
 			if (!res.ok) return c.notFound()
-			return c.json(await res.json())
+			// The REC BLUE Plus subscription and the bundles are not in any `sf*.json` — they
+			// are added here too, or the client would list a store they cannot see them in.
+			// Les mêmes prix de base et les mêmes extras que `loadStorefront` : ce qui est affiché
+			// est ce qui est facturé.
+			const catalog = basePriceStorefront((await res.json()) as Storefront)
+			// Même thématisation que `loadStorefront` : pendant la boutique Halloween, ce qui est
+			// affiché ici est ce qui sera facturé là-bas.
+			const themed = await themedCatalog(c, catalog, Number(id), build)
+			const extras = await withRecBlueExtras(c, themed, Number(id))
+			return c.json(withRecBluePlus(extras, Number(id)))
 		}
 	)
 
@@ -5947,7 +6641,10 @@ const app = new Hono<App>({ strict: false })
 				'from the box rather than withholding it. `Balance` in the response is the CHANGE (negated',
 				'price), not the new total. Pushes a StorefrontBalancePurchase socket frame that SETS the',
 				'buyer’s account-wide bucket to the RESULTING total, so the frame, this body and a',
-				'`GET /balance` re-fetch all agree (`Delta` there is display-only).',
+				'`GET /balance` re-fetch all agree (`Delta` there is display-only).\n\n' +
+				'An item whose `GiftDrop.SubscribersOnly` is true is sold to a Rec Room Plus member only: a',
+				'buyer without Plus is refused with a 403 and nothing is charged, so the Plus-only outfits',
+				'stay Plus-only however the client renders them.',
 			].join(' '),
 			security: AUTHED,
 			requestBody: jsonBody(BuyItemRequest, 'The item, currency, price, and optional Gift'),
@@ -5955,6 +6652,7 @@ const app = new Hono<App>({ strict: false })
 				200: json(BuyItemResponse, 'The purchase result (gift box + balance change)'),
 				400: json(ErrorResponse, 'Invalid body, unavailable currency, or insufficient balance'),
 				401: UNAUTHORIZED_RESPONSE,
+				403: json(ErrorResponse, 'The item is for Rec Room Plus members, and the buyer has none'),
 				404: json(ErrorResponse, 'No such item, or a `Gift` naming a player that does not exist'),
 				409: json(ErrorResponse, 'The price has changed since the client rendered it'),
 			},
@@ -5986,21 +6684,65 @@ const app = new Hono<App>({ strict: false })
 				)
 			}
 
+			// A refused purchase reaches the player as a bare "An error occurred", and nothing in
+			// the client's log carries the ids it sent. Log the request before anything can refuse
+			// it: the storefront and item ids are what tell a catalog mismatch apart from a stale
+			// client, and `requestedPrice` is what the 409 below turns on.
+			const build = await authedBuild(c)
+			logger.info('buyItem', {
+				accountId: id,
+				build,
+				storefrontType,
+				purchasableItemId,
+				currencyType,
+				requestedPrice,
+			})
+
 			const item = await findStoreItem(c, storefrontType as number, purchasableItemId as number)
-			if (item === null) return c.json({ error: 'Item not found' }, 404)
+			if (item === null) {
+				logger.warn('buyItem refused: no such item in that storefront catalog', {
+					accountId: id,
+					build,
+					storefrontType,
+					purchasableItemId,
+				})
+				return c.json({ error: 'Item not found' }, 404)
+			}
+
+			const subscriber = await isSubscriber(c)
+			// Une tenue Rec Room Plus (le drapeau `SubscribersOnly` du catalogue) ne se vend qu'à un
+			// abonné. Le client masque le bouton aux non-membres, mais il ne l'empêche pas : ce
+			// refus est le seul verrou, et il tombe avant tout débit.
+			if (item.GiftDrop.SubscribersOnly === true && !subscriber) {
+				logger.warn('buyItem refused: the item is for Rec Room Plus members', {
+					accountId: id,
+					build,
+					storefrontType,
+					purchasableItemId,
+				})
+				return c.json({ error: 'Rec Room Plus required' }, 403)
+			}
 
 			// A subscriber's client prices the item itself and posts the result, so the check is a
 			// band rather than one number — see `priceCheck`. `charge` is what they asked to pay.
-			const checked = priceCheck(
-				item,
-				currencyType as number,
-				await isSubscriber(c),
-				requestedPrice
-			)
+			const checked = priceCheck(item, currencyType as number, subscriber, requestedPrice)
 			if (checked === 'no-currency') {
+				logger.warn('buyItem refused: the item is not sold in that currency', {
+					accountId: id,
+					storefrontType,
+					purchasableItemId,
+					currencyType,
+				})
 				return c.json({ error: 'Currency type not available for this item' }, 400)
 			}
 			if (checked === 'mismatch') {
+				logger.warn('buyItem refused: the price the client rendered is not the one on sale', {
+					accountId: id,
+					storefrontType,
+					purchasableItemId,
+					currencyType,
+					requestedPrice,
+				})
 				return c.json({ error: 'Price has changed' }, 409)
 			}
 			const price = checked.charge
@@ -6031,7 +6773,16 @@ const app = new Hono<App>({ strict: false })
 			// Debit the buyer atomically; a false return means they couldn't afford it and
 			// nothing changed, so no item is granted.
 			const paid = await spendCurrency(c.env.DB, id, currencyType as number, price, startingTokens)
-			if (!paid) return c.json({ error: 'Insufficient balance' }, 400)
+			if (!paid) {
+				logger.warn('buyItem refused: the buyer cannot afford it', {
+					accountId: id,
+					storefrontType,
+					purchasableItemId,
+					currencyType,
+					price,
+				})
+				return c.json({ error: 'Insufficient balance' }, 400)
+			}
 
 			// Grant the item to the recipient, with the gift box that renders it. A box (an
 			// `IsQuery` drop, e.g. sf2's "4-Star Unique Box") rolls its prize in here, and
@@ -6049,6 +6800,17 @@ const app = new Hono<App>({ strict: false })
 			// their client's next `GET /api/avatar/v2/gifts`.
 			if (receiverId !== id) {
 				await pushGiftReceived(c, receiverId, granted, message, fromPlayerId, giftContext)
+			}
+
+			// L'item REC BLUE Plus n'est pas un objet : il pose l'abonnement sur le compte qui
+			// le reçoit (l'acheteur, ou le joueur à qui il l'offre).
+			if (purchasableItemId === REC_BLUE_PLUS_ITEM_ID) {
+				await grantRecBluePlus(c, receiverId)
+			}
+			// Les bundles vendent leur contenu, pas eux-mêmes.
+			const bundle = REC_BLUE_BUNDLES[Number(purchasableItemId)]
+			if (bundle !== undefined) {
+				await grantRecBlueBundle(c, receiverId, bundle)
 			}
 
 			// Push the spend to the buyer (`id` — the caller is who was charged) so their client
@@ -6339,6 +7101,14 @@ const app = new Hono<App>({ strict: false })
 				// the box entirely, and there is nothing to announce.
 				if (receiverId !== id && !skipGiftBox) {
 					await pushGiftReceived(c, receiverId, granted, message, fromPlayerId, giftContext)
+				}
+				// Une ligne du panier qui est l'abonnement le pose comme buyItem le ferait.
+				if (line.item.PurchasableItemId === REC_BLUE_PLUS_ITEM_ID) {
+					await grantRecBluePlus(c, receiverId)
+				}
+				const bundle = REC_BLUE_BUNDLES[line.item.PurchasableItemId]
+				if (bundle !== undefined) {
+					await grantRecBlueBundle(c, receiverId, bundle)
 				}
 				packages.set(
 					line,
@@ -7568,8 +8338,8 @@ const app = new Hono<App>({ strict: false })
 				'(`Level` 0) yearly (`Period` 1) subscription on `PlatformType` -1 (All), expiring a',
 				'year from the call; every other caller gets `{}`. The `developer` role does NOT',
 				'confer it. Auth is optional — a missing or invalid token reads as “not subscribed”,',
-				'not 401. The subscription itself is not persisted, and because the claim is stamped',
-				'at login, a player who has just claimed must sign in again before it appears.',
+				'not 401. The subscription itself is not persisted. It also follows the account row,',
+				'so a Plus granted on the website applies at the next call, without signing in again.',
 			].join(' '),
 			responses: {
 				200: json(SubscriptionResponse, 'The subscription, or `{}` for no subscription'),
@@ -7579,8 +8349,10 @@ const app = new Hono<App>({ strict: false })
 			if (!(await isSubscriber(c))) return c.json({})
 			const id = await authedId(c)
 			if (id === null) return c.json({})
+			const { readAccountFlags } = await import('./site-flags')
+			const flags = await readAccountFlags(c.env.DB, id)
 			return c.json({
-				Subscription: plusSubscription(id),
+				Subscription: plusSubscription(id, flags.plusUntil),
 				PlatformAccountSubscribedPlayerId: null,
 			})
 		}
@@ -7920,6 +8692,844 @@ app.get(
 	)
 )
 
+// ---- Pont boutique du site (recblue.net) ----------------------------------
+// Un achat PayPal confirmé sur le site crédite le compte de JEU et lui laisse une box
+// du même montant. Appelé serveur-à-serveur par le Worker du site, jamais par le
+// navigateur, et authentifié par le jeton partagé SITE_BRIDGE_TOKEN (vide = pont fermé).
+/**
+ * Retrouve un compte de JEU à partir du nom tapé dans l'administration du site : le pseudo
+ * de connexion d'abord, puis le NOM AFFICHÉ. Un joueur qui s'est renommé en jeu garde son
+ * pseudo de connexion, alors que le site ne connaît souvent que le nom affiché — sans ce
+ * repli, un don de crédits échoue avec « aucun compte de jeu ».
+ */
+async function resolveGameAccount(db: D1Database, name: string) {
+	const lowered = name.trim().toLowerCase()
+	if (lowered === '') return null
+	const { getAccount, getAccountByUsername } = await import('@repo/domain/src/accounts-db')
+	const exact = await getAccountByUsername(db, lowered)
+	if (exact !== null) return exact
+	const row = await db
+		.prepare(
+			`SELECT account_id AS accountId FROM account
+			  WHERE lower(json_extract(data, '$.displayName')) = ?1
+			  ORDER BY account_id DESC LIMIT 1`
+		)
+		.bind(lowered)
+		.first<{ accountId: number }>()
+	if (!row) return null
+	return getAccount(db, row.accountId)
+}
+
+app.post('/api/site/grant', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const body = (await c.req.json().catch(() => null)) as {
+		username?: string
+		tokens?: number
+		message?: string
+	} | null
+	const username = String(body?.username ?? '').trim().toLowerCase()
+	const tokens = Number(body?.tokens ?? 0)
+	if (username === '' || !Number.isSafeInteger(tokens) || tokens <= 0) {
+		return c.json({ error: 'bad request' }, 400)
+	}
+
+	const owner = await resolveGameAccount(c.env.DB, username)
+	if (owner === null) return c.json({ error: 'no such account' }, 404)
+	const resolvedUsername = String(owner.username || username)
+
+	const { grantSiteCreditsByUsername } = await import('./site-gift')
+	const result = await grantSiteCreditsByUsername(
+		c.env,
+		resolvedUsername,
+		tokens,
+		intVar(c.env.STARTING_TOKENS, DEFAULT_STARTING_TOKENS),
+		body?.message ? String(body.message) : undefined
+	)
+	if (result === null) return c.json({ error: 'no such account' }, 404)
+	return c.json({ ok: true, ...result })
+})
+
+/**
+ * Message général « Coach » : le site d'administration envoie un texte à tous les
+ * joueurs CONNECTÉS. Même jeton de pont que les crédits ; rien n'est stocké, c'est une
+ * annonce en direct (le hub notify ne la rejoue pas aux joueurs hors ligne).
+ */
+app.post('/api/site/coach-message', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const body = (await c.req.json().catch(() => null)) as { messageContent?: string } | null
+	const content = typeof body?.messageContent === 'string' ? body.messageContent.trim() : ''
+	if (content === '' || content.length > 500) return c.json({ error: 'bad request' }, 400)
+
+	const hub = c.env.RECFLARE_NOTIFICATIONS_HUB.getByName(HUB_INSTANCE)
+	const result = await hub.coachMessageAll(content)
+	return c.json({ ok: true, sent: result.sent })
+})
+
+// Retrait de crédits : l'administration CORRIGE un solde (erreur de saisie, triche,
+// remboursement). Même jeton de pont que le grant, aucune box envoyée, et le solde ne
+// descend jamais sous 0.
+app.post('/api/site/debit', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const body = (await c.req.json().catch(() => null)) as {
+		username?: string
+		tokens?: number
+	} | null
+	const username = String(body?.username ?? '').trim().toLowerCase()
+	const tokens = Number(body?.tokens ?? 0)
+	if (username === '' || !Number.isSafeInteger(tokens) || tokens <= 0) {
+		return c.json({ error: 'bad request' }, 400)
+	}
+
+	const owner = await resolveGameAccount(c.env.DB, username)
+	if (owner === null) return c.json({ error: 'no such account' }, 404)
+	const resolvedUsername = String(owner.username || username)
+
+	const { debitSiteCreditsByUsername } = await import('./site-gift')
+	const result = await debitSiteCreditsByUsername(
+		c.env,
+		resolvedUsername,
+		tokens,
+		intVar(c.env.STARTING_TOKENS, DEFAULT_STARTING_TOKENS)
+	)
+	if (result === null) return c.json({ error: 'no such account' }, 404)
+	return c.json({ ok: true, ...result })
+})
+
+// La liste des COMPTES DU JEU pour l'administration du site : qui existe, qui est en
+// ligne, et quels droits chacun porte. Une seule requête, lue directement sur les comptes
+// et les présences — le site n'en garde aucune copie.
+app.get('/api/site/players', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const { results } = await c.env.DB.prepare(
+		`SELECT a.account_id AS id,
+		        json_extract(a.data, '$.username') AS username,
+		        json_extract(a.data, '$.displayName') AS displayName,
+		        json_extract(a.data, '$.profileImage') AS profileImage,
+		        (json_extract(a.data, '$.isModerator') = 1) AS isModerator,
+		        (json_extract(a.data, '$.isDeveloper') = 1) AS isDeveloper,
+		        (coalesce(json_extract(a.data, '$.isInfluencer'), json_extract(a.data, '$.isCertified')) = 1) AS certified,
+		        (json_extract(a.data, '$.banned') = 1) AS banned,
+		        (json_extract(a.data, '$.hasPlus') = 1) AS plus,
+		        json_extract(a.data, '$.createdAt') AS createdAt,
+		        COALESCE(p.level, 1) AS level,
+		        COALESCE(p.xp, 0) AS xp,
+		        COALESCE(r.cheer_general, 0) + COALESCE(r.cheer_helpful, 0) +
+		        COALESCE(r.cheer_creative, 0) + COALESCE(r.cheer_great_host, 0) +
+		        COALESCE(r.cheer_sportsman, 0) AS likes
+		   FROM account a
+		   LEFT JOIN progression p ON p.account_id = a.account_id
+		   LEFT JOIN reputation r ON r.account_id = a.account_id
+		  WHERE a.account_id > 1
+		  ORDER BY a.account_id DESC
+		  LIMIT 2000`
+	).all<{
+		id: number
+		username: string | null
+		displayName: string | null
+		profileImage: string | null
+		isModerator: number
+		isDeveloper: number
+		certified: number
+		banned: number
+		plus: number
+		createdAt: string | null
+		level: number
+		xp: number
+		likes: number
+	}>()
+
+	const { results: present } = await c.env.DB.prepare(
+		'SELECT DISTINCT account_id AS id FROM presence'
+	).all<{ id: number }>()
+	const online = new Set(present.map((row) => Number(row.id)))
+
+	return c.json({
+		players: results.map((row) => ({
+			accountId: row.id,
+			username: row.username ?? `Player${row.id}`,
+			displayName: row.displayName ?? '',
+			profileImage: row.profileImage ?? '',
+			role: row.isDeveloper === 1 ? 'admin' : row.isModerator === 1 ? 'moderator' : 'member',
+			isDeveloper: row.isDeveloper === 1,
+			certified: row.certified === 1,
+			banned: row.banned === 1,
+			plus: row.plus === 1,
+			online: online.has(row.id),
+			createdAt: row.createdAt,
+			level: row.level,
+			xp: row.xp,
+			likes: row.likes
+		}))
+	})
+})
+
+// Un like du site est un cheer GÉNÉRAL reçu par le joueur : il apparaît donc dans son
+// profil de jeu (reputation.cheer_general), au lieu d'un compteur séparé que le jeu ne
+// verrait jamais. Un même compte du site ne peut aimer le même joueur qu'une fois.
+const SITE_LIKER = /^[a-zA-Z0-9_-]{8,80}$/
+
+/** Le nombre de likes/cheers reçus par un compte, toutes catégories du jeu confondues. */
+async function sitePlayerLikes(db: D1Database, accountId: number): Promise<number> {
+	const row = await db
+		.prepare(
+			`SELECT COALESCE(cheer_general, 0) + COALESCE(cheer_helpful, 0) +
+			        COALESCE(cheer_creative, 0) + COALESCE(cheer_great_host, 0) +
+			        COALESCE(cheer_sportsman, 0) AS likes
+			   FROM reputation WHERE account_id = ?1`
+		)
+		.bind(accountId)
+		.first<{ likes: number }>()
+	return Number(row?.likes ?? 0)
+}
+
+// État d'un like pour le profil affiché. Appelé par le Worker du site avec le jeton du
+// pont ; `liker` est l'identifiant du compte Supabase, jamais fourni par le navigateur.
+app.get('/api/site/player-like', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const liker = String(c.req.query('liker') ?? '').trim()
+	const target = String(c.req.query('target') ?? '').trim()
+	if (!SITE_LIKER.test(liker) || target === '') return c.json({ error: 'bad request' }, 400)
+
+	const account = await resolveGameAccount(c.env.DB, target)
+	if (account === null || account.accountId <= 1) return c.json({ error: 'no such account' }, 404)
+
+	const row = await c.env.DB.prepare(
+		'SELECT 1 AS ok FROM site_player_like WHERE liker = ?1 AND target_account_id = ?2'
+	)
+		.bind(liker, account.accountId)
+		.first<{ ok: number }>()
+	return c.json({ liked: row !== null, likes: await sitePlayerLikes(c.env.DB, account.accountId) })
+})
+
+// Enregistre le like et l'ajoute à la réputation du joueur. Le couple
+// (compte du site, compte de jeu) est unique : un double clic ne recompte pas.
+app.post('/api/site/player-like', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const body = (await c.req.json().catch(() => null)) as {
+		liker?: unknown
+		target?: unknown
+	} | null
+	const liker = String(body?.liker ?? '').trim()
+	const target = String(body?.target ?? '').trim()
+	if (!SITE_LIKER.test(liker) || target === '') return c.json({ error: 'bad request' }, 400)
+
+	const account = await resolveGameAccount(c.env.DB, target)
+	if (account === null || account.accountId <= 1) return c.json({ error: 'no such account' }, 404)
+	if ((account as unknown as { banned?: boolean }).banned === true) {
+		return c.json({ error: 'banned' }, 403)
+	}
+
+	const inserted = await c.env.DB.prepare(
+		`INSERT OR IGNORE INTO site_player_like (liker, target_account_id, created_at)
+		 VALUES (?1, ?2, ?3)
+		 RETURNING target_account_id`
+	)
+		.bind(liker, account.accountId, new Date().toISOString())
+		.first<{ target_account_id: number }>()
+
+	if (inserted !== null) {
+		await c.env.DB.prepare(
+			`INSERT INTO reputation (account_id, cheer_general) VALUES (?1, 1)
+			 ON CONFLICT (account_id) DO UPDATE SET cheer_general = reputation.cheer_general + 1`
+		)
+			.bind(account.accountId)
+			.run()
+	}
+
+	return c.json({
+		liked: true,
+		newLike: inserted !== null,
+		likes: await sitePlayerLikes(c.env.DB, account.accountId)
+	})
+})
+
+// La PHOTO DE PROFIL du JEU d'un compte : le site montre la même image que le jeu au lieu
+// d'une copie séparée. Une clé vide veut dire « pas de photo ».
+app.get('/api/site/profile-image', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const username = String(c.req.query('username') ?? '').trim()
+	if (username === '') return c.json({ error: 'bad request' }, 400)
+
+	const account = await resolveGameAccount(c.env.DB, username)
+	if (account === null) return c.json({ profileImage: '', bannerImage: '' })
+	return c.json({
+		username: account.username,
+		profileImage: String(account.profileImage ?? ''),
+		bannerImage: String(account.bannerImage ?? ''),
+	})
+})
+
+// Statistiques LIVE du panneau « Statut » du site : joueurs connectés, appareils,
+// versions du jeu et salles publiques actives. Mêmes requêtes que le worker Discord
+// `recflare/status`, en lecture seule sur presence + room.
+app.get('/api/site/status', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const [online, platforms, versions, rooms] = await c.env.DB.batch<Record<string, unknown>>([
+		c.env.DB.prepare('SELECT COUNT(*) AS c FROM presence'),
+		c.env.DB.prepare(
+			`SELECT json_extract(data, '$.platform') AS platform, COUNT(*) AS c
+			   FROM presence
+			  GROUP BY platform
+			  ORDER BY c DESC`
+		),
+		c.env.DB.prepare(
+			`SELECT substr(v, 1, instr(v || '.', '.') - 1) AS build, platform, COUNT(*) AS c
+			   FROM (
+			     SELECT COALESCE(json_extract(data, '$.appVersion'), '') AS v,
+			            json_extract(data, '$.platform') AS platform
+			       FROM presence
+			   )
+			  GROUP BY build, platform`
+		),
+		c.env.DB.prepare(
+			`SELECT COUNT(*) AS c, room.name
+			   FROM presence
+			   LEFT JOIN room ON room.room_id = presence.room_id
+			  WHERE NOT room.is_dorm
+			    AND json_extract(room.data, '$.Accessibility') = 1
+			    AND json_extract(room.data, '$.ExcludeFromLists') IS NOT true
+			  GROUP BY presence.room_id
+			  ORDER BY c DESC
+			  LIMIT 8`
+		),
+	])
+
+	return c.json({
+		online: Number(online?.results[0]?.c ?? 0),
+		platforms: (platforms?.results ?? []).map((row) => ({
+			platform: row.platform === null || row.platform === undefined ? null : Number(row.platform),
+			count: Number(row.c ?? 0),
+		})),
+		versions: (versions?.results ?? []).map((row) => ({
+			build: String(row.build ?? ''),
+			platform: row.platform === null || row.platform === undefined ? null : Number(row.platform),
+			count: Number(row.c ?? 0),
+		})),
+		rooms: (rooms?.results ?? []).map((row) => ({
+			name: String(row.name ?? ''),
+			count: Number(row.c ?? 0),
+		})),
+	})
+})
+
+// Combien de joueurs sont CONNECTÉS au jeu : une ligne de présence vivante par session.
+// Le site affiche ce nombre ; rien de privé n'en sort, seulement le total.
+app.get('/api/site/online', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const row = await c.env.DB.prepare('SELECT COUNT(*) AS n FROM presence').first<{ n: number }>()
+	return c.json({ online: Number(row?.n ?? 0) })
+})
+
+// Les photos prises EN JEU (ShareCamera) que le site a le droit de montrer : publiques et
+// prises dans une chambre, les plus récentes d'abord. Le site ne recopie aucun fichier :
+// il pointe le CDN du jeu avec le nom d'image.
+app.get('/api/site/photos', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const asked = Number.parseInt(c.req.query('take') ?? '', 10)
+	const take = asked > 0 ? Math.min(asked, 40) : 12
+	const { results } = await c.env.DB.prepare(
+		`SELECT json_extract(data, '$.Id') AS id,
+		        json_extract(data, '$.ImageName') AS image,
+		        json_extract(data, '$.PlayerId') AS player,
+		        json_extract(data, '$.RoomId') AS room,
+		        json_extract(data, '$.CreatedAt') AS takenAt
+		   FROM image
+		  WHERE type = ?1 AND accessibility = 1 AND room_id > 0
+		  ORDER BY created_at DESC
+		  LIMIT ?2`
+	)
+		.bind(SavedImageType.ShareCamera, take)
+		.all<{ id: number; image: string; player: number; room: number; takenAt: string | null }>()
+
+	// Pseudos et noms de chambres en deux requêtes groupées, jamais une par photo.
+	const players = [...new Set(results.map((r) => r.player).filter((v): v is number => v != null))]
+	const rooms = [...new Set(results.map((r) => r.room).filter((v): v is number => v != null))]
+	const usernames = new Map<number, string>()
+	if (players.length > 0) {
+		const { results: rows } = await c.env.DB.prepare(
+			`SELECT account_id AS id, json_extract(data, '$.username') AS username
+			   FROM account WHERE account_id IN (${players.map(() => '?').join(',')})`
+		)
+			.bind(...players)
+			.all<{ id: number; username: string }>()
+		for (const row of rows) usernames.set(row.id, row.username)
+	}
+	const roomNames = new Map<number, string>()
+	if (rooms.length > 0) {
+		const { results: rows } = await c.env.DB.prepare(
+			`SELECT room_id AS id, json_extract(data, '$.Name') AS name
+			   FROM room WHERE room_id IN (${rooms.map(() => '?').join(',')})`
+		)
+			.bind(...rooms)
+			.all<{ id: number; name: string }>()
+		for (const row of rows) roomNames.set(row.id, row.name)
+	}
+
+	return c.json({
+		photos: results.map((row) => ({
+			id: row.id,
+			image: row.image,
+			username: usernames.get(row.player) ?? `Player${row.player}`,
+			room: roomNames.get(row.room) ?? null,
+			takenAt: row.takenAt
+		}))
+	})
+})
+
+// Combien de joueurs sont DANS chaque chambre en ce moment — une ligne par chambre
+// occupée, et rien pour une chambre vide. Le site s'en sert pour afficher l'activité
+// réelle de chaque chambre, jamais un compteur inventé.
+app.get('/api/site/room-online', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const players = await countPlayersByRoom(c.env.DB)
+	return c.json({
+		rooms: [...players].map(([id, count]) => ({ id, players: count }))
+	})
+})
+
+// Les compteurs RÉELS des chambres : visites, cheers et favoris. Ce sont des colonnes
+// tenues à jour par le jeu (une visite par entrée, un clic par cheer/favori) — le blob
+// de la chambre les garde à 0, donc le site ne peut pas les lire là.
+app.get('/api/site/room-stats', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const { results } = await c.env.DB.prepare(
+		'SELECT room_id AS id, visits, cheers, favorites FROM room'
+	).all<{ id: number; visits: number; cheers: number; favorites: number }>()
+
+	return c.json({
+		stats: results.map((row) => ({
+			id: row.id,
+			visits: row.visits ?? 0,
+			cheers: row.cheers ?? 0,
+			favorites: row.favorites ?? 0
+		}))
+	})
+})
+
+// ---- REC BLUE Plus et bannissements pilotés par le site ---------------------
+// Le site vend Plus AVEC une date de fin et bannit des joueurs depuis son panneau
+// d'administration ; les deux arrivent ici par le même jeton partagé, jamais du navigateur.
+app.post('/api/site/plus', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const body = (await c.req.json().catch(() => null)) as {
+		username?: string
+		until?: string | null
+	} | null
+	const username = String(body?.username ?? '').trim().toLowerCase()
+	if (username === '') return c.json({ error: 'bad request' }, 400)
+	const until = body?.until === null || body?.until === undefined ? null : String(body.until)
+	if (until !== null && Number.isNaN(Date.parse(until))) return c.json({ error: 'bad date' }, 400)
+
+	const account = await resolveGameAccount(c.env.DB, username)
+	if (account === null) return c.json({ error: 'no such account' }, 404)
+
+	const { setPlus } = await import('./site-flags')
+	await setPlus(c.env.DB, account.accountId, until)
+	return c.json({ ok: true, accountId: account.accountId, hasPlus: until !== null, until })
+})
+
+app.post('/api/site/ban', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const body = (await c.req.json().catch(() => null)) as {
+		username?: string
+		ban?: boolean
+		reason?: string
+		until?: string | null
+	} | null
+	const username = String(body?.username ?? '').trim().toLowerCase()
+	if (username === '') return c.json({ error: 'bad request' }, 400)
+
+	const account = await resolveGameAccount(c.env.DB, username)
+	if (account === null) return c.json({ error: 'no such account' }, 404)
+
+	const { setBan } = await import('./site-flags')
+	if (body?.ban !== true) {
+		await setBan(c.env.DB, account.accountId, null)
+		return c.json({ ok: true, accountId: account.accountId, banned: false })
+	}
+
+	const until = body.until === null || body.until === undefined ? null : String(body.until)
+	if (until !== null && Number.isNaN(Date.parse(until))) return c.json({ error: 'bad date' }, 400)
+	const reason = String(body.reason ?? '').slice(0, 200)
+	await setBan(c.env.DB, account.accountId, { reason, until })
+	// Le banni ne peut plus PROLONGER sa session : ses jetons de rafraîchissement sont
+	// supprimés, donc la session ouverte meurt au plus tard avec son jeton d'accès (24 h)
+	// et ne peut pas être renouvelée. Best-effort : la table appartient au worker `auth`.
+	await c.env.DB.prepare('DELETE FROM refresh_tokens WHERE account_id = ?1')
+		.bind(account.accountId)
+		.run()
+		.catch(() => undefined)
+	return c.json({ ok: true, accountId: account.accountId, banned: true, reason, until })
+})
+
+// Les rôles d'ÉQUIPE du site appliqués au compte de JEU : un modérateur du site est
+// modérateur en jeu (outil de communication d'équipe), un administrateur est staff
+// (`isDeveloper` + `isModerator`). `auth` recopie ces drapeaux dans le claim `role`
+// du jeton, et c'est ce claim que le client lit pour l'étiquette et les outils.
+app.post('/api/site/role', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const body = (await c.req.json().catch(() => null)) as {
+		username?: string
+		role?: string
+	} | null
+	const username = String(body?.username ?? '').trim().toLowerCase()
+	if (username === '') return c.json({ error: 'bad request' }, 400)
+	const role = String(body?.role ?? '').trim()
+	if (role !== 'member' && role !== 'moderator' && role !== 'admin') {
+		return c.json({ error: 'bad role' }, 400)
+	}
+
+	const account = await resolveGameAccount(c.env.DB, username)
+	if (account === null) return c.json({ error: 'no such account' }, 404)
+
+	const { setRoles } = await import('./site-flags')
+	const flags = await setRoles(c.env.DB, account.accountId, role)
+	// La session déjà ouverte garde l'ancien rôle jusqu'à son prochain jeton : on ne coupe
+	// pas le joueur pour un changement de droits. Un nouveau login suffit à l'appliquer.
+	return c.json({ ok: true, accountId: account.accountId, role, ...flags })
+})
+
+// La CERTIFICATION REC BLUE : un badge accordé par l'administration du site, qui est le
+// rôle `influencer` du jeu. Rangé sur le compte de JEU (`isInfluencer`), il part dans le
+// claim `role` du jeton au login suivant : le badge s'affiche donc aussi dans le jeu.
+app.post('/api/site/certify', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const body = (await c.req.json().catch(() => null)) as {
+		username?: string
+		certified?: boolean
+	} | null
+	const username = String(body?.username ?? '').trim().toLowerCase()
+	if (username === '') return c.json({ error: 'bad request' }, 400)
+	const certified = body?.certified !== false
+
+	const account = await resolveGameAccount(c.env.DB, username)
+	if (account === null) return c.json({ error: 'no such account' }, 404)
+
+	const { setCertified } = await import('./site-flags')
+	await setCertified(c.env.DB, account.accountId, certified)
+	return c.json({ ok: true, accountId: account.accountId, certified })
+})
+
+// Le rôle `developer` SEUL (le badge Créateur/Dev de la plaque de nom), accordé ou retiré
+// sans toucher à la modération ni au rôle du site. `auth` recopie `isDeveloper` dans le
+// claim `role` du jeton au login suivant : c'est ce que le client affiche.
+app.post('/api/site/developer', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const body = (await c.req.json().catch(() => null)) as {
+		username?: string
+		developer?: boolean
+	} | null
+	const username = String(body?.username ?? '').trim().toLowerCase()
+	if (username === '') return c.json({ error: 'bad request' }, 400)
+	const developer = body?.developer !== false
+
+	const account = await resolveGameAccount(c.env.DB, username)
+	if (account === null) return c.json({ error: 'no such account' }, 404)
+
+	const { setDeveloper } = await import('./site-flags')
+	await setDeveloper(c.env.DB, account.accountId, developer)
+	return c.json({ ok: true, accountId: account.accountId, developer })
+})
+
+// Lecture du badge pour un compte de jeu (pont uniquement : le Worker du site répond
+// lui-même au navigateur, qui n'a jamais le jeton partagé).
+app.get('/api/site/certified', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const username = String(c.req.query('username') ?? '').trim().toLowerCase()
+	if (username === '') return c.json({ error: 'bad request' }, 400)
+
+	const account = await resolveGameAccount(c.env.DB, username)
+	if (account === null) return c.json({ certified: false })
+
+	const { readAccountFlags } = await import('./site-flags')
+	const flags = await readAccountFlags(c.env.DB, account.accountId)
+	// Le Plus du compte de JEU voyage avec la certification : le site ne stocke pas la date
+	// d'abonnement, donc sans ça un Plus posé ici restait invisible sur le site (crédits
+	// bleus au lieu d'or, pas de pastille Plus).
+	const plus = flags.plusUntil !== null && Date.parse(flags.plusUntil) > Date.now()
+	return c.json({ certified: flags.certified, plus, plusUntil: flags.plusUntil })
+})
+
+// Solde de JEU d'un joueur, pour que le site affiche le MÊME nombre que le jeu.
+// Même jeton partagé que le grant : réservé au Worker du site, jamais au navigateur.
+app.get('/api/site/balance', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const username = String(c.req.query('username') ?? '').trim().toLowerCase()
+	if (username === '') return c.json({ error: 'bad request' }, 400)
+
+	const account = await resolveGameAccount(c.env.DB, username)
+	if (account === null) return c.json({ error: 'no such account' }, 404)
+
+	const balance = await getBalance(
+		c.env.DB,
+		account.accountId,
+		CurrencyType.RecCenterTokens,
+		intVar(c.env.STARTING_TOKENS, DEFAULT_STARTING_TOKENS)
+	)
+	return c.json({ ok: true, accountId: account.accountId, balance })
+})
+
+// ---------------------------------------------------------------------------
+// Boutique depuis le site (l'app iOS installable).
+//
+// Le site (worker `www`) agit POUR un joueur déjà identifié par son pseudo de jeu :
+// aucun jeton de joueur ne circule, et c'est le jeton de pont qui autorise, comme
+// `/api/site/balance` et `/api/site/grant`. Le prix n'est JAMAIS celui du navigateur : il
+// est relu dans le catalogue, avec la seule remise du serveur — les 10 % de REC BLUE Plus —
+// et l'achat passe par le même `spendCurrency` / `grantGiftDrop` que le jeu, pour que le
+// solde, l'inventaire et la boîte de cadeau restent identiques d'un chemin à l'autre.
+// ---------------------------------------------------------------------------
+
+/** Le prix catalogue en crédits Rec Center, ou `null` si l'article ne s'achète pas ainsi. */
+function tokenPrice(item: StoreItem): number | null {
+	const listed = item.Prices.find((p) => p.CurrencyType === CurrencyType.RecCenterTokens)
+	return listed === undefined ? null : listed.Price
+}
+
+/** Le catalogue d'une boutique, tel que l'app l'affiche : id, nom et prix de base. */
+app.get('/api/site/storefront', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const storefrontType = Number(c.req.query('storefront') ?? '3')
+	if (!Number.isInteger(storefrontType) || storefrontType <= 0) {
+		return c.json({ error: 'bad request' }, 400)
+	}
+
+	// Même lecture que l'affichage et l'achat : prix de base appliqués, thème Halloween,
+	// extras maison et abonnement compris — ce que le joueur voit est ce qui se vend.
+	const storefront = await loadStorefront(c, storefrontType)
+	if (storefront === null) return c.json({ error: 'no such storefront' }, 404)
+
+	const items = storefront.StoreItems.flatMap((item) => {
+		const price = tokenPrice(item)
+		if (price === null) return []
+		return [
+			{
+				id: item.PurchasableItemId,
+				name: item.GiftDrop.FriendlyName ?? '',
+				desc: item.GiftDrop.AvatarItemDesc ?? '',
+				price,
+				plusOnly: item.GiftDrop.SubscribersOnly === true,
+				box: item.GiftDrop.IsQuery === true,
+			},
+		]
+	})
+	items.sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+
+	return c.json({ ok: true, storefront: storefrontType, items })
+})
+
+/** Le solde et la garde-robe d'un joueur, pour l'onglet « Inventaire » de l'app. */
+app.get('/api/site/inventory', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const username = String(c.req.query('username') ?? '').trim().toLowerCase()
+	if (username === '') return c.json({ error: 'bad request' }, 400)
+
+	const account = await resolveGameAccount(c.env.DB, username)
+	if (account === null) return c.json({ error: 'no such account' }, 404)
+
+	const startingTokens = intVar(c.env.STARTING_TOKENS, DEFAULT_STARTING_TOKENS)
+	const [balance, owned] = await Promise.all([
+		getBalance(c.env.DB, account.accountId, CurrencyType.RecCenterTokens, startingTokens),
+		getInventory(c.env.DB, account.accountId),
+	])
+
+	const items = owned.map((item) => ({
+		name: item.FriendlyName ?? '',
+		desc: item.AvatarItemDesc ?? '',
+		type: item.AvatarItemType,
+		rarity: item.Rarity,
+	}))
+	items.sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+
+	return c.json({ ok: true, accountId: account.accountId, balance, items })
+})
+
+/** Un achat depuis l'app : débit atomique puis remise de l'article, comme `buyItem`. */
+app.post('/api/site/buy', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null
+	if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+		return c.json({ error: 'bad request' }, 400)
+	}
+	const username = String(body.username ?? '').trim().toLowerCase()
+	const storefrontType = Number(body.storefront)
+	const purchasableItemId = Number(body.item)
+	if (
+		username === '' ||
+		!Number.isInteger(storefrontType) ||
+		!Number.isInteger(purchasableItemId)
+	) {
+		return c.json({ error: 'bad request' }, 400)
+	}
+
+	const account = await resolveGameAccount(c.env.DB, username)
+	if (account === null) return c.json({ error: 'no such account' }, 404)
+
+	const item = await findStoreItem(c, storefrontType, purchasableItemId)
+	if (item === null) return c.json({ error: 'no such item' }, 404)
+	const listed = tokenPrice(item)
+	if (listed === null) return c.json({ error: 'not sold in credits' }, 400)
+
+	// L'abonnement est relu en base : le site l'accorde sans reconnexion du client.
+	const { readAccountFlags } = await import('./site-flags')
+	const flags = await readAccountFlags(c.env.DB, account.accountId)
+	const subscriber = flags.plusUntil !== null && Date.parse(flags.plusUntil) > Date.now()
+	if (item.GiftDrop.SubscribersOnly === true && !subscriber) {
+		return c.json({ error: 'Rec Room Plus required' }, 403)
+	}
+
+	// Seule remise du serveur : REC BLUE Plus, 10 % sous le prix catalogue.
+	const charge = subscriber ? subscriberFloor(listed) : listed
+	const startingTokens = intVar(c.env.STARTING_TOKENS, DEFAULT_STARTING_TOKENS)
+	const paid = await spendCurrency(
+		c.env.DB,
+		account.accountId,
+		CurrencyType.RecCenterTokens,
+		charge,
+		startingTokens
+	)
+	if (!paid) return c.json({ error: 'Insufficient balance' }, 400)
+
+	// La boîte que le joueur ouvrira dans le jeu, exactement comme `buyItem` la crée :
+	// même message par défaut qu'un achat sans cadeau, pas une chaîne vide — c'est ce que le
+	// panneau de la boîte affiche.
+	let granted: GrantedGift | null = null
+	try {
+		granted = await grantGiftDrop(c, account.accountId, item.GiftDrop, DEFAULT_GIFT_MESSAGE, {
+			fromPlayerId: COACH_ACCOUNT_ID,
+			giftContext: null,
+		})
+		// L'item REC BLUE Plus n'est pas un objet : il pose l'abonnement, et les bundles
+		// vendent leur contenu — exactement comme dans `buyItem`.
+		if (purchasableItemId === REC_BLUE_PLUS_ITEM_ID) {
+			await grantRecBluePlus(c, account.accountId)
+		}
+		const bundle = REC_BLUE_BUNDLES[purchasableItemId]
+		if (bundle !== undefined) {
+			await grantRecBlueBundle(c, account.accountId, bundle)
+		}
+	} catch (error) {
+		// Rien ne doit être facturé sans article : on rend les crédits avant de relancer.
+		logger.error('site buy: grant failed, credits refunded', {
+			accountId: account.accountId,
+			storefrontType,
+			purchasableItemId,
+			charge,
+			error: String(error),
+		})
+		await creditCurrency(
+			c.env.DB,
+			account.accountId,
+			CurrencyType.RecCenterTokens,
+			charge,
+			startingTokens
+		).catch(() => null)
+		return c.json({ error: 'grant failed' }, 500)
+	}
+
+	const balance = await getBalance(
+		c.env.DB,
+		account.accountId,
+		CurrencyType.RecCenterTokens,
+		startingTokens
+	)
+
+	// Le joueur n'a rien cliqué DANS le jeu : sans ces deux frames il ne verrait pas la boîte
+	// s'ouvrir et son client garderait un solde périmé — c'est la différence qui faisait
+	// « acheter sur le site ne donne pas la boîte ». Ce sont les frames que `buyItem` et les
+	// dons du serveur poussent déjà : la boîte (que le client consomme ensuite par
+	// `POST /api/avatar/v2/gifts/consume`) puis le solde RÉSULTANT du débit.
+	if (granted !== null) {
+		await pushGiftReceived(
+			c,
+			account.accountId,
+			granted,
+			DEFAULT_GIFT_MESSAGE,
+			COACH_ACCOUNT_ID
+		)
+	}
+	await pushBalancePurchase(
+		c,
+		account.accountId,
+		CurrencyType.RecCenterTokens,
+		-charge,
+		balance
+	)
+
+	return c.json({
+		ok: true,
+		balance,
+		charged: charge,
+		item: { id: purchasableItemId, name: item.GiftDrop.FriendlyName ?? '' },
+	})
+})
+
 export { app }
 
 // The cron (wrangler.jsonc `triggers`, which sets how often): box every Discord supporter
@@ -7932,4 +9542,58 @@ export const scheduled: ExportedHandlerScheduledHandler<Env> = (_controller, env
 
 // A Worker only runs `scheduled` when it's on the default export, so econ takes the object
 // form the runtime requires (as `www` does for its role sweep and `match` for presence).
+/**
+ * 2025's served general store, parsed once per isolate from the static assets.
+ *
+ * This is the same `sf3-2025.json` the store page is served from, so `purchasableitems`
+ * can answer a listing the D1 catalog has not been reloaded with. `ASSETS` is rooted at
+ * `static/storefronts`, hence the bare filename.
+ */
+let store2025: Promise<Map<number, StoreListing>> | null = null
+function store2025Listings(
+	assets: Fetcher,
+	requestUrl: string
+): Promise<Map<number, StoreListing>> {
+	if (store2025 !== null) return store2025
+	const pending = assets
+		.fetch(new URL('/sf3-2025.json', requestUrl))
+		.then(async (res) => {
+			if (!res.ok) return new Map<number, StoreListing>()
+			const store = (await res.json()) as StorefrontDump
+			return new Map(store.StoreItems.map((item) => [item.PurchasableItemId, item]))
+		})
+		.catch(() => {
+			// Do not cache a transient assets failure for the isolate's lifetime.
+			store2025 = null
+			return new Map<number, StoreListing>()
+		})
+	store2025 = pending
+	return pending
+}
+
+interface WardrobeItem2025 extends Record<string, unknown> {
+	AvatarItemDesc: string
+}
+
+/** Every unique avatar item in 2025's served store, in the client's wardrobe shape. */
+function allAvatarItems2025(store: Map<number, StoreListing>): WardrobeItem2025[] {
+	const byDesc = new Map<string, WardrobeItem2025>()
+	for (const listing of store.values()) {
+		const desc = listing.GiftDrop.AvatarItemDesc
+		if (desc === '' || byDesc.has(desc)) continue
+		byDesc.set(desc, {
+			AvatarItemDesc: desc,
+			AvatarItemType: listing.GiftDrop.AvatarItemType ?? 0,
+			PlatformMask: -1,
+			FriendlyName: listing.GiftDrop.FriendlyName,
+			Tooltip: listing.GiftDrop.Tooltip ?? '',
+			Rarity: listing.GiftDrop.Rarity,
+			TagList: listing.GiftDrop.TagList,
+			AvatarItemId: listing.GiftDrop.AvatarItemId,
+			IsBaseAvatarItem: false,
+		})
+	}
+	return [...byDesc.values()]
+}
+
 export default { fetch: app.fetch, scheduled } satisfies ExportedHandler<Env>

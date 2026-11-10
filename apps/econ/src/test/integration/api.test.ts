@@ -9,6 +9,7 @@ import { exports } from 'cloudflare:workers'
 import { beforeAll, describe, expect, test } from 'vitest'
 
 import {
+	createAccount,
 	getAccount,
 	getOwnedInventionIds,
 	getPendingGifts,
@@ -53,6 +54,9 @@ import questRewards from '../../../static/quest-rewards.json'
 import sf32025 from '../../../static/storefronts/sf3-2025.json'
 import sf3 from '../../../static/storefronts/sf3.json'
 import sf101 from '../../../static/storefronts/sf101.json'
+import hairProducts from '../../../static/storefronts/rec-blue-hair-dye.json'
+import recBlueSkins from '../../../static/storefronts/rec-blue-skins.json'
+import { basePriceListings, NEXT_UPDATE_SENTINEL } from '../../storefront-pricing'
 import { SCHEMA_DDL } from '../../avatar-db'
 import {
 	BALANCE_SCHEMA_DDL,
@@ -107,7 +111,7 @@ import {
 	INVENTORY_CUSTOM_SCHEMA_DDL,
 	ownedCustomAvatarItemIds,
 } from '../../inventory-custom-db'
-import { INVENTORY_SCHEMA_DDL } from '../../inventory-db'
+import { getInventory, grantItem, INVENTORY_SCHEMA_DDL } from '../../inventory-db'
 import {
 	legacyAvatarItemMap,
 	legacyGrantPreviewStatements,
@@ -487,6 +491,57 @@ describe('econ endpoints', () => {
 		expect(body[0]?.isBaseAvatarItem).toBe(false)
 	})
 
+	test('GET /api/avatar/v4/items keeps legacy wardrobe ids unique without changing inventory', async () => {
+		const player = 70101
+		const item = {
+			AvatarItemType: 0,
+			AvatarItemDesc: '40528de7-38a3-4a7c-8f93-6d3bfa5573f2,,,',
+			PlatformMask: -1,
+			FriendlyName: 'Purchased default',
+			Tooltip: '',
+			Rarity: 0,
+		}
+		const variants = [
+			{ ...item, AvatarItemDesc: 'legacy-item,colorA' },
+			{ ...item, AvatarItemDesc: 'legacy-item,colorB' },
+			{ ...item, AvatarItemDesc: 'legacy-item,colorC', AvatarItemId: 6 },
+		]
+		await grantItem(env.DB, player, item)
+		for (const variant of variants) await grantItem(env.DB, player, variant)
+		const before = await getInventory(env.DB, player)
+		const fetchItems = async () => {
+			const res = await exports.default.fetch(`${ORIGIN}/api/avatar/v4/items`, {
+				headers: await bearer(String(player), undefined, '20230414'),
+			})
+			expect(res.status).toBe(200)
+			return (await res.json()) as Array<{ avatarItemId: number; avatarItemDesc: string }>
+		}
+		const first = await fetchItems()
+		const second = await fetchItems()
+		expect(first).toEqual(second)
+		expect(first.every((entry) => Number.isInteger(entry.avatarItemId) && entry.avatarItemId > 0)).toBe(true)
+		expect(new Set(first.map((entry) => entry.avatarItemId)).size).toBe(first.length)
+		expect(first.filter((entry) => entry.avatarItemDesc === item.AvatarItemDesc)).toHaveLength(1)
+		expect(first.find((entry) => entry.avatarItemDesc === item.AvatarItemDesc)?.avatarItemId).toBe(6)
+		for (const variant of variants) {
+			expect(first.filter((entry) => entry.avatarItemDesc === variant.AvatarItemDesc)).toHaveLength(1)
+		}
+		expect(await getInventory(env.DB, player)).toEqual(before)
+	})
+
+	test('GET /api/avatar/v4/items appends the 2025 store wardrobe for a 2025 build only', async () => {
+		const fetchItems = async (headers: Record<string, string>) => {
+			const res = await exports.default.fetch(`${ORIGIN}/api/avatar/v4/items`, { headers })
+			expect(res.status).toBe(200)
+			return (await res.json()) as Array<{ avatarItemDesc: string }>
+		}
+		const before = await fetchItems(await bearer('42'))
+		const after = await fetchItems(await bearer('42', undefined, '20250718.01'))
+		const beforeDescs = new Set(before.map((item) => item.avatarItemDesc))
+		expect(after.length).toBeGreaterThan(before.length)
+		expect(after.some((item) => !beforeDescs.has(item.avatarItemDesc))).toBe(true)
+	})
+
 	test('GET /api/avatar/v2 401s without a token', async () => {
 		const res = await exports.default.fetch(`${ORIGIN}/api/avatar/v2`)
 		expect(res.status).toBe(401)
@@ -860,11 +915,25 @@ describe('econ endpoints', () => {
 		expect(Array.isArray(body.ObjectiveGroups)).toBe(true)
 	})
 
-	test('objectives/v1/cleargroup returns [] for GET and POST (no auth)', async () => {
+	test('objectives/v1/cleargroup returns a JSON object, never [], for GET and POST (no auth)', async () => {
 		for (const method of ['GET', 'POST'] as const) {
-			const res = await exports.default.fetch(`${ORIGIN}/api/objectives/v1/cleargroup`, { method })
+			const res = await exports.default.fetch(`${ORIGIN}/api/objectives/v1/cleargroup`, {
+				method,
+				...(method === 'POST'
+					? {
+							headers: { 'content-type': 'application/json' },
+							body: JSON.stringify({ Group: 10 }),
+						}
+					: {}),
+			})
 			expect(res.status).toBe(200)
-			expect(await res.json()).toEqual([])
+			// The client parses this body as an object: a top-level array makes it log
+			// `expected '}', actual: '['` and drop the local objective state.
+			const body = (await res.json()) as { group: number; isCompleted: boolean; clearedAt: string }
+			expect(Array.isArray(body)).toBe(false)
+			expect(body.group).toBe(method === 'POST' ? 10 : 0)
+			expect(body.isCompleted).toBe(false)
+			expect(typeof body.clearedAt).toBe('string')
 		}
 	})
 
@@ -4296,6 +4365,40 @@ describe('econ endpoints', () => {
 		expect(((await junk.json()) as unknown[]).length).toBe(catalogueSize)
 	})
 
+	test('lockeditems/bulk gives a 2025 player numeric AvatarItemId values', async () => {
+		const res = await exports.default.fetch(`${ORIGIN}/api/avatar/v1/lockeditems/bulk`, {
+			method: 'POST',
+			headers: {
+				'content-type': 'application/json',
+				...(await bearer('42', undefined, '20250718.01')),
+			},
+			body: JSON.stringify({ AvatarItemDescriptions: [] }),
+		})
+		expect(res.status).toBe(200)
+		const body = (await res.json()) as Array<{ AvatarItemId: unknown }>
+		expect(body.length).toBeGreaterThan(0)
+		expect(body.every((item) => typeof item.AvatarItemId === 'number')).toBe(true)
+	})
+
+	test('lockeditems/bulk gives a 2025 player a placeholder for an unknown desc', async () => {
+		const unknown = 'placeholder-only-2025'
+		const res = await exports.default.fetch(`${ORIGIN}/api/avatar/v1/lockeditems/bulk`, {
+			method: 'POST',
+			headers: {
+				'content-type': 'application/json',
+				...(await bearer('42', undefined, '20250718.01')),
+			},
+			body: JSON.stringify({ AvatarItemDescriptions: [unknown] }),
+		})
+		expect(res.status).toBe(200)
+		const body = (await res.json()) as Array<{ AvatarItemDesc: string; AvatarItemId: number }>
+		expect(body.find((item) => item.AvatarItemDesc === unknown)).toMatchObject({
+			AvatarItemDesc: unknown,
+			AvatarItemId: 0,
+		})
+	})
+
+
 	test('POST /api/items/purchaseInfos prices custom avatar items in tokens', async () => {
 		const item = await createCustomAvatarItem(env.DB, {
 			customAvatarItemId: crypto.randomUUID(),
@@ -4353,7 +4456,7 @@ describe('econ endpoints', () => {
 		])
 	})
 
-	test('POST /api/storefronts/v1/purchasableitems answers the served listings verbatim', async () => {
+	test('POST /api/storefronts/v1/purchasableitems answers the served listings at base price', async () => {
 		// One listing of each kind the catalog holds, loaded exactly as `runx catalog load` would.
 		const pick = (pred: (l: StoreListing) => boolean) => storeListings.find(pred)!
 		const wanted = [
@@ -4386,7 +4489,17 @@ describe('econ endpoints', () => {
 		})
 		expect(res.status).toBe(200)
 		const body = (await res.json()) as StoreListing[]
-		expect(body).toEqual(order.map((id) => storeListings.find((l) => l.PurchasableItemId === id)))
+		// Les fiches sont servies telles quelles SAUF les soldes, retirées : c'est le prix de
+		// base, celui que le tableau du Rec Center affiche, plus la remise Plus du client.
+		expect(body).toEqual(
+			basePriceListings(order.map((id) => storeListings.find((l) => l.PurchasableItemId === id)!))
+		)
+		for (const listing of body) {
+			for (const price of listing.Prices) {
+				if (price.CurrencyType !== CurrencyType.RecCenterTokens) continue
+				expect(price.StorefrontSaleData).toBeNull()
+			}
+		}
 		expect(body.at(-1)?.GiftDrop.FriendlyName).toBe('Hot Dog Suit (Ketchup)')
 
 		// Null ids answer an empty list; a non-array is a malformed body.
@@ -4402,6 +4515,287 @@ describe('econ endpoints', () => {
 			body: JSON.stringify({ PurchasableItemIds: 2594 }),
 		})
 		expect(bad.status).toBe(400)
+	})
+
+	test('purchasableitems serves a 2025 listing missing from the catalog table', async () => {
+		const target = storeListings.find((listing) => listing.GiftDrop.ConsumableItemDesc !== '')!
+		await env.DB.prepare('DELETE FROM catalog WHERE catalog_id = ?1')
+			.bind(target.PurchasableItemId)
+			.run()
+		const res = await exports.default.fetch(`${ORIGIN}/api/storefronts/v1/purchasableitems`, {
+			method: 'POST',
+			headers: {
+				'content-type': 'application/json',
+				...(await bearer('42', undefined, '20250718.01')),
+			},
+			body: JSON.stringify({
+				PurchasableItemIds: [target.PurchasableItemId],
+				GiftDropIds: null,
+			}),
+		})
+		expect(res.status).toBe(200)
+		expect(await res.json()).toEqual(basePriceListings([target]))
+	})
+
+	test('GET /api/storefronts/v3/giftdropstore/2 serves the Rec Center board at base price', async () => {
+		type Served = { NextUpdate: string | null; StoreItems: StoreListing[] }
+		const read = async () =>
+			(await (
+				await exports.default.fetch(`${ORIGIN}/api/storefronts/v3/giftdropstore/2`)
+			).json()) as Served
+		const body = await read()
+		// Vitrine figée : la sentinelle « qui n'arrive jamais » du jeu, pas `null` — le client
+		// rejette la vitrine entière sur une date illisible, ce qui vidait toutes les boutiques.
+		expect(body.NextUpdate).toBe(NEXT_UPDATE_SENTINEL)
+		// Et surtout : le format exact que le client sait lire (pas de millisecondes).
+		expect(body.NextUpdate).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/)
+		// Hors évènement, rien ne porte de date de disponibilité.
+		expect(body.StoreItems.every((item) => item.AvailableUntil === null)).toBe(true)
+		// Tous les articles restent au catalogue : les cases du tableau sont câblées sur leurs
+		// ids, donc en retirer un ferait une case vide et un achat 404.
+		expect(body.StoreItems.some((item) => item.PurchasableItemId === 1518)).toBe(true)
+		// Aucune solde : chaque prix en tokens est le prix de base, tel que le catalogue le
+		// porte. La seule remise restante est celle de Rec Room Plus, appliquée par le client.
+		for (const item of body.StoreItems) {
+			for (const price of item.Prices) {
+				if (price.CurrencyType !== CurrencyType.RecCenterTokens) continue
+				expect(price.StorefrontSaleData).toBeNull()
+				expect(price.Price).toBeGreaterThan(0)
+			}
+		}
+		// Déterministe : deux lectures de suite servent le même prix (le tableau et l'achat
+		// lisent deux chemins différents et doivent tomber d'accord).
+		const again = await read()
+		expect(again.StoreItems).toEqual(body.StoreItems)
+	})
+
+	test('the 2023 general store sells every permanent hair dye at a fixed 5000', async () => {
+		// `sf3.json` — le magasin servi au build 20230414 — n'a aucune teinture : les 22 sont
+		// ajoutées au moment de servir, dans la forme 2023 (`AvatarItemType` 1, desc compact).
+		const res = await exports.default.fetch(`${ORIGIN}/api/storefronts/v3/giftdropstore/3`)
+		expect(res.status).toBe(200)
+		const body = (await res.json()) as { StoreItems: StoreListing[] }
+		const dyes = body.StoreItems.filter((item) =>
+			/^Permanent Hair Dye \(/.test(item.GiftDrop.FriendlyName)
+		)
+		expect(dyes).toHaveLength(22)
+		// Prix de base : la solde de 80 % capturée dans le catalogue 2025 est retirée — 5000 la
+		// bouteille dans les deux catalogues, et 4500 pour un membre Rec Room Plus.
+		for (const item of dyes) {
+			expect(item.Prices.every((p) => p.Price === 5000 && p.StorefrontSaleData === null)).toBe(
+				true
+			)
+		}
+		const rebel = dyes.find((item) => item.PurchasableItemId === 1195)
+		expect(rebel?.GiftDrop.FriendlyName).toBe('Permanent Hair Dye (Rebel Rose)')
+		expect(rebel?.GiftDrop.AvatarItemType).toBe(1)
+	})
+
+	test('POST /api/storefronts/v2/buyItem sells a hair dye for 5000 tokens', async () => {
+		const res = await exports.default.fetch(`${ORIGIN}/api/storefronts/v2/buyItem`, {
+			method: 'POST',
+			headers: { ...(await bearer('427')), 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				StorefrontType: 3,
+				PurchasableItemId: 1195,
+				CurrencyType: 2,
+				RequestedPrice: 5000,
+				CouponConsumablePlayerMappingId: null,
+				Gift: null,
+			}),
+		})
+		expect(res.status, await res.clone().text()).toBe(200)
+		expect(((await res.json()) as { Balance: number }).Balance).toBe(-5000)
+		// La teinture tombe dans l'inventaire du joueur, comme n'importe quel avatar item.
+		const items = await exports.default.fetch(`${ORIGIN}/api/avatar/v4/items`, {
+			headers: await bearer('427'),
+		})
+		const list = (await items.json()) as Array<{ friendlyName: string }>
+		expect(list.some((item) => item.friendlyName === 'Permanent Hair Dye (Rebel Rose)')).toBe(true)
+	})
+
+	// Les potions de couleur TEMPORAIRES (« Hair Pulse ») sont des consommables, pas des
+	// déblocages : `ConsumableItemDesc` est renseigné et il n'y a pas d'`AvatarItemDesc`. Le
+	// magasin les vend au même prix fixe que les teintures permanentes.
+	const HAIR_PULSE_IDS = [32319, 32320, 32321]
+
+	test('the 2023 general store sells the temporary Hair Pulse potions at the fixed 5000', async () => {
+		// `sf3.json` ne les a pas du tout ; elles viennent de `rec-blue-hair-dye.json`, qui les
+		// reprend du catalogue 2025 en réécrivant leur prix.
+		const res = await exports.default.fetch(`${ORIGIN}/api/storefronts/v3/giftdropstore/3`)
+		expect(res.status).toBe(200)
+		const body = (await res.json()) as { StoreItems: StoreListing[] }
+		const potions = body.StoreItems.filter((item) =>
+			HAIR_PULSE_IDS.includes(item.PurchasableItemId)
+		)
+		expect(potions).toHaveLength(3)
+		for (const item of potions) {
+			expect(item.Prices.every((p) => p.Price === 5000 && p.StorefrontSaleData === null)).toBe(
+				true
+			)
+			expect(item.SubscriberPrices?.every((p) => p.Price === 4500)).toBe(true)
+			expect(item.GiftDrop.ConsumableItemDesc).not.toBe('')
+			expect(item.GiftDrop.AvatarItemDesc).toBe('')
+		}
+	})
+
+	test('a newer build gets the same 5000 for the potions it already lists', async () => {
+		// Le catalogue 2025 les vend à 150/135 : le prix des entrées déjà listées est réécrit,
+		// sinon le même pot aurait deux prix selon le build du client.
+		const res = await exports.default.fetch(`${ORIGIN}/api/storefronts/v3/giftdropstore/3`, {
+			headers: await bearer('42', undefined, '20250424.01'),
+		})
+		expect(res.status).toBe(200)
+		const body = (await res.json()) as { StoreItems: StoreListing[] }
+		// Le catalogue est celui du dump 2025, plus les bundles vendus en tokens (990001–990004),
+		// qui ne sont dans aucun fichier.
+		const catalog = body.StoreItems.filter(
+			(item) => ![990001, 990002, 990003, 990004].includes(item.PurchasableItemId)
+		)
+		expect(catalog).toHaveLength(sf32025.StoreItems.length)
+		// Le catalogue 2025 liste les deux Maker Pen sans prix : il prend le nôtre, sinon elles
+		// resteraient invendables sur les builds récents.
+		const puma = body.StoreItems.find(
+			(item) => item.GiftDrop.FriendlyName === 'SUPER PUMA Maker Pen'
+		)
+		expect(puma?.Prices).toEqual([{ CurrencyType: 2, Price: 3000, StorefrontSaleData: null }])
+		const potion = body.StoreItems.find((item) => item.PurchasableItemId === 32319)
+		expect(potion?.Prices).toEqual([{ CurrencyType: 2, Price: 5000, StorefrontSaleData: null }])
+		expect(potion?.SubscriberPrices).toEqual([
+			{ CurrencyType: 2, Price: 4500, StorefrontSaleData: null },
+		])
+	})
+
+	test('POST /api/storefronts/v2/buyItem sells a Hair Pulse potion for 5000 tokens', async () => {
+		const buyPotion = async (headers: Record<string, string>, RequestedPrice: number) =>
+			exports.default.fetch(`${ORIGIN}/api/storefronts/v2/buyItem`, {
+				method: 'POST',
+				headers: { ...headers, 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					StorefrontType: 3,
+					PurchasableItemId: 32319,
+					CurrencyType: 2,
+					RequestedPrice,
+					CouponConsumablePlayerMappingId: null,
+					Gift: null,
+				}),
+			})
+		const res = await buyPotion(await bearer('428'), 5000)
+		expect(res.status, await res.clone().text()).toBe(200)
+		expect(((await res.json()) as { Balance: number }).Balance).toBe(-5000)
+		// 150 est le prix du catalogue 2025 : il n'est plus servi, donc il n'est plus payable.
+		expect((await buyPotion(await bearer('429'), 150)).status).toBe(409)
+	})
+
+	// Les skins d'équipement manquent TOUTES au catalogue 2023, alors que le 2025 en liste 284 :
+	// `rec-blue-skins.json` les rejoue sous des ids neufs, au prix du vrai magasin.
+	test('the 2023 general store sells the equipment skins it never listed', async () => {
+		const res = await exports.default.fetch(`${ORIGIN}/api/storefronts/v3/giftdropstore/3`)
+		expect(res.status).toBe(200)
+		const body = (await res.json()) as { StoreItems: StoreListing[] }
+		const served = body.StoreItems.filter((item) => item.GiftDrop.EquipmentModificationGuid !== '')
+		expect(served).toHaveLength(recBlueSkins.length)
+		// Un skin par GUID : le catalogue n'a pas à montrer deux fois la même modification.
+		expect(new Set(served.map((item) => item.GiftDrop.EquipmentModificationGuid)).size).toBe(
+			recBlueSkins.length
+		)
+		// Prix du vrai magasin, solde comprise dans les fichiers ? Aucune : prix de base.
+		for (const skin of served) {
+			expect(skin.Prices.every((p) => p.StorefrontSaleData === null)).toBe(true)
+		}
+		const plaid = served.find((item) => item.GiftDrop.FriendlyName === 'Plaid Paintball Pistol Skin')
+		expect(plaid?.Prices[0]?.Price).toBe(3500)
+		// Les treize skins « (Gold) » gardent leur prix de prestige.
+		const gold = served.filter((item) => item.GiftDrop.FriendlyName.includes('(Gold)'))
+		expect(gold.length).toBeGreaterThan(0)
+		expect(gold.every((item) => item.Prices.every((p) => p.Price === 5_000_000))).toBe(true)
+		// Les deux Maker Pen que le dump laisse sans prix sont vendues au prix fixe.
+		const puma = served.find((item) => item.GiftDrop.FriendlyName === 'SUPER PUMA Maker Pen')
+		expect(puma?.Prices[0]?.Price).toBe(3000)
+		expect(puma?.SubscriberPrices?.[0]?.Price).toBe(2700)
+		const expo = served.find(
+			(item) => item.GiftDrop.FriendlyName === 'Creator Expo 2025 Makerpen Skin'
+		)
+		expect(expo?.Prices[0]?.Price).toBe(5000)
+	})
+
+	test('chaque skin du jeu est en vente, et les skins ouvrent la boutique générale', async () => {
+		// Le magasin sert plus de 3 000 articles : rangées à la fin, les skins étaient
+		// introuvables en jeu. Elles passent donc devant, et aucune ne doit manquer au
+		// catalogue — c'est le sens de « tous les skins en vente ».
+		type Served = { StoreItems: StoreListing[] }
+		const body = (await (
+			await exports.default.fetch(`${ORIGIN}/api/storefronts/v3/giftdropstore/3`)
+		).json()) as Served
+		expect(body.StoreItems[0].PurchasableItemId).toBeGreaterThanOrEqual(2_000_000)
+
+		const sold = new Set(
+			body.StoreItems.map(
+				(item) =>
+					`${item.GiftDrop.EquipmentPrefabName}|${item.GiftDrop.EquipmentModificationGuid}`
+			)
+		)
+		const missing = skinsJson
+			.filter((skin) => !sold.has(`${skin.PrefabName}|${skin.ModificationGuid}`))
+			.map((skin) => skin.FriendlyName)
+		expect(missing).toEqual([])
+
+		// La seule skin que le dump ne listait nulle part, vendue comme les autres.
+		const purple = body.StoreItems.find(
+			(item) => item.GiftDrop.FriendlyName === 'Shield (Purple)'
+		)
+		expect(purple?.Prices[0]?.Price).toBe(3000)
+		expect(purple?.SubscriberPrices?.[0]?.Price).toBe(2700)
+	})
+
+	test('l’onglet Skins répartit tout le catalogue sur les six vitrines, sans doublon', async () => {
+		// 401 à 406 servaient une rotation de huit articles chacune : l'onglet « Skins » du
+		// magasin ne montrait donc presque rien. Elles servent maintenant le catalogue RÉPARTI
+		// (une page sur six, tri stable) : chaque skin est dans une page et une seule, et les
+		// six ensemble couvrent tout.
+		const pages: StoreListing[][] = []
+		for (const storefront of [401, 402, 403, 404, 405, 406]) {
+			const body = (await (
+				await exports.default.fetch(`${ORIGIN}/api/storefronts/v3/giftdropstore/${storefront}`)
+			).json()) as { StoreItems: StoreListing[] }
+			expect(
+				body.StoreItems.every((item) => item.PurchasableItemId >= 2_000_000),
+				`vitrine ${storefront}`
+			).toBe(true)
+			expect(
+				body.StoreItems.every((item) => (item.Prices[0]?.Price ?? 0) > 0),
+				`vitrine ${storefront}`
+			).toBe(true)
+			pages.push(body.StoreItems)
+		}
+		const served = pages.flat()
+		expect(served).toHaveLength(recBlueSkins.length)
+		expect(new Set(served.map((item) => item.PurchasableItemId)).size).toBe(recBlueSkins.length)
+		// Chaque page reste proche du sixième du catalogue (et jamais vide).
+		for (const [index, page] of pages.entries()) {
+			expect(Math.abs(page.length - recBlueSkins.length / 6), `page ${401 + index}`).toBeLessThan(2)
+		}
+		// Les skins Maker Pen, invisibles quand on servait les 284 à chaque page, sont bien là.
+		expect(served.filter((item) => item.GiftDrop.EquipmentPrefabName === '[MakerPen]').length).toBe(
+			recBlueSkins.filter((item) => item.GiftDrop.EquipmentPrefabName === '[MakerPen]').length
+		)
+	})
+
+	test('POST /api/storefronts/v2/buyItem sells an equipment skin', async () => {
+		const res = await exports.default.fetch(`${ORIGIN}/api/storefronts/v2/buyItem`, {
+			method: 'POST',
+			headers: { ...(await bearer('430')), 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				StorefrontType: 3,
+				PurchasableItemId: 2000001,
+				CurrencyType: 2,
+				RequestedPrice: 3500,
+				CouponConsumablePlayerMappingId: null,
+				Gift: null,
+			}),
+		})
+		expect(res.status, await res.clone().text()).toBe(200)
+		expect(((await res.json()) as { Balance: number }).Balance).toBe(-3500)
 	})
 
 	test('POST /api/items/purchaseInfos 400s without Ids and 401s without a token', async () => {
@@ -4724,24 +5118,39 @@ describe('econ endpoints', () => {
 				headers,
 			})
 			expect(res.status).toBe(200)
-			return (await res.json()) as { StorefrontType: number; StoreItems: unknown[] }
+			const catalog = (await res.json()) as { StorefrontType: number; StoreItems: unknown[] }
+			// Les quatre entrées REC BLUE (l'abonnement et les trois bundles) sont ajoutées à la
+			// volée à la lecture, sur les storefronts 1 et 3 : ce test compare les FICHIERS entre
+			// eux, donc il les écarte.
+			return {
+				...catalog,
+				StoreItems: catalog.StoreItems.filter(
+					(it) =>
+						![990001, 990002, 990003, 990004].includes(
+							(it as { PurchasableItemId: number }).PurchasableItemId
+						)
+				),
+			}
 		}
 		const at = async (version: string) =>
 			(await bearer('42', undefined, version)) as Record<string, string>
 
 		// 20230414 is GAME_VERSION — what the rest of the stack targets — so the cutoff is
-		// INCLUSIVE and that build keeps the captured sf3 exactly as it has always had it.
+		// INCLUSIVE and that build keeps the captured sf3 exactly as it has always had it,
+		// plus les 22 teintures et les 3 potions ajoutées à la volée (`withRecBlueHairDye`) et
+		// les skins d'équipement (`withRecBlueSkins`), que le catalogue 2023 ignore.
+		const legacyCount = sf3.StoreItems.length + hairProducts.length + recBlueSkins.length
 		const legacy = await store(await at('20230414'))
-		expect(legacy.StoreItems).toHaveLength(sf3.StoreItems.length)
+		expect(legacy.StoreItems).toHaveLength(legacyCount)
 		// A same-day rebuild sorts by its DATE, not the `.NN` suffix.
-		expect((await store(await at('20230414.02'))).StoreItems).toHaveLength(sf3.StoreItems.length)
+		expect((await store(await at('20230414.02'))).StoreItems).toHaveLength(legacyCount)
 
 		// A caller with no readable build gets the captured file too: an unversioned token is the
 		// OLD client, so treating "can't prove its version" as "newer" would swap the store out
 		// from under the build that needs it.
-		expect((await store({})).StoreItems).toHaveLength(sf3.StoreItems.length)
-		expect((await store(await bearer())).StoreItems).toHaveLength(sf3.StoreItems.length)
-		expect((await store(await at('not-a-build'))).StoreItems).toHaveLength(sf3.StoreItems.length)
+		expect((await store({})).StoreItems).toHaveLength(legacyCount)
+		expect((await store(await bearer())).StoreItems).toHaveLength(legacyCount)
+		expect((await store(await at('not-a-build'))).StoreItems).toHaveLength(legacyCount)
 
 		// Later builds get the 2025 store — bigger, and still storefront 3.
 		for (const version of ['20230616', '20250424.01', '20250718.01', '20260323.14']) {
@@ -5197,6 +5606,60 @@ describe('econ endpoints', () => {
 		expect(await bal.json()).toEqual([{ CurrencyType: 2, Platform: -2, Balance: 10000 }])
 	})
 
+	// sf2's 1518 ("Formal Necklace (Gold)") is 1000 tokens in `Prices` and 900 in
+	// `SubscriberPrices`. The catalogue is SERVED without its captured 80 % sale, so the client
+	// renders 1000 and a subscriber's client renders 900 (its own Plus discount) — the prices
+	// this block buys with.
+	const buy1518 = async (headers: Record<string, string>, RequestedPrice: number) =>
+		exports.default.fetch(`${ORIGIN}/api/storefronts/v2/buyItem`, {
+			method: 'POST',
+			headers: { ...headers, 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				StorefrontType: 2,
+				PurchasableItemId: 1518,
+				CurrencyType: 2,
+				RequestedPrice,
+				CouponConsumablePlayerMappingId: null,
+				Gift: null,
+			}),
+		})
+
+	test('POST /api/storefronts/v2/buyItem charges a non-subscriber the base price', async () => {
+		const res = await buy1518(await bearer('424'), 1000)
+		expect(res.status).toBe(200)
+		const body = (await res.json()) as { Balance: number }
+		expect(body.Balance).toBe(-1000)
+		const bal = await exports.default.fetch(`${ORIGIN}/api/storefronts/v4/balance/2`, {
+			headers: await bearer('424'),
+		})
+		expect(await bal.json()).toEqual([{ CurrencyType: 2, Platform: -2, Balance: 9000 }])
+	})
+
+	test('POST /api/storefronts/v2/buyItem refuses the retired sale price', async () => {
+		// Les 80 % du catalogue ne sont plus servis : 200 (le prix soldé d'hier) n'est plus
+		// un prix que le client peut avoir lu sur le tableau.
+		const res = await buy1518(await bearer('426'), 200)
+		expect(res.status).toBe(409)
+	})
+
+	test('POST /api/storefronts/v2/buyItem discounts the base price by 10 % for Plus', async () => {
+		const res = await buy1518(await bearer('425', undefined, undefined, true), 900)
+		expect(res.status).toBe(200)
+		const body = (await res.json()) as { Balance: number }
+		expect(body.Balance).toBe(-900)
+	})
+
+	test('POST /api/storefronts/v2/buyItem 409s a price below the Plus discount', async () => {
+		// 899 est sous le plancher (900 = 1000 - 10 %) : la remise Plus reste bornée.
+		const res = await buy1518(await bearer('426', undefined, undefined, true), 899)
+		expect(res.status).toBe(409)
+	})
+
+	test('POST /api/storefronts/v2/buyItem 409s the Plus price for a non-subscriber', async () => {
+		const res = await buy1518(await bearer('426'), 900)
+		expect(res.status).toBe(409)
+	})
+
 	// sf300's item 2089 is 95 tokens in `Prices` and 85 in `SubscriberPrices`. A subscriber's
 	// client applies the Plus discount itself, but not to every item, so the server takes any
 	// price in the band [85, 95] from a subscriber and charges what they asked to pay.
@@ -5213,6 +5676,73 @@ describe('econ endpoints', () => {
 				Gift: null,
 			}),
 		})
+
+	test('the REC BLUE Plus item is sold in tokens and grants 30 days of Plus', async () => {
+		const buy = (headers: Record<string, string>) =>
+			exports.default.fetch(`${ORIGIN}/api/storefronts/v2/buyItem`, {
+				method: 'POST',
+				headers: { ...headers, 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					StorefrontType: 1,
+					PurchasableItemId: 990001,
+					CurrencyType: 2,
+					RequestedPrice: 5000,
+					CouponConsumablePlayerMappingId: null,
+					Gift: null,
+				}),
+			})
+
+		// Le Plus vit sur la ligne `account`, dont `account_id` est GÉNÉRÉ depuis `data` : c'est
+		// `data.accountId` qui nomme le compte, et donc ce que le jeton doit porter.
+		await env.DB.prepare('INSERT OR IGNORE INTO account (data) VALUES (?1)')
+			.bind(JSON.stringify({ accountId: 327, username: 'PlusTester', displayName: 'PlusTester' }))
+			.run()
+		const sub = '327'
+		const plusUntil = () =>
+			env.DB.prepare(
+				"SELECT json_extract(data, '$.plusUntil') AS until FROM account WHERE account_id = ?1"
+			)
+				.bind(Number(sub))
+				.first<{ until: string | null }>()
+
+		expect((await plusUntil())?.until ?? null).toBeNull()
+		const res = await buy(await bearer(sub))
+		expect(res.status).toBe(200)
+		// The purchase is a token spend, and the balance change is reported as such.
+		expect(((await res.json()) as { Balance: number }).Balance).toBe(-5000)
+		// …and the account now holds Plus, dated 30 days out (the flag `isSubscriber`, the
+		// Plus discount and the Plus-only outfits all read).
+		const until = (await plusUntil())?.until ?? null
+		expect(until).not.toBeNull()
+		expect((Date.parse(until as string) - Date.now()) / (24 * 60 * 60 * 1000)).toBeGreaterThan(29)
+	})
+
+	test('the token bundle is sold in tokens and pays its tokens into a box', async () => {
+		await env.DB.prepare('INSERT OR IGNORE INTO account (data) VALUES (?1)')
+			.bind(JSON.stringify({ accountId: 328, username: 'BundleTester', displayName: 'BundleTester' }))
+			.run()
+		const sub = '328'
+		// Reading the balance once is what seeds an account's starting tokens.
+		await exports.default.fetch(`${ORIGIN}/api/storefronts/v4/balance/2`, {
+			headers: await bearer(sub),
+		})
+		const res = await exports.default.fetch(`${ORIGIN}/api/storefronts/v2/buyItem`, {
+			method: 'POST',
+			headers: { ...(await bearer(sub)), 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				StorefrontType: 1,
+				PurchasableItemId: 990003,
+				CurrencyType: 2,
+				RequestedPrice: 5750,
+				CouponConsumablePlayerMappingId: null,
+				Gift: null,
+			}),
+		})
+		expect(res.status, await res.clone().text()).toBe(200)
+		// The pack's 5 500 tokens ride in a gift box (granted, not added to the balance): the
+		// spend is what the response reports, and the box is announced by the gift feed.
+		expect(((await res.json()) as { Balance: number }).Balance).toBe(-5750)
+	})
 
 	test('POST /api/storefronts/v2/buyItem charges a subscriber the SubscriberPrices entry', async () => {
 		await drainFrames()
@@ -5274,7 +5804,9 @@ describe('econ endpoints', () => {
 	})
 
 	test('POST /api/storefronts/v2/buyItem 409s a subscriber below the discount band', async () => {
-		const res = await buy2263(await bearer('323', ['gameClient'], undefined, true), 84)
+		// Cet article porte une solde de 80 % (95 → 19) : la bande part donc du prix AFFICHÉ,
+		// 10 % Plus sous 19 = 17. 16 est en dessous, et rien n'y donne droit.
+		const res = await buy2263(await bearer('323', ['gameClient'], undefined, true), 16)
 		expect(res.status).toBe(409)
 		// …and above it: a made-up price is a mismatch in either direction.
 		const over = await buy2263(await bearer('323', ['gameClient'], undefined, true), 96)
@@ -7648,7 +8180,11 @@ describe('econ endpoints', () => {
 		// An activity the table doesn't know pays the plain XP box, as before — the last
 		// GameRewards box, behind Bowling's own tokens.
 		expect((await request('rewardType=PostGameActivity&giftContext=Bowling')).status).toBe(200)
-		const plain = (await giftBoxes('83')).findLast((b) => b.GiftContext === 50)
+		// `Currency: 0` and not just the context: a level-up box carries the same `GameRewards`
+		// context and now the level's 250 credits, so the context alone would find one of those.
+		const plain = (await giftBoxes('83')).findLast(
+			(b) => b.GiftContext === 50 && b.Currency === 0
+		)
 		expect(plain).toMatchObject({ Xp: 10, AvatarItemDesc: '', Currency: 0, GiftContext: 50 })
 
 		// A reward the player already owns is never drawn again: Dodgeball has three rows, so
@@ -7662,7 +8198,7 @@ describe('econ endpoints', () => {
 			).run()
 			expect((await request('rewardType=PostGameActivity&giftContext=Dodgeball')).status).toBe(200)
 			const latest = (await giftBoxes('83')).findLast(
-				(b) => b.GiftContext === 8000 || b.GiftContext === 50
+				(b) => b.GiftContext === 8000 || (b.GiftContext === 50 && !b.Message?.startsWith('Level'))
 			)
 			if (i < 3) handed.push(latest?.AvatarItemDesc as string)
 			else expect(latest).toMatchObject({ AvatarItemDesc: '', GiftContext: 50 })
@@ -7687,6 +8223,15 @@ describe('econ endpoints', () => {
 			env.DB.prepare(
 				"SELECT granted_at, grant_count FROM reward_status WHERE account_id = 84 AND reward_type = '$tokens'"
 			).first<{ granted_at: string; grant_count: number }>()
+		// La réserve de niveaux du jour est déjà dépensée : ce test mesure les tokens des
+		// activités, pas les 250 crédits qu'un passage de niveau ajoute au solde.
+		await env.DB.prepare(
+			`INSERT INTO progression (account_id, level, xp, levels_day, levels_today)
+			 VALUES (84, 1, 0, ?1, 6)
+			 ON CONFLICT (account_id) DO UPDATE SET level = 1, xp = 0, levels_day = ?1, levels_today = 6`
+		)
+			.bind(new Date().toISOString().slice(0, 10))
+			.run()
 		await drainFrames()
 		const start = await tokens()
 
@@ -9492,5 +10037,142 @@ describe('cai-grant-legacy', () => {
 			).first()
 		).toEqual(first)
 		expect(first!.acquired_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+	})
+})
+
+// ---------------------------------------------------------------------------
+// Pont « boutique du site » : le catalogue, la garde-robe et l'achat que l'app iOS
+// installable appelle. Aucun jeton de joueur ne circule — le jeton de pont autorise — et
+// le prix n'est jamais envoyé par le client : il est relu ici, réduction REC BLUE Plus
+// comprise, puis débité par le MÊME `spendCurrency` que le jeu.
+// ---------------------------------------------------------------------------
+describe('site bridge: la boutique depuis le site', () => {
+	const headers = { Authorization: 'Bearer test-bridge-token', 'Content-Type': 'application/json' }
+
+	async function balanceOf(username: string): Promise<number> {
+		const res = await exports.default.fetch(
+			`${ORIGIN}/api/site/inventory?username=${encodeURIComponent(username)}`,
+			{ headers }
+		)
+		expect(res.status, await res.clone().text()).toBe(200)
+		const body = (await res.json()) as { balance: number }
+		return body.balance
+	}
+
+	async function drainFrames() {
+		return (
+			env.RECFLARE_NOTIFICATIONS_HUB.getByName('global') as unknown as {
+				drainFrames(): Promise<
+					Array<{ accountId: number; payload: Record<string, unknown> }>
+				>
+			}
+		).drainFrames()
+	}
+
+	test('le catalogue est servi aux prix du catalogue, sans jeton de joueur', async () => {
+		const res = await exports.default.fetch(`${ORIGIN}/api/site/storefront?storefront=3`, { headers })
+		expect(res.status, await res.clone().text()).toBe(200)
+		const body = (await res.json()) as {
+			items: Array<{ id: number; price: number; name: string }>
+		}
+		expect(body.items.length).toBeGreaterThan(200)
+		// 5000 est le prix de base de la teinture, pas la solde de 80 % du dump 2025.
+		expect(body.items.find((item) => item.id === 1195)?.price).toBe(5000)
+	})
+
+	test('un jeton de pont faux est refusé, et un compte inconnu aussi', async () => {
+		const refused = await exports.default.fetch(`${ORIGIN}/api/site/storefront?storefront=3`, {
+			headers: { Authorization: 'Bearer pas-le-bon' },
+		})
+		expect(refused.status).toBe(401)
+
+		const unknown = await exports.default.fetch(`${ORIGIN}/api/site/inventory?username=personne`, {
+			headers,
+		})
+		expect(unknown.status).toBe(404)
+	})
+
+	test('l’achat débite le prix de base et l’article entre dans l’inventaire', async () => {
+		await createAccount(env.DB, { username: 'pontboutique', displayName: 'Pont Boutique' })
+		const before = await balanceOf('pontboutique')
+		// Les tests précédents ont pu pousser leurs propres frames : on part d'un hub vide.
+		await drainFrames()
+
+		const buy = await exports.default.fetch(`${ORIGIN}/api/site/buy`, {
+			method: 'POST',
+			headers,
+			body: JSON.stringify({ username: 'pontboutique', storefront: 3, item: 1195 }),
+		})
+		expect(buy.status, await buy.clone().text()).toBe(200)
+		const bought = (await buy.json()) as { charged: number; balance: number; item: { name: string } }
+		expect(bought.charged).toBe(5000)
+		expect(bought.balance).toBe(before - 5000)
+
+		// Le client est poussé comme après un achat DANS le jeu : la boîte (que le joueur
+		// ouvrira ensuite) et le solde résultant. Sans elles, acheter sur le site ne donnait
+		// aucune boîte et laissait le client sur un solde périmé.
+		const frames = await drainFrames()
+		const box = frames.find(
+			(frame) => typeof frame.payload.Id === 'number' && (frame.payload.Id as number) > 0
+		)
+		expect(box, 'la boîte du joueur est poussée').toBeDefined()
+		expect(box!.payload.FromPlayerId).toBe(1)
+		expect(box!.payload.AvatarItemDesc).toBeTruthy()
+		// Le message par défaut d'un achat sans cadeau : une chaîne vide laissait le panneau
+		// de la boîte vide.
+		expect(box!.payload.Message).toBe('A gift for you <3')
+		const balanceFrame = frames.find((frame) => frame.payload.Delta === -5000)
+		expect(balanceFrame?.payload.Balance).toBe(before - 5000)
+
+		const res = await exports.default.fetch(`${ORIGIN}/api/site/inventory?username=pontboutique`, {
+			headers,
+		})
+		const body = (await res.json()) as {
+			balance: number
+			items: Array<{ name: string }>
+		}
+		expect(body.balance).toBe(before - 5000)
+		expect(body.items.some((item) => item.name === 'Permanent Hair Dye (Rebel Rose)')).toBe(true)
+	})
+
+	test('un membre REC BLUE Plus paie 10 % de moins — le seul rabais du serveur', async () => {
+		const account = await createAccount(env.DB, {
+			username: 'pontplus',
+			displayName: 'Pont Plus',
+		})
+		const { setPlus } = await import('../../site-flags')
+		await setPlus(env.DB, account.accountId, new Date(Date.now() + 86_400_000).toISOString())
+		const before = await balanceOf('pontplus')
+
+		const buy = await exports.default.fetch(`${ORIGIN}/api/site/buy`, {
+			method: 'POST',
+			headers,
+			body: JSON.stringify({ username: 'pontplus', storefront: 3, item: 1195 }),
+		})
+		expect(buy.status, await buy.clone().text()).toBe(200)
+		const bought = (await buy.json()) as { charged: number; balance: number }
+		expect(bought.charged).toBe(4500)
+		expect(bought.balance).toBe(before - 4500)
+	})
+
+	test('sans crédits, l’achat est refusé et le solde ne bouge pas', async () => {
+		await createAccount(env.DB, { username: 'pontpauvre', displayName: 'Pont Pauvre' })
+		const before = await balanceOf('pontpauvre')
+
+		// Une skin « (Gold) » à 5 000 000 : hors de portée du solde de départ.
+		const catalog = await exports.default.fetch(`${ORIGIN}/api/site/storefront?storefront=3`, {
+			headers,
+		})
+		const items = ((await catalog.json()) as { items: Array<{ id: number; price: number }> }).items
+		const gold = items.find((item) => item.price === 5_000_000)
+		expect(gold).toBeDefined()
+
+		const buy = await exports.default.fetch(`${ORIGIN}/api/site/buy`, {
+			method: 'POST',
+			headers,
+			body: JSON.stringify({ username: 'pontpauvre', storefront: 3, item: gold!.id }),
+		})
+		expect(buy.status).toBe(400)
+		expect(await balanceOf('pontpauvre')).toBe(before)
 	})
 })

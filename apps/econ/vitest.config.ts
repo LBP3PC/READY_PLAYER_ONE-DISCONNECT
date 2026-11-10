@@ -8,6 +8,9 @@ export default defineConfig({
 			miniflare: {
 				bindings: {
 					ENVIRONMENT: 'VITEST',
+					// Le pont « boutique depuis le site » (catalogue, inventaire, achat) n'accepte
+					// que ce jeton : les tests l'envoient tel quel en Authorization.
+					SITE_BRIDGE_TOKEN: 'test-bridge-token',
 				},
 				// The worker's RECFLARE_NOTIFICATIONS_HUB binding points at the `notify`
 				// worker's DO (script_name: "notify"). That worker isn't part of this
