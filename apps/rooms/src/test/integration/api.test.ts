@@ -1292,6 +1292,15 @@ describe('rooms endpoints', () => {
 		expect(await res.json()).toEqual([])
 	})
 
+	it('GET /rooms/carousel/foryou serves the public hot feed with pagination', async () => {
+		for (const query of ['?skip=0&take=2', '?skip=2&take=2']) {
+			const recommended = await SELF.fetch(`${ORIGIN}/rooms/carousel/foryou${query}`)
+			const hot = await SELF.fetch(`${ORIGIN}/rooms/hot${query}`)
+			expect(recommended.status).toBe(200)
+			expect(await recommended.json()).toEqual(await hot.json())
+		}
+	})
+
 	it('GET /rooms/carousel/rising serves only rooms players are in, busiest first', async () => {
 		const rising = async (qs = '?skip=0&take=100') =>
 			(await (await SELF.fetch(`${ORIGIN}/rooms/carousel/rising${qs}`)).json()) as {
@@ -5184,7 +5193,16 @@ describe('rooms endpoints', () => {
 			'CAN_USE_PLAY_GIZMOS_TOGGLE',
 		])
 		for (const p of body.Permissions) {
-			expect(p).toMatchObject({ Role: 0, Override: true, Type: 0, Value: 'False' })
+			// Les inventions sont ouvertes à tous (sinon le client grise « Make Invention ») ;
+			// les boutons destructeurs, eux, restent fermés à un visiteur.
+			const invention =
+				p.Permission === 'CAN_SAVE_INVENTIONS' || p.Permission === 'CAN_SPAWN_INVENTIONS'
+			expect(p).toMatchObject({
+				Role: 0,
+				Override: true,
+				Type: 0,
+				Value: invention ? 'True' : 'False',
+			})
 		}
 	})
 
@@ -5193,11 +5211,14 @@ describe('rooms endpoints', () => {
 		expect(res.status).toBe(200)
 		const body = (await res.json()) as {
 			RoomInstanceId: number | null
-			Permissions: Array<{ Value: string }>
+			Permissions: Array<{ Permission: string; Value: string }>
 		}
 		expect(body.RoomInstanceId).toBeNull()
-		// In no room, they are nobody's manager.
-		expect(body.Permissions.every((p) => p.Value === 'False')).toBe(true)
+		// In no room, they are nobody's manager: the destructive permissions stay closed. The
+		// invention ones are open regardless — that is what un-greys « Make Invention ».
+		expect(
+			body.Permissions.filter((p) => p.Value === 'True').map((p) => p.Permission)
+		).toEqual(['CAN_SAVE_INVENTIONS', 'CAN_SPAWN_INVENTIONS'])
 	})
 
 	it('GET /photon_access_token gives the room’s MANAGERS every build permission', async () => {
@@ -5217,7 +5238,12 @@ describe('rooms endpoints', () => {
 			})
 			return (
 				(await res.json()) as {
-					Permissions: Array<{ Role: number; Override: boolean; Value: string }>
+					Permissions: Array<{
+						Permission: string
+						Role: number
+						Override: boolean
+						Value: string
+					}>
 				}
 			).Permissions
 		}
@@ -5230,13 +5256,20 @@ describe('rooms endpoints', () => {
 			expect(table.length).toBe(30)
 			expect(table.map((p) => p.Role)).toEqual(roles.flatMap((r) => Array<number>(6).fill(r)))
 			for (const p of table) {
-				expect(p).toMatchObject({ Override: false, Value: p.Role >= 30 ? 'True' : 'False' })
+				// Les inventions sont ouvertes par défaut à tous les rôles (sinon le client grise
+				// « Make Invention ») ; le reste suit la règle des managers.
+				const invention =
+					p.Permission === 'CAN_SAVE_INVENTIONS' || p.Permission === 'CAN_SPAWN_INVENTIONS'
+				expect(p).toMatchObject({
+					Override: false,
+					Value: p.Role >= 30 || invention ? 'True' : 'False',
+				})
 			}
 		}
 		await env.DB.prepare('DELETE FROM presence WHERE account_id IN (1, 2)').run()
 	})
 
-	it('GET /photon_access_token grants the global maker pen to dev accounts (1/2/3), nothing else', async () => {
+	it('GET /photon_access_token grants the global maker pen to dev accounts (1/2/3), and inventions to everyone', async () => {
 		for (const sub of ['1', '2', '3']) {
 			// Out of any room: a visitor with the dev maker pen.
 			const res = await SELF.fetch(`${ORIGIN}/photon_access_token`, { headers: await bearer(sub) })
@@ -5251,7 +5284,12 @@ describe('rooms endpoints', () => {
 				Type: 0,
 				Value: 'True',
 			})
-			expect(body.Permissions.slice(1).every((p) => p.Value === 'False')).toBe(true)
+			// Seules les inventions suivent la Maker Pen : rien d'autre n'est accordé à un visiteur.
+			expect(
+				body.Permissions.slice(1)
+					.filter((p) => p.Value === 'True')
+					.map((p) => p.Permission)
+			).toEqual(['CAN_SAVE_INVENTIONS', 'CAN_SPAWN_INVENTIONS'])
 		}
 	})
 
@@ -5669,8 +5707,10 @@ describe('rooms endpoints', () => {
 		})
 
 		it('a Role 0 grant reaches a visitor; a Role 30 grant does not', async () => {
-			// Nothing stored for everyone: the visitor may do nothing.
-			expect(valueOf(await permissionsIn(743, 2), 'CAN_SPAWN_INVENTIONS')).toBe('False')
+			// Rien n'est stocké pour tout le monde : les inventions sont ouvertes par défaut, les
+			// boutons destructeurs ne le sont pas.
+			expect(valueOf(await permissionsIn(743, 2), 'CAN_SPAWN_INVENTIONS')).toBe('True')
+			expect(valueOf(await permissionsIn(743, 2), 'CAN_USE_DELETE_ALL_BUTTON')).toBe('False')
 
 			// The creator lets everyone spawn inventions in this subroom.
 			expect(
@@ -5865,8 +5905,9 @@ describe('rooms endpoints', () => {
 
 		it('scopes the table to its subroom', async () => {
 			// Subroom 2 lets everyone spawn inventions (set above); subroom 3 does not.
-			expect(valueOf(await permissionsIn(744, 2), 'CAN_SPAWN_INVENTIONS')).toBe('True')
-			expect(valueOf(await permissionsIn(744, 3), 'CAN_SPAWN_INVENTIONS')).toBe('False')
+				expect(valueOf(await permissionsIn(744, 2), 'CAN_SPAWN_INVENTIONS')).toBe('True')
+			// La subroom 3 n'a pas de table à elle : le débogage destructeur y reste fermé.
+			expect(valueOf(await permissionsIn(744, 3), 'CAN_USE_DELETE_ALL_BUTTON')).toBe('False')
 			// And a player in no instance at all is a visitor with the defaults.
 			await env.DB.prepare('DELETE FROM presence WHERE account_id = ?1').bind(744).run()
 			const lobby = await SELF.fetch(`${ORIGIN}/photon_access_token`, {
@@ -5874,7 +5915,11 @@ describe('rooms endpoints', () => {
 			})
 			const table = ((await lobby.json()) as { Permissions: Permission[] }).Permissions
 			expect(table.length).toBe(6)
-			expect(table.every((p) => p.Value === 'False')).toBe(true)
+			// Seules les deux permissions d'invention sont ouvertes ; le reste est fermé.
+			expect(table.filter((p) => p.Value === 'True').map((p) => p.Permission)).toEqual([
+				'CAN_SAVE_INVENTIONS',
+				'CAN_SPAWN_INVENTIONS',
+			])
 		})
 
 		it('keeps a Value that isn’t True/False verbatim', async () => {
@@ -6638,6 +6683,7 @@ describe('rooms endpoints', () => {
 			'GET /rooms/autocomplete_search',
 			'GET /rooms/base',
 			'GET /rooms/bulk',
+			'GET /rooms/carousel/foryou',
 			'GET /rooms/carousel/rising',
 			'GET /rooms/contributedby/me',
 			'GET /rooms/createdby/me',

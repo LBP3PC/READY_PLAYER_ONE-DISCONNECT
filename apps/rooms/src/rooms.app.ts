@@ -300,8 +300,25 @@ const BUILD_PERMISSIONS = [
  * a host or a moderator in a room whose creator never opened the permissions screen must not
  * be able to reset the room, delete everything in it or spawn into it. Serving `True` at
  * Role 0 to everyone (as this once did) handed every visitor the delete-all button.
+ *
+ * Les permissions d'invention font exception et sont ouvertes par défaut à tous : le client
+ * grise « Make Invention » dès que sa table dit `False`, même quand la Maker Pen est déjà
+ * utilisable (`verifyRole` répond oui en contexte `MakerPen`). Une valeur stockée par le
+ * créateur de la salle garde le dernier mot — c'est un défaut, pas une réécriture.
  */
-const buildsByDefault = (role: number): boolean => role >= Role.CoOwner
+/**
+ * Les permissions d'invention, ouvertes par défaut à TOUT LE MONDE, visiteur compris.
+ *
+ * Le client grise « Make Invention » dès que sa table dit `False` — même dans une salle où
+ * la Maker Pen est déjà utilisable (`verifyRole` répond oui en contexte `MakerPen`). Les
+ * permissions destructrices (`CAN_USE_ROOM_RESET_BUTTON`, `CAN_USE_DELETE_ALL_BUTTON`)
+ * restent, elles, réservées aux managers.
+ */
+const INVENTIONS_OPEN_TO_ALL = ['CAN_SAVE_INVENTIONS', 'CAN_SPAWN_INVENTIONS'] as const
+
+const buildsByDefault = (permission: string, role: number): boolean =>
+	INVENTIONS_OPEN_TO_ALL.includes(permission as (typeof INVENTIONS_OPEN_TO_ALL)[number]) ||
+	role >= Role.CoOwner
 
 /**
  * The caller's role in a room: Creator for its `CreatorAccountId`, otherwise the highest
@@ -379,7 +396,11 @@ function photonAccessToken(
 	const inherited = (permission: string, at: number): string | undefined => {
 		const below = reachingFromBelow(permission, at)
 		if (below) return below.Value
-		return isBuild(permission) ? (buildsByDefault(at) ? 'True' : 'False') : undefined
+		return isBuild(permission)
+			? buildsByDefault(permission, at)
+				? 'True'
+				: 'False'
+			: undefined
 	}
 	const row = (
 		Permission: string,
@@ -390,7 +411,7 @@ function photonAccessToken(
 	): RoomPermission => ({ Override, Permission, Role, Type, Value })
 
 	const permissions: RoomPermission[] = []
-	if (buildsByDefault(role)) {
+	if (role >= Role.CoOwner) {
 		// A manager: the whole table, grouped by role.
 		for (const at of PERMISSION_ROLES) {
 			for (const name of names) {
@@ -1157,7 +1178,17 @@ function toSaveDetail(save: Record<string, unknown>, target: number | null) {
  * Every room this worker answers — alone, in a list, in the mutation envelope or pushed as
  * a `RoomUpdate` — goes through this (or {@link serveRooms}).
  */
-const serveRoom = withConfirmedRoles
+const serveRoom = (room: Room): Room => {
+	const served = withConfirmedRoles(room)
+	// The 2023 client reads RankingContext as an opaque STRING and enumerates it while
+	// mapping the room; every stored room carries `null` (the seed import and every
+	// created room), and `null.Select(...)` throws ArgumentNullException, after which the
+	// client drops the room and disconnects. Answer `""` instead — the empty context.
+	return {
+		...served,
+		RankingContext: typeof served.RankingContext === 'string' ? served.RankingContext : '',
+	}
+}
 
 /** {@link serveRoom} over a list. */
 const serveRooms = (rooms: Room[]): Room[] => rooms.map(serveRoom)
@@ -1608,6 +1639,24 @@ const app = new Hono<App>()
 		(c) => c.json([])
 	)
 
+	// Until personalized recommendations exist, serve the existing public hot feed for the
+	// configured For You section instead of leaving the watch's carousel request at 404.
+	.get(
+		'/rooms/carousel/foryou',
+		describeRoute({
+			tags: ['Discovery'],
+			summary: 'Recommended rooms carousel',
+			description: 'Public listable rooms ordered like the hot feed; not personalized.',
+			parameters: pageParams(100),
+			responses: { 200: json(PagedRooms, 'The recommended carousel page') },
+		}),
+		async (c) => {
+			const skip = Number.parseInt(c.req.query('skip') ?? '0', 10) || 0
+			const take = Number.parseInt(c.req.query('take') ?? '100', 10) || 100
+			return c.json(serveRoomPage(await getHotRooms(c.env.DB, '', skip, take)))
+		}
+	)
+
 	// The `rising` carousel — the discovery pages fill a `CarouselEndpoint` section by
 	// slug, and this is the one the client asks for by name. Trending means someone is IN
 	// the room right now: unlike the hot feed, which ranks by head-count but still lists
@@ -1615,9 +1664,8 @@ const app = new Hono<App>()
 	// serves an empty carousel rather than a stale one.
 	//
 	// Paged like the hot feed (`skip`/`take`, take defaults to 100) and answers the same
-	// `{ Results, TotalResults }` envelope its sibling feeds do. Only `rising` is served —
-	// the other slugs in the discovery catalogue (`foryou`, `staffpicks`, the
-	// `*_algoendpoint` rows) keep 404ing until each is given a feed of its own.
+	// `{ Results, TotalResults }` envelope its sibling feeds do. `staffpicks` and the
+	// `*_algoendpoint` rows keep 404ing until each is given a feed of its own.
 	.get(
 		'/rooms/carousel/rising',
 		describeRoute({
@@ -4836,7 +4884,18 @@ const app = new Hono<App>()
 
 			const permissions = parseRoomPermissions(await c.req.json().catch(() => null))
 			await setSubRoomPermissions(c.env.DB, subRoomId, permissions)
-			return c.json({ Value: room, Success: true, Error: null, error_id: null })
+			// La salle est RELUE après l'écriture : l'objet lu avant peut différer de ce que la
+			// base rend ensuite (les champs normalisés à l'écriture, `RankingContext` par
+			// exemple), et le client compare cette réponse à un `GET /rooms/{id}`.
+			// Et servie comme `GET /rooms/{id}` la sert (`serveRoom`), sinon les deux réponses
+			// divergent sur les champs que la lecture normalise.
+			const updated = (await getRoomById(c.env.DB, roomId)) ?? room
+			return c.json({
+				Value: serveRoom(updated),
+				Success: true,
+				Error: null,
+				error_id: null,
+			})
 		}
 	)
 
