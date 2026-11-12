@@ -4,6 +4,7 @@ import { useWorkersLogger } from 'workers-tagged-logger'
 
 import {
 	Accessibility,
+	addXp,
 	areFriends,
 	canManageRoom,
 	countOnlinePlayers,
@@ -72,6 +73,10 @@ import { getEventById, getEventResponse } from '../../api/src/events-db'
 // Value import of the notify worker's NotificationType enum (its bundle has no runtime
 // deps), so /invite sends a typed MessageReceived frame instead of a magic number.
 import { NotificationType } from '../../notify/src/notification-types'
+// The game-reward claim's pacing table (`reward_status`), which econ owns. Same plain-D1
+// module shape as bans-db below, so it imports cleanly: the playtime XP below reuses its
+// atomic cooldown rather than growing a table of its own.
+import { claimReward } from '../../econ/src/reward-db'
 import {
 	ActiveClubhouseDto,
 	AUTHED,
@@ -135,7 +140,10 @@ const NULL_CONNECTION_INFO = {
 	photonRoomId: null,
 	voiceConnectionInfo: null,
 	voiceServerId: null,
-	experiments: null,
+	// The 2023 client transforms every player payload with a Select over this list;
+	// null is not handled there and aborts the presence load. An empty list is the
+	// correct "no experiments assigned" value.
+	experiments: [],
 } as const
 
 /**
@@ -350,27 +358,121 @@ const QOS_REGIONS = [
  * payload is the caller's own — the batch lookup serves other players, whose build this
  * caller's token knows nothing about.
  */
+type PlayerConnectionInfo = {
+	photonAuthToken: string
+	photonRealtimeAppId: string
+	photonVoiceAppId: string
+	photonChatAppId: string
+	photonRegion: string
+	photonRoomId: string
+	voiceConnectionInfo: string
+	voiceServerId: string
+	experiments: typeof PHOTON_EXPERIMENTS
+}
+
+/**
+ * The 2023 player payload uses a list of experiments; newer builds use a flags map.
+ * Select the response format from the receiving client, not the player being described.
+ */
+const EXPERIMENT_LIST_MAX_BUILD = 20230414
+
+function wantsExperimentList(appVersion: string | null | undefined): boolean {
+	const build = Number.parseInt(appVersion ?? '', 10)
+	return Number.isFinite(build) && build <= EXPERIMENT_LIST_MAX_BUILD
+}
+
 function playerPayload(
 	playerId: number,
 	presence?: Presence | null,
-	callerVersion?: string | null
+	callerVersion?: string | null,
+	connection?: PlayerConnectionInfo | null,
+	readerVersion?: string | null
 ) {
+	const appVersion = presence?.appVersion || callerVersion || GAME_VERSION
 	return {
 		// The stored row is authoritative — for the caller it was just synced from their
 		// token, and for anyone else the caller's token says nothing. `callerVersion` only
 		// covers the caller having no presence row at all (they aren't in a room yet), where
 		// the alternative is reporting a build nobody is running.
-		appVersion: presence?.appVersion || callerVersion || GAME_VERSION,
+		appVersion,
 		deviceClass: presence?.deviceClass ?? 0,
 		errorCode: 0,
 		// `getPresence` yields null and the batch map yields undefined — neither is online.
 		isOnline: presence != null,
 		playerId,
-		roomInstance: presence?.roomInstance ?? null,
+		// Preserve known occupants and normalize missing or null collections.
+		//
+		// Les booléens sont normalisés : une instance écrite par `match` les porte en vrais
+		// booléens, mais le dortoir HORS SESSION est écrit depuis SQL (`dorm-presence`), où
+		// `isPrivate` / `isInProgress` sortent en 0/1. Le client relit la réponse en types
+		// stricts : la présence devenait illisible et il la déclarait « out-of-sync » à chaque
+		// battement — observé exactement à partir du kick au dortoir, et nulle part ailleurs.
+		roomInstance: presence?.roomInstance
+			? {
+					...presence.roomInstance,
+					isFull: Boolean(presence.roomInstance.isFull),
+					isPrivate: Boolean(presence.roomInstance.isPrivate),
+					isInProgress: Boolean(presence.roomInstance.isInProgress),
+					EncryptVoiceChat: Boolean(presence.roomInstance.EncryptVoiceChat),
+					playerIds: Array.isArray(presence.roomInstance.playerIds)
+						? presence.roomInstance.playerIds
+						: [],
+				}
+			: null,
 		statusVisibility: presence?.statusVisibility ?? 0,
 		vrMovementMode: presence?.vrMovementMode ?? 1,
 		platform: presence?.platform ?? 0,
 		...NULL_CONNECTION_INFO,
+		...connection,
+		// The wire format depends on the reader, even if the described player runs another build.
+		experiments: wantsExperimentList(readerVersion ?? callerVersion ?? appVersion)
+			? []
+			: (connection?.experiments ?? []),
+	}
+}
+
+/**
+ * The caller's own connection details, in the same shape `/player/connection-info`
+ * returns. It rides on the caller's own presence payload so the 2023 client can connect
+ * straight from `/player` (and its heartbeat): that build never calls
+ * `/player/connection-info` before loading the dorm. Other players' payloads keep the
+ * nulls from `NULL_CONNECTION_INFO`, so this never hands a caller somebody else's token.
+ */
+async function playerConnectionInfo(
+	c: Context<App>,
+	id: number,
+	presence: Presence | null | undefined
+): Promise<PlayerConnectionInfo> {
+	const apps = photonApps(c.env)
+	const account = await getAccount(c.env.DB, id)
+	const roomInstanceId = presence?.roomInstance?.roomInstanceId ?? 0
+	const tachyon = tachyonServerFor(
+		tachyonPoolFor(c.env, {
+			isSandbox: account?.isSandbox === true,
+			isRollout: isRolloutGameVersion(
+				await callerVersion(c),
+				tachyonRolloutGameBuilds(c.env)
+			),
+		}),
+		roomInstanceId
+	)
+	const photonAuthToken = await generatePhotonAuthToken(
+		id,
+		{
+			platformId: account?.platformId ?? '',
+			platform: presence?.platform ?? 0,
+			deviceClass: presence?.deviceClass ?? 0,
+			audience: apps.photonRealtimeAppId,
+		},
+		await c.env.JWT_SECRET.get()
+	)
+	return {
+		photonAuthToken,
+		...apps,
+		photonRoomId: presence?.roomInstance?.photonRoomId ?? '',
+		voiceConnectionInfo: tachyon.hostPort,
+		voiceServerId: tachyon.serverId,
+		experiments: PHOTON_EXPERIMENTS,
 	}
 }
 
@@ -558,6 +660,74 @@ type RoomInstance = ReturnType<typeof roomInstanceFromRoom>
 type Presence = StoredPresence<RoomInstance>
 
 /**
+ * Playtime XP: how much one due heartbeat pays, and how long a player waits between them.
+ * 25 XP every five minutes is the pace of the level ladder in @repo/domain's
+ * `LEVEL_REQUIRED_XP` — a fresh player clears levels 1 and 2 on their first award and then
+ * moves a couple of levels an hour, rather than the whole ladder in one session.
+ */
+const PLAY_XP = 25
+const PLAY_XP_COOLDOWN_MS = 5 * 60 * 1000
+
+/**
+ * The `reward_status` key the playtime award paces on. Reserved with `$` the way the
+ * allowances are, so a client-sent reward type can never forge it.
+ */
+const PLAY_XP_REWARD_TYPE = '$playtime'
+
+/**
+ * Pay the caller playtime XP if they're due some, then move their level bar.
+ *
+ * The other side of the game's progression is econ's `POST /api/gamerewards/v1/request`,
+ * which pays only when the client asks after an activity (once per activity per hour). A
+ * player who just plays would therefore never fill the bar, so each heartbeat that is due
+ * banks {@link PLAY_XP} here, paced per player by `claimReward`'s atomic cooldown — no
+ * read-then-write, so two beats landing together can't both pay.
+ *
+ * The frame is what actually moves the client's bar (the same one api pushes on a
+ * progression read); it is best-effort, since the XP is already banked. A failure anywhere
+ * is logged and swallowed: a heartbeat must never fail because a reward did.
+ */
+async function awardPlayXp(env: Env, accountId: number): Promise<void> {
+	try {
+		const claimed = await claimReward(
+			env.DB,
+			accountId,
+			PLAY_XP_REWARD_TYPE,
+			'',
+			new Date(),
+			PLAY_XP_COOLDOWN_MS
+		)
+		if (claimed === null) return
+		const { progression, levelsGained } = await addXp(env.DB, accountId, PLAY_XP)
+		try {
+			await env.RECFLARE_NOTIFICATIONS_HUB.getByName(HUB_INSTANCE).notifyPlayer(
+				accountId,
+				NotificationType.PlayerProgressionLevelUpdate,
+				{ PlayerId: progression.PlayerId, Level: progression.Level, XP: progression.XP }
+			)
+		} catch (err) {
+			logger.error('failed to push playtime progression', {
+				accountId,
+				error: err instanceof Error ? err.message : String(err),
+			})
+		}
+		logger.info('playtime xp awarded', {
+			accountId,
+			xp: PLAY_XP,
+			level: progression.Level,
+			levelXp: progression.XP,
+			levelsGained,
+			claims: claimed,
+		})
+	} catch (err) {
+		logger.error('failed to award playtime xp', {
+			accountId,
+			error: err instanceof Error ? err.message : String(err),
+		})
+	}
+}
+
+/**
  * A heartbeat that changes nothing re-writes presence only once its TTL drops
  * within this window of expiring (s), instead of on every beat. So a player who's
  * sitting still is refreshed at most once per (PRESENCE_TTL_SECONDS − this) rather
@@ -597,6 +767,7 @@ function redactInstanceForPresence(instance: RoomInstance) {
 		roomCode: instance.roomCode,
 		photonRegionId: instance.photonRegionId,
 		photonRoomId: '',
+		playerIds: [],
 		name: instance.name,
 		maxCapacity: instance.maxCapacity,
 		isFull: instance.isFull,
@@ -867,6 +1038,27 @@ function isPublished(room: Room): boolean {
  * could read it. Dorms are not gated here — they are Unlisted by construction and reach
  * their guests through the invite routes, not this one.
  */
+/**
+ * Le bannissement posé par le SITE (`econ` `POST /api/site/ban`) vit sur le blob du compte
+ * (`banned`, `banUntil`), pas dans les lignes `report` que lit `resolveBan`. Sans cette
+ * lecture, un ban du site ne changeait RIEN en jeu : le joueur entrait dans les rooms
+ * normalement. Même conséquence que `resolveBan` : tout sauf le dortoir, une date de fin
+ * passée lève le ban toute seule.
+ */
+async function siteBanActive(db: D1Database, accountId: number): Promise<boolean> {
+	const row = await db
+		.prepare(
+			`SELECT json_extract(data, '$.banned') AS banned,
+			        json_extract(data, '$.banUntil') AS banUntil
+			 FROM account WHERE account_id = ?1`
+		)
+		.bind(accountId)
+		.first<{ banned: number | null; banUntil: string | null }>()
+	if (row?.banned !== 1) return false
+	const end = row.banUntil ? Date.parse(row.banUntil) : 0
+	return end === 0 || end > Date.now()
+}
+
 async function canEnterRoom(db: D1Database, room: Room, accountId: number): Promise<boolean> {
 	if (isPublished(room)) return true
 	if (room.CreatorAccountId === accountId) return true
@@ -1112,6 +1304,9 @@ function roomInstanceFromRoom(
 		photonRegion: region,
 		photonRegionId: region,
 		photonRoomId,
+		// The 2023 client transforms roomInstance.playerIds with LINQ Select; a missing key
+		// is null there and aborts the matchmake response with ArgumentNullException.
+		playerIds: [],
 		name: f.name,
 		maxCapacity: f.maxCapacity,
 		isFull: false,
@@ -1207,7 +1402,28 @@ async function batchPlayers(c: Context<App>) {
 	// One query per 99-id chunk (D1 `WHERE account_id IN (…)`), rather than a point read
 	// per id as the KV store required.
 	const presences = await getPresences<RoomInstance>(c.env.DB, ids)
-	return c.json(ids.map((playerId) => playerPayload(playerId, presences.get(playerId))))
+	const callerId = await authedId(c)
+	const readerVersion = callerId === null ? null : await callerVersion(c)
+	const connection =
+		callerId !== null && ids.includes(callerId)
+			? await playerConnectionInfo(c, callerId, presences.get(callerId))
+			: null
+	return c.json(
+		ids
+			.map((playerId) =>
+				playerPayload(
+					playerId,
+					presences.get(playerId),
+					undefined,
+					playerId === callerId ? connection : null,
+					readerVersion
+				)
+			)
+			// One entry per requested id, ALWAYS — this is what the reference server does,
+			// and an empty list is not harmless: the 2023 client's PUN setup skips region
+			// selection on it, then fails the room join. Offline players come back with
+			// `roomInstance: null` and `isOnline: false`, which the client handles.
+	)
 }
 
 /**
@@ -1662,6 +1878,9 @@ async function resolveRoomInstance(
 			location: f.location,
 			dataBlob: f.dataBlob,
 			photonRoomId: crypto.randomUUID(),
+			// Same single region as /player/connection-info; otherwise the stored instance
+			// falls back to `us` and the 2023 client gets a region mismatch.
+			photonRegionId: instancePhotonRegion(c.env),
 			name: f.name,
 			maxCapacity: f.maxCapacity,
 			isPrivate: privateInstance || f.isDorm,
@@ -1759,6 +1978,9 @@ async function playerDormInstance(c: Context<App>, accountId: number): Promise<R
 			location: f.location,
 			dataBlob: f.dataBlob,
 			photonRoomId: crypto.randomUUID(),
+			// Same single region as /player/connection-info; otherwise the stored instance
+			// falls back to `us` and the 2023 client gets a region mismatch.
+			photonRegionId: instancePhotonRegion(c.env),
 			name: f.name,
 			maxCapacity: f.maxCapacity,
 			isPrivate: true,
@@ -1843,23 +2065,26 @@ const app = new Hono<App>()
 				identity: { ip: c.req.header('cf-connecting-ip') },
 				arms: banEvasionMatch(c.env.BAN_EVASION_MATCH),
 			})
-			if (match && !isDormMatchmake(c.req.path)) {
+			// Le ban du SITE (recblue.net) est un drapeau sur le compte, pas une ligne `report` :
+			// il est lu ici pour que la décision du site arrête vraiment l'entrée en room.
+			const siteBan = match === null ? await siteBanActive(c.env.DB, id) : false
+			if ((match || siteBan) && !isDormMatchmake(c.req.path)) {
 				logger.info('matchmake refused: player banned', {
 					accountId: id,
-					via: match.via,
-					bannedAccountId: match.bannedAccountId,
+					via: match ? match.via : 'site',
+					bannedAccountId: match ? match.bannedAccountId : id,
 					path: c.req.path,
 				})
 				return matchmakeResult(c, BANNED_FROM_ROOM, null)
 			}
-			if (match) {
+			if (match || siteBan) {
 				// Tells `/matchmake/none` to answer the dorm rather than the caller's presence.
 				c.set('bannedToDorm', true)
 				logger.info('blocked player allowed into their own dorm', {
 					accountId: id,
-					via: match.via,
-					reportId: match.ban.id,
-					banExpires: match.ban.ban_expires,
+					via: match ? match.via : 'site',
+					reportId: match ? match.ban.id : 0,
+					banExpires: match ? match.ban.ban_expires : null,
 				})
 			}
 		}
@@ -1871,9 +2096,10 @@ const app = new Hono<App>()
 
 	// ---- Player presence -----------------------------------------------------
 	// login records the session's `LoginLock` in presence so the heartbeat can verify
-	// each beat belongs to this login; it must otherwise leave presence intact (clearing
-	// the room instance here would bounce the player to the dorm). Presence is overwritten
-	// by matchmake — which carries the lock forward — and expires on its own TTL.
+	// each beat belongs to this login; it must otherwise leave an existing presence's room
+	// intact. When there is no presence, or the presence has no room, it enters the player's
+	// dorm so the client has a room before load-in. Presence is overwritten by matchmake —
+	// which carries the lock forward — and expires on its own TTL.
 	.post(
 		'/player/login',
 		describeRoute({
@@ -1882,10 +2108,11 @@ const app = new Hono<App>()
 			description: [
 				'Records the posted `LoginLock` in the player’s presence so later heartbeats can',
 				'verify they still own the session. Updates the live presence row if there is one,',
-				'otherwise seeds a lobby presence (no room) carrying the lock. Empty ack.',
+				'entering the player’s dorm when it has no room; otherwise enters the dorm carrying the',
+				'lock. Answers `{ errorCode: 0 }`.',
 			].join(' '),
 			requestBody: form(LoginLockRequest, 'The session LoginLock GUID'),
-			responses: { 200: EMPTY_OK },
+			responses: { 200: json(ExclusiveLoginResponse, 'errorCode 0') },
 		}),
 		async (c) => {
 			const id = await authedId(c)
@@ -1895,10 +2122,12 @@ const app = new Hono<App>()
 					const presence = await getPresence<RoomInstance>(c.env.DB, id)
 					if (presence) {
 						presence.loginLock = loginLock
+						// Login preserves presence: keep whatever room it already names. The
+						// load-in path below fills in the dorm when it has none.
 						await setPresence(c.env.DB, presence)
 					} else {
-						// No live presence yet — seed a lobby row (roomInstance null) holding the
-						// lock, so it survives to the first matchmake (enterRoom carries it forward).
+						// No live presence yet: seed the session lock with NO room, for the same
+						// reason. matchmake/dorm is what establishes the room from here.
 						const account = await getAccount(c.env.DB, id)
 						await setPresence(c.env.DB, {
 							accountId: id,
@@ -1913,7 +2142,17 @@ const app = new Hono<App>()
 					}
 				}
 			}
-			return c.body(null, 200)
+			// The 2023 client never calls matchmake/dorm on load-in — it joins the room
+			// the heartbeat reports. Give it the player's dorm here, exactly as the
+			// load-in path always did, so a session always starts with a Photon room.
+			if (id !== null) {
+				const live = await getPresence<RoomInstance>(c.env.DB, id)
+				if (!live?.roomInstance) {
+					const instance = await playerDormInstance(c, id)
+					await enterRoom(c, id, instance)
+				}
+			}
+			return c.json({ errorCode: 0 })
 		}
 	)
 	.post(
@@ -2161,7 +2400,12 @@ const app = new Hono<App>()
 					presence.loginLock !== undefined &&
 					presence.loginLock !== postedLock
 				) {
-					return c.body(null, 200)
+					// The 2023 client transforms the heartbeat response with LINQ and cannot
+					// handle an empty body; keep the response shaped like PlayerDto. The
+					// superseded session still cannot take any write path from here.
+					return c.json(
+						playerPayload(id, presence, version, await playerConnectionInfo(c, id, presence))
+					)
 				}
 
 				// Adopt the token's build when it differs from what the row holds, so the
@@ -2178,9 +2422,15 @@ const app = new Hono<App>()
 				if (versionChanged || presence.expiresAt - nowSeconds <= PRESENCE_REFRESH_THRESHOLD) {
 					await setPresence(c.env.DB, presence)
 				}
+
+				// In a room and still the live session (a superseded lock returned above), so this
+				// beat is playtime: pay any XP that is due and move the level bar.
+				await awardPlayXp(c.env, id)
 			}
 
-			return c.json(playerPayload(id, presence, version))
+			return c.json(
+				playerPayload(id, presence, version, await playerConnectionInfo(c, id, presence))
+			)
 		}
 	)
 
@@ -2210,7 +2460,12 @@ const app = new Hono<App>()
 						await c.env.RECFLARE_NOTIFICATIONS_HUB.getByName(HUB_INSTANCE).notifyPlayersEphemeral(
 							[id],
 							NotificationType.SubscriptionUpdatePresence,
-							playerPayload(id, presence)
+							playerPayload(
+								id,
+								presence,
+								undefined,
+								await playerConnectionInfo(c, id, presence)
+							)
 						)
 					} catch (error) {
 						logger.error('failed to push own visibility update', {
@@ -2257,7 +2512,12 @@ const app = new Hono<App>()
 						await c.env.RECFLARE_NOTIFICATIONS_HUB.getByName(HUB_INSTANCE).notifyPlayersEphemeral(
 							[id],
 							NotificationType.SubscriptionUpdatePresence,
-							playerPayload(id, presence)
+							playerPayload(
+								id,
+								presence,
+								undefined,
+								await playerConnectionInfo(c, id, presence)
+							)
 						)
 					} catch (error) {
 						logger.error('failed to push own movement mode update', {
