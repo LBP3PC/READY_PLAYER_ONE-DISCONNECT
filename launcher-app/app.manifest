@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Manifeste du launcher REC BLUE : il declare qui est le programme (nom, editeur, version)
+     et qu il s execute avec les droits de l utilisateur, sans elevation. Un executable signe
+     de rien mais qui se presente proprement est lu autrement par les heuristiques antivirus
+     que le meme binaire muet. Le DPI n est volontairement pas declare ici : le launcher dessine
+     sa fenetre lui-meme et changer son mode DPI modifierait son rendu. -->
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity version="2026.11.5.0" name="RECBLUE.Launcher" type="win32"/>
+  <description>REC BLUE Launcher</description>
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+    <security>
+      <requestedPrivileges>
+        <requestedExecutionLevel level="asInvoker" uiAccess="false"/>
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <!-- Windows 8.1, 10 et 11 -->
+      <supportedOS Id="{1f676c76-80e1-4239-95bb-83d0f6d0da78}"/>
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/>
+    </application>
+  </compatibility>
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <longPathAware xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">true</longPathAware>
+    </windowsSettings>
+  </application>
+</assembly>
