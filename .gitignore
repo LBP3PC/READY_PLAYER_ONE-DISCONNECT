@@ -27,3 +27,7 @@ sauvegardes/
 game-plugin/**/bin/
 game-plugin/**/obj/
 game-plugin/**/*.bak
+
+# Sorties de compilation des petits outils de tools/
+tools/**/bin/
+tools/**/obj/

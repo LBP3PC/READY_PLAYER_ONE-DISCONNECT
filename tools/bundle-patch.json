@@ -1,0 +1,268 @@
+[
+ {
+  "bundle": "0400e76b84f1bca1af8032af43832d6a.bundle",
+  "status": "ok",
+  "couleurs": 1785,
+  "taille_avant": 4317385,
+  "taille_apres": 12278339
+ },
+ {
+  "bundle": "8cebd903c14c233e3487fec019760bcb.bundle",
+  "status": "ok",
+  "couleurs": 925,
+  "taille_avant": 2576979,
+  "taille_apres": 8962131
+ },
+ {
+  "bundle": "934304007b5b5fa8ba493943e53dae3b.bundle",
+  "status": "ok",
+  "couleurs": 695,
+  "taille_avant": 3433905,
+  "taille_apres": 10530713
+ },
+ {
+  "bundle": "345318383a217ece0ae0ca51345ec71c.bundle",
+  "status": "ok",
+  "couleurs": 596,
+  "taille_avant": 2163168,
+  "taille_apres": 7557553
+ },
+ {
+  "bundle": "98104b76c8d333c08dcade52ddc941ae.bundle",
+  "status": "ok",
+  "couleurs": 438,
+  "taille_avant": 1321154,
+  "taille_apres": 4121793
+ },
+ {
+  "bundle": "c2adec6d23c619b5833863fd1916e277.bundle",
+  "status": "ok",
+  "couleurs": 335,
+  "taille_avant": 677945,
+  "taille_apres": 2126739
+ },
+ {
+  "bundle": "86b46ac2999a1ccd33e45020b63abfdd.bundle",
+  "status": "ok",
+  "couleurs": 276,
+  "taille_avant": 643476,
+  "taille_apres": 1967675
+ },
+ {
+  "bundle": "d80e91a3ccb3ae101eed687a0cfc6ce0.bundle",
+  "status": "ok",
+  "couleurs": 294,
+  "taille_avant": 1133926,
+  "taille_apres": 3518313
+ },
+ {
+  "bundle": "9225d66389e2d1a3c5db8084e3b723be.bundle",
+  "status": "ok",
+  "couleurs": 319,
+  "taille_avant": 1504675,
+  "taille_apres": 6907041
+ },
+ {
+  "bundle": "d9c11e60c361da3bc94c1d80a71d311a.bundle",
+  "status": "ok",
+  "couleurs": 285,
+  "taille_avant": 1398243,
+  "taille_apres": 4014411
+ },
+ {
+  "bundle": "8c581f57ec55a320b4826dac53308c84.bundle",
+  "status": "ok",
+  "couleurs": 252,
+  "taille_avant": 976028,
+  "taille_apres": 2432357
+ },
+ {
+  "bundle": "f0f1f5544ed325b7cd1b26dc704230e9.bundle",
+  "status": "ok",
+  "couleurs": 230,
+  "taille_avant": 1009398,
+  "taille_apres": 2943619
+ },
+ {
+  "bundle": "3900770abc33861326d1865e454c0901.bundle",
+  "status": "ok",
+  "couleurs": 361,
+  "taille_avant": 1581210,
+  "taille_apres": 4845067
+ },
+ {
+  "bundle": "ee731f10d60dc19d9286114d055ef2d8.bundle",
+  "status": "ok",
+  "couleurs": 104,
+  "taille_avant": 712129,
+  "taille_apres": 1813737
+ },
+ {
+  "bundle": "7443a426cc273843ed5743fb31c72054.bundle",
+  "status": "ok",
+  "couleurs": 109,
+  "taille_avant": 529874,
+  "taille_apres": 4511881
+ },
+ {
+  "bundle": "b081697dc663788209778e05a1cb5160.bundle",
+  "status": "ok",
+  "couleurs": 100,
+  "taille_avant": 140634,
+  "taille_apres": 523387
+ },
+ {
+  "bundle": "b20ce1c506f8f13ac81798b0e4de4b6d.bundle",
+  "status": "ok",
+  "couleurs": 93,
+  "taille_avant": 332684,
+  "taille_apres": 1097123
+ },
+ {
+  "bundle": "f6df27648415121df13d75244ecc2bed.bundle",
+  "status": "ok",
+  "couleurs": 87,
+  "taille_avant": 249433,
+  "taille_apres": 850881
+ },
+ {
+  "bundle": "baa6d45b8b0d028b6e46bb769eb3912b.bundle",
+  "status": "ok",
+  "couleurs": 87,
+  "taille_avant": 157390,
+  "taille_apres": 561307
+ },
+ {
+  "bundle": "dc81c76823e46a4f8952a9e131f01f10.bundle",
+  "status": "ok",
+  "couleurs": 82,
+  "taille_avant": 209145,
+  "taille_apres": 708107
+ },
+ {
+  "bundle": "682ba40059cd6c037bace975e7aea07f.bundle",
+  "status": "ok",
+  "couleurs": 88,
+  "taille_avant": 42844410,
+  "taille_apres": 84264835
+ },
+ {
+  "bundle": "d850c22f94ddb59c24c085d64cab7248.bundle",
+  "status": "ok",
+  "couleurs": 79,
+  "taille_avant": 291392,
+  "taille_apres": 1051425
+ },
+ {
+  "bundle": "d26d783f5b05c28fa7a10b6b70ac3bd6.bundle",
+  "status": "ok",
+  "couleurs": 47,
+  "taille_avant": 142036,
+  "taille_apres": 533395
+ },
+ {
+  "bundle": "c54fa1e2134a6feb7a6b8913432a7a1f.bundle",
+  "status": "ok",
+  "couleurs": 45,
+  "taille_avant": 117842,
+  "taille_apres": 441611
+ },
+ {
+  "bundle": "15b9ea6dc804ad81796e51e94b01b4d2.bundle",
+  "status": "ok",
+  "couleurs": 47,
+  "taille_avant": 348668,
+  "taille_apres": 894505
+ },
+ {
+  "bundle": "412644fda14ea9538979a7b3d04a81f0.bundle",
+  "status": "ok",
+  "couleurs": 29,
+  "taille_avant": 180002,
+  "taille_apres": 640755
+ },
+ {
+  "bundle": "2c0b72a7fbb06d9fc85c14f687ae5c32.bundle",
+  "status": "ok",
+  "couleurs": 28,
+  "taille_avant": 400158,
+  "taille_apres": 891417
+ },
+ {
+  "bundle": "0220f106ec5f75591f2443d00a2d4116.bundle",
+  "status": "ok",
+  "couleurs": 29,
+  "taille_avant": 43540,
+  "taille_apres": 189587
+ },
+ {
+  "bundle": "18916470e88f3905c46c560db564bd67.bundle",
+  "status": "ok",
+  "couleurs": 25,
+  "taille_avant": 105707,
+  "taille_apres": 1347873
+ },
+ {
+  "bundle": "19c1b030f17a971e7bcd86e5ca0ed955.bundle",
+  "status": "ok",
+  "couleurs": 22,
+  "taille_avant": 49350,
+  "taille_apres": 211139
+ },
+ {
+  "bundle": "b0e5d4c38af965cc20e177dca379a77e.bundle",
+  "status": "ok",
+  "couleurs": 22,
+  "taille_avant": 470731,
+  "taille_apres": 2282193
+ },
+ {
+  "bundle": "afdc64ddf661be127ef020a39188dbe0.bundle",
+  "status": "ok",
+  "couleurs": 23,
+  "taille_avant": 254292,
+  "taille_apres": 3061441
+ },
+ {
+  "bundle": "c9bb1fa72d5a4be70019f853069e16ca.bundle",
+  "status": "ok",
+  "couleurs": 14,
+  "taille_avant": 243939,
+  "taille_apres": 1323289
+ },
+ {
+  "bundle": "15c4fdc8581e2d5c79b30e429c134352.bundle",
+  "status": "ok",
+  "couleurs": 11,
+  "taille_avant": 5796310,
+  "taille_apres": 17984177
+ },
+ {
+  "bundle": "3d4618476fcc5c495c0e29ec6019121d.bundle",
+  "status": "ok",
+  "couleurs": 6,
+  "taille_avant": 38568,
+  "taille_apres": 152731
+ },
+ {
+  "bundle": "21aae9f4e506d50f2669ef35e3c2e094.bundle",
+  "status": "ok",
+  "couleurs": 34,
+  "taille_avant": 18069267,
+  "taille_apres": 63365295
+ },
+ {
+  "bundle": "608653ace99f4faa9876c9ee6a9aba23.bundle",
+  "status": "ok",
+  "couleurs": 3,
+  "taille_avant": 56855,
+  "taille_apres": 232819
+ },
+ {
+  "bundle": "d1130374dfcf925ed596b8969d9566ad.bundle",
+  "status": "ok",
+  "couleurs": 1,
+  "taille_avant": 208950,
+  "taille_apres": 829833
+ }
+]
