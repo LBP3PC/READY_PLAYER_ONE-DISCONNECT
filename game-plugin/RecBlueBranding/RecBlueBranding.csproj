@@ -11,6 +11,8 @@
     <EmbeddedResource Include="..\..\launcher-app\RecBlueTitle.png"><LogicalName>RecBlueTitle.png</LogicalName></EmbeddedResource>
     <EmbeddedResource Include="..\..\launcher-app\RecBlueTitleShadow.png"><LogicalName>RecBlueTitleShadow.png</LogicalName></EmbeddedResource>
     <EmbeddedResource Include="..\..\launcher-app\RecLoginBackdrop.png"><LogicalName>RecLoginBackdrop.png</LogicalName></EmbeddedResource>
+    <EmbeddedResource Include="RecBlueTitleWinter.png"><LogicalName>RecBlueTitleWinter.png</LogicalName></EmbeddedResource>
+    <EmbeddedResource Include="RecBlueRewardLogo.png"><LogicalName>RecBlueRewardLogo.png</LogicalName></EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <Reference Include="BepInEx.Core"><HintPath>$(BepInEx)\core\BepInEx.Core.dll</HintPath><Private>false</Private></Reference>
@@ -24,8 +26,5 @@
     <Reference Include="UnityEngine.UIModule"><HintPath>$(BepInEx)\interop\UnityEngine.UIModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Unity.TextMeshPro"><HintPath>$(BepInEx)\interop\Unity.TextMeshPro.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.TextRenderingModule"><HintPath>$(BepInEx)\interop\UnityEngine.TextRenderingModule.dll</HintPath><Private>false</Private></Reference>
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="DefaultLoading.png"><LogicalName>RecBlueLoadingDefault.png</LogicalName></EmbeddedResource>
   </ItemGroup>
 </Project>
