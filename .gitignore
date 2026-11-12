@@ -19,6 +19,10 @@ hosting/public/download/REC-BLUE-Launcher.exe
 hosting/public/download/rec-blue/
 hosting/public/download/*.log
 
+# Materiel local volumineux : references et sauvegardes, jamais versionnees
+references/
+sauvegardes/
+
 # Sorties de compilation du plugin BepInEx (regenerables, jamais versionnees)
 game-plugin/**/bin/
 game-plugin/**/obj/
