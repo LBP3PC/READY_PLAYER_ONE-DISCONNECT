@@ -760,13 +760,28 @@ describe('public endpoints', () => {
 			SelectedCheer: CheerCategory.GreatHost,
 		})
 
-		// -1 (`None`) unpins, read back as 0; a made-up category is refused.
+		// -1 (`None`) unpins, read back as 0.
 		expect(await (await pin('-1', '7140')).json()).toEqual({ Success: true, Message: null })
 		expect(await getReputation(env.DB, 7140)).toMatchObject({ SelectedCheer: 0 })
-		expect(await (await pin('7', '7140')).json()).toEqual({
+		// A category the picker offers but we hold no counter for — the built-in Rec Room
+		// badge — pins too, and reads back exactly as sent. Pinning is display: its counter
+		// stays 0, and only CHEERING is restricted to the counted categories. The picker's
+		// ordinals are not all small: the Rec Room badge posts 9000, so a bound of 1000
+		// answered `{ Success: false }` and the click silently did nothing.
+		expect(await (await pin('7', '7140')).json()).toEqual({ Success: true, Message: null })
+		expect(await getReputation(env.DB, 7140)).toMatchObject({ SelectedCheer: 7 })
+		expect(await (await pin('9000', '7140')).json()).toEqual({ Success: true, Message: null })
+		expect(await getReputation(env.DB, 7140)).toMatchObject({ SelectedCheer: 9000 })
+		// Outside the picker's range: refused, and the pin stays where it was.
+		expect(await (await pin('100001', '7140')).json()).toEqual({
 			Success: false,
 			Message: 'CheerCategory is not a cheer category',
 		})
+		expect(await (await pin('-2', '7140')).json()).toEqual({
+			Success: false,
+			Message: 'CheerCategory is not a cheer category',
+		})
+		expect(await getReputation(env.DB, 7140)).toMatchObject({ SelectedCheer: 9000 })
 		expect(await pin('0', '7140').then((r) => r.status)).toBe(200)
 		expect(
 			(
@@ -1035,7 +1050,11 @@ describe('public endpoints', () => {
 		expect([22, 30].map((level) => LEVEL_REWARDS[level])).toEqual([20, 20])
 		expect([31, 35, 40, 49].map((level) => LEVEL_REWARDS[level])).toEqual([30, 30, 30, 30])
 		expect(LEVEL_REWARDS[50]).toBe(50) // the only 5-Star in the progression
-		expect(LEVEL_REWARDS).toHaveLength(51)
+		// 51–140 : la queue ajoutée à l'échelle, même récompense que le haut du barème d'origine
+		// (4 étoiles), et rien au-delà.
+		expect(LEVEL_REWARDS.slice(51)).toHaveLength(90)
+		expect(LEVEL_REWARDS.slice(51).every((reward) => reward === 30)).toBe(true)
+		expect(LEVEL_REWARDS).toHaveLength(141)
 	})
 
 	test('the ladder matches the published XP curve', async () => {
@@ -1070,12 +1089,14 @@ describe('public endpoints', () => {
 		expect(await res.json()).toEqual([])
 	})
 
-	test('GET /api/customAvatarItems/v1/isCreationAllowedForAccount returns a success envelope', async () => {
+	test('GET /api/customAvatarItems/v1/isCreationAllowedForAccount answers the client’s DTO', async () => {
 		const res = await exports.default.fetch(
 			`${ORIGIN}/api/customAvatarItems/v1/isCreationAllowedForAccount`
 		)
 		expect(res.status).toBe(200)
-		expect(await res.json()).toEqual({ success: true, value: null })
+		// PascalCase `{ Success, Error }`: the 2023 client's converter registers only those two
+		// keys, so anything else leaves it unable to read whether creation is allowed.
+		expect(await res.json()).toEqual({ Success: true, Error: null })
 	})
 
 	test('GET /api/customAvatarItems/v1/isCreationEnabled returns true', async () => {
@@ -2379,7 +2400,9 @@ describe('public endpoints', () => {
 	test('GET /api/keepsakes/globalconfig returns the keepsake config', async () => {
 		const res = await exports.default.fetch(`${ORIGIN}/api/keepsakes/globalconfig`)
 		expect(res.status).toBe(200)
-		expect(await res.json()).toMatchObject({ KeepsakeFeatureEnabled: true })
+		// Off: the reference serves an empty keepsake read set, and the room panel throws a
+		// NullReferenceException building its icon list against it. See the route's description.
+		expect(await res.json()).toMatchObject({ KeepsakeFeatureEnabled: false })
 	})
 
 	test('GET /api/keepsakes/rooms/:id returns 204; categories returns an empty result set', async () => {
@@ -5329,6 +5352,87 @@ describe('custom avatar items', () => {
 		expect(row).toEqual({ name: 'custom shirt 1', creator_account_id: 205 })
 	})
 
+	test('GET /api/customAvatarItems/v1/design is empty until a draft is saved', async () => {
+		const res = await exports.default.fetch(`${ORIGIN}/api/customAvatarItems/v1/design`, {
+			headers: await bearer('205'),
+		})
+		expect(res.status).toBe(200)
+		expect(await res.json()).toEqual({
+			CreatorAccountId: 205,
+			BaseAvatarItemId: null,
+			BaseAvatarItemColor: null,
+			DesignFilename: null,
+		})
+		// A draft belongs to its account: without a token there is nothing to answer.
+		expect((await exports.default.fetch(`${ORIGIN}/api/customAvatarItems/v1/design`)).status).toBe(
+			401
+		)
+	})
+
+	test('PUT saves the design draft, GET reads it back and DELETE discards it', async () => {
+		const form = new FormData()
+		form.set(
+			'metadata',
+			JSON.stringify({ BaseAvatarItemId: 2184, BaseAvatarItemColor: '#F55C1A' })
+		)
+		form.set('design', new File([PNG_BYTES], 'file.bin', { type: 'image/png' }))
+		const put = await exports.default.fetch(`${ORIGIN}/api/customAvatarItems/v1/design`, {
+			method: 'PUT',
+			headers: await bearer('205'),
+			body: form,
+		})
+		expect(put.status).toBe(200)
+		const saved = (await put.json()) as { DesignFilename: string | null }
+		expect(saved).toMatchObject({
+			CreatorAccountId: 205,
+			BaseAvatarItemId: 2184,
+			BaseAvatarItemColor: '#F55C1A',
+			DesignFilename: 'avatar-design/205-design.png',
+		})
+		// The design itself landed in the image bucket under the key the answer names.
+		const stored = await env.IMAGES.get(saved.DesignFilename as string)
+		expect(new Uint8Array((await stored!.arrayBuffer()) as ArrayBuffer)).toEqual(PNG_BYTES)
+		expect(stored!.httpMetadata?.contentType).toBe('image/png')
+
+		// A second save that carries no metadata keeps what it was not sent.
+		const second = new FormData()
+		second.set('design', new File([PNG_BYTES], 'file.bin', { type: 'image/png' }))
+		const again = await exports.default.fetch(`${ORIGIN}/api/customAvatarItems/v1/design`, {
+			method: 'PUT',
+			headers: await bearer('205'),
+			body: second,
+		})
+		expect(await again.json()).toMatchObject({
+			BaseAvatarItemId: 2184,
+			BaseAvatarItemColor: '#F55C1A',
+			DesignFilename: 'avatar-design/205-design.png',
+		})
+		// Another account's draft is its own.
+		const other = await exports.default.fetch(`${ORIGIN}/api/customAvatarItems/v1/design`, {
+			headers: await bearer('206'),
+		})
+		expect(await other.json()).toMatchObject({ CreatorAccountId: 206, DesignFilename: null })
+
+		// GET reads the draft back, and DELETE clears the sidecar and the design together.
+		const read = await exports.default.fetch(`${ORIGIN}/api/customAvatarItems/v1/design`, {
+			headers: await bearer('205'),
+		})
+		expect(await read.json()).toMatchObject({ DesignFilename: 'avatar-design/205-design.png' })
+		const del = await exports.default.fetch(`${ORIGIN}/api/customAvatarItems/v1/design`, {
+			method: 'DELETE',
+			headers: await bearer('205'),
+		})
+		expect(del.status).toBe(200)
+		expect(await del.json()).toMatchObject({
+			CreatorAccountId: 205,
+			BaseAvatarItemId: null,
+			BaseAvatarItemColor: null,
+			DesignFilename: null,
+		})
+		expect(await env.IMAGES.get('avatar-design/205-design.png')).toBeNull()
+		expect(await env.IMAGES.get('avatar-design/205.json')).toBeNull()
+	})
+
 	test('PUT edits the creator’s item, leaving nulled fields alone', async () => {
 		const item = await createCustomAvatarItem(
 			env.DB,
@@ -5412,11 +5516,12 @@ describe('custom avatar items', () => {
 		expect(await (await exports.default.fetch(url, { method: 'PUT' })).status).toBe(401)
 	})
 
-	// A player-made item may not sell for more than MAX_PLAYER_ITEM_PRICE (1000) tokens. The
-	// client has no ceiling of its own (`minPriceForPublicItem` is a floor), so both writes a
-	// player has enforce it — refusing, not clamping, so the creator sees what was set.
-	test('the price is capped at 1000 tokens on create and edit', async () => {
-		expect(MAX_PLAYER_ITEM_PRICE).toBe(1000)
+	// A player-made item may not sell for more than MAX_PLAYER_ITEM_PRICE (10 000) tokens —
+	// the same ceiling the client's editor shows (100 to 10 000), so a price the form accepts
+	// is never refused here. Both writes a player has enforce it, refusing rather than
+	// clamping, so the creator sees what was set.
+	test('the price is capped at 10 000 tokens on create and edit', async () => {
+		expect(MAX_PLAYER_ITEM_PRICE).toBe(10000)
 		const create = async (Price: unknown, plus = true) => {
 			const form = new FormData()
 			form.set(
@@ -5439,12 +5544,12 @@ describe('custom avatar items', () => {
 			Value: null,
 			Error: 'Rec Room Plus is required to sell a custom avatar item',
 		})
-		const over = await create(1001)
+		const over = await create(10001)
 		expect(over.status).toBe(400)
 		expect(await over.json()).toMatchObject({
 			Success: false,
 			Value: null,
-			Error: 'Price must be <= 1000',
+			Error: 'Price must be <= 10000',
 		})
 		expect((await create(-1)).status).toBe(400)
 		expect((await create(10.5)).status).toBe(400)
@@ -5484,9 +5589,9 @@ describe('custom avatar items', () => {
 				},
 				body: JSON.stringify({ Name: null, Description: null, Price, Accessibility: null }),
 			})
-		const tooMuch = await edit(1001)
+		const tooMuch = await edit(10001)
 		expect(tooMuch.status).toBe(400)
-		expect(await tooMuch.json()).toMatchObject({ Success: false, Error: 'Price must be <= 1000' })
+		expect(await tooMuch.json()).toMatchObject({ Success: false, Error: 'Price must be <= 10000' })
 		expect((await edit(-1)).status).toBe(400)
 		expect((await edit(1)).status).toBe(400)
 		expect((await edit(99)).status).toBe(400)
@@ -7211,6 +7316,66 @@ describe('player reports', () => {
 
 			expect(await details('GET', '223')).toEqual(NOT_BLOCKED)
 		})
+
+		// Le ban posé depuis le SITE (`econ` `POST /api/site/ban`) ne vit pas dans `report`
+		// mais sur le blob du compte. Sans cette lecture, un joueur banni depuis le site était
+		// refusé au login sans jamais voir l'écran qui explique son ban.
+		test('describes a ban set from the site', async () => {
+			await env.DB.prepare('INSERT OR IGNORE INTO account (data) VALUES (?1)')
+				.bind(
+					JSON.stringify({
+						accountId: 226,
+						username: 'SiteBanned',
+						banned: 1,
+						banReason: 'Triche',
+						banUntil: null,
+					})
+				)
+				.run()
+
+			expect(await details('POST', '226')).toEqual({
+				...NOT_BLOCKED,
+				// 6 = conduite en jeu : un ban du site n'a pas de signalement à citer.
+				ReportCategory: 6,
+				Duration: 2_147_483_647,
+				IsBan: true,
+				// Le motif écrit par l'administration du site nomme le ban.
+				Message: 'Triche',
+			})
+		})
+
+		test('counts down a site ban and ignores an expired one', async () => {
+			await env.DB.prepare('INSERT OR IGNORE INTO account (data) VALUES (?1)')
+				.bind(
+					JSON.stringify({
+						accountId: 227,
+						username: 'SiteTimed',
+						banned: 1,
+						banUntil: new Date(Date.now() + 3600 * 1000).toISOString(),
+					})
+				)
+				.run()
+
+			const { Duration: _duration, ...unblocked } = NOT_BLOCKED
+			const body = (await details('GET', '227')) as Record<string, unknown>
+			// Sans motif écrit par l'administration, c'est le message fixe des bans de
+			// signalement que l'écran affiche.
+			expect(body).toMatchObject({
+				...unblocked,
+				ReportCategory: 6,
+				IsBan: true,
+				Message: 'Rule violation',
+			})
+			expect(body.Duration).toBeGreaterThan(3595)
+			expect(body.Duration).toBeLessThanOrEqual(3600)
+
+			// Une date de fin passée lève le ban sans que personne n'ait à le retirer.
+			await env.DB.prepare(
+				`UPDATE account SET data = json_set(data, '$.banUntil', '2020-01-01T00:00:00.000Z')
+				 WHERE account_id = 227`
+			).run()
+			expect(await details('GET', '227')).toEqual(NOT_BLOCKED)
+		})
 	})
 })
 
@@ -7326,6 +7491,12 @@ describe('rooms', () => {
 		expect(await verify({ roomId: '2', role: '255', context: 'MakerPen' }, '1')).toBe(true)
 		// Non-creator with no role in the room → false.
 		expect(await verify({ roomId: '2', role: '30' }, '42')).toBe(false)
+		// `context: MakerPen` fait exception : le Maker Pen s'ouvre à tout joueur connecté, dans
+		// n'importe quelle room — sinon il restait fermé partout sauf chez le créateur.
+		expect(await verify({ roomId: '2', role: '255', context: 'MakerPen' }, '42')).toBe(true)
+		expect(await verify({ roomId: '99999', role: '255', context: 'MakerPen' }, '42')).toBe(true)
+		// Un appel sans jeton n'est pas un joueur : le pen reste fermé.
+		expect(await verify({ roomId: '2', role: '255', context: 'MakerPen' })).toBe(false)
 		// Account 42 holds Role 30 in room 3 → passes when requesting ≤ 30…
 		expect(await verify({ roomId: '3', role: '30' }, '42')).toBe(true)
 		// …but not a higher role.

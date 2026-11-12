@@ -83,6 +83,7 @@ beforeAll(async () => {
 	metaSecretId = await adminSecretsStore(env.META_APP_SECRET).create(META_APP_SECRET)
 	for (const stmt of SCHEMA_DDL) await env.DB.prepare(stmt).run()
 	for (const stmt of REFRESH_SCHEMA_DDL) await env.DB.prepare(stmt).run()
+	await env.DB.prepare('CREATE TABLE site_identity_links (game_account_id INTEGER PRIMARY KEY, site_user_id TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL DEFAULT (unixepoch()))').run()
 	// The pending email codes (`/account/recoverpassword` issues one as a password_reset).
 	for (const stmt of EMAIL_CODE_SCHEMA_DDL) await env.DB.prepare(stmt).run()
 	// The counters that cap how many of those go out, per account and per IP.
@@ -1999,6 +2000,22 @@ describe('auth worker routes', () => {
 		expect(await res.json()).toEqual([])
 	})
 
+	test('site identity link requires both proofs and cannot be reassigned', async () => {
+		env.SITE_BRIDGE_TOKEN = 'test-bridge'
+		const siteUserId = '12345678-1234-4234-9234-123456789abc'
+		const token = await generateToken('42', '', 0, 'test-signing-key')
+		const other = await generateToken('77', '', 0, 'test-signing-key')
+		const link = (bearer: string, secret: string, siteId = siteUserId) => exports.default.fetch(`${ORIGIN}/internal/site/link`, {
+			method: 'POST', headers: { Authorization: `Bearer ${bearer}`, 'X-Site-Bridge-Token': secret, 'Content-Type': 'application/json' }, body: JSON.stringify({ siteUserId: siteId }),
+		})
+		expect((await link(token, 'wrong')).status).toBe(401)
+		expect((await link('invalid', 'test-bridge')).status).toBe(401)
+		expect((await link(token, 'test-bridge')).status).toBe(200)
+		expect((await link(token, 'test-bridge')).status).toBe(200)
+		expect((await link(other, 'test-bridge')).status).toBe(409)
+		expect((await link(token, 'test-bridge', '87654321-4321-4321-9321-cba987654321')).status).toBe(409)
+	})
+
 	test('POST /account/me/changepassword 401s without a token', async () => {
 		const res = await changePassword('oldPassword=&newPassword=secret123')
 		expect(res.status).toBe(401)
@@ -2427,6 +2444,59 @@ describe('auth worker routes', () => {
 		expect(res.status).toBe(404)
 	})
 
+	test('POST /photon/customauth accepts a signed access token', async () => {
+		const token = await generateToken('42', '', 0, 'test-signing-key')
+		const res = await exports.default.fetch(`${ORIGIN}/photon/customauth`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			body: new URLSearchParams({
+				AuthPostData: JSON.stringify({ accountId: '42', accessToken: token }),
+			}).toString(),
+		})
+		expect(res.status).toBe(200)
+		expect(await res.json()).toEqual({ ResultCode: 1, UserId: '42', Message: 'ok' })
+	})
+
+	test('POST /photon/customauth accepts a raw AuthPostData body', async () => {
+		const token = await generateToken('43', '', 0, 'test-signing-key')
+		const res = await exports.default.fetch(`${ORIGIN}/photon/customauth`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/octet-stream' },
+			body: token,
+		})
+		expect(res.status).toBe(200)
+		expect(await res.json()).toEqual({ ResultCode: 1, UserId: '43', Message: 'ok' })
+	})
+
+	test('POST /photon/customauth accepts a Base64-encoded AuthPostData', async () => {
+		const token = await generateToken('44', '', 0, 'test-signing-key')
+		const res = await exports.default.fetch(`${ORIGIN}/photon/customauth`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'text/plain' },
+			body: btoa(token),
+		})
+		expect(res.status).toBe(200)
+		expect(await res.json()).toEqual({ ResultCode: 1, UserId: '44', Message: 'ok' })
+	})
+
+	test('POST /photon/customauth rejects a missing or invalid token', async () => {
+		const missing = await exports.default.fetch(`${ORIGIN}/photon/customauth`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			body: new URLSearchParams({ AuthPostData: JSON.stringify({ accountId: '42' }) }).toString(),
+		})
+		expect(await missing.json()).toEqual({ ResultCode: 3, Message: 'missing access token' })
+
+		const invalid = await exports.default.fetch(`${ORIGIN}/photon/customauth`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			body: new URLSearchParams({
+				AuthPostData: JSON.stringify({ accountId: '42', accessToken: 'not-a-token' }),
+			}).toString(),
+		})
+		expect(await invalid.json()).toEqual({ ResultCode: 3, Message: 'invalid access token' })
+	})
+
 	test('Studio device login is approved on the website and polled on auth', async () => {
 		const client = `client_id=${STUDIO_CLIENT_ID}&client_secret=${STUDIO_CLIENT_SECRET}`
 		const bad = await exports.default.fetch(`${ORIGIN}/connect/deviceauthorization`, {
@@ -2668,6 +2738,23 @@ describe('banned accounts', () => {
 		const res = await postToken(`account_id=6106&password=${LOGIN_PASSWORD}`)
 		expect(res.status).toBe(200)
 		expect(decodePayload(res.json.access_token as string).sub).toBe('6106')
+	})
+
+	// Le ban posé depuis le SITE (`econ` `POST /api/site/ban`) vit sur le blob du compte et
+	// suit la même règle qu'un ban de signalement : le jeton est délivré pour que le client
+	// atteigne l'écran de bannissement, et `match` ferme tout sauf le dortoir.
+	test('POST /connect/token issues a token to a site-banned account', async () => {
+		await seedAccount(6110, 'SiteBanned')
+		await env.DB.prepare(
+			`UPDATE account SET data = json_set(data, '$.banned', 1, '$.banReason', 'Triche')
+			 WHERE account_id = ?1`
+		)
+			.bind(6110)
+			.run()
+
+		const res = await postToken(`account_id=6110&password=${LOGIN_PASSWORD}`)
+		expect(res.status).toBe(200)
+		expect(decodePayload(res.json.access_token as string).sub).toBe('6110')
 	})
 
 	// A report is not a ban until a moderator converts it.

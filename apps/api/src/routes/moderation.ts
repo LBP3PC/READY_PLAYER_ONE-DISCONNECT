@@ -43,7 +43,14 @@ import {
 	VoteToKickReason,
 	VoteToKickRequest,
 } from '../openapi'
-import { banBlockDetails, createReport, getActiveBan, NOT_BLOCKED } from '../reports-db'
+import {
+	banBlockDetails,
+	createReport,
+	getActiveBan,
+	getSiteBan,
+	NOT_BLOCKED,
+	siteBanBlockDetails,
+} from '../reports-db'
 import {
 	countKickVotes,
 	getOpenVote,
@@ -391,7 +398,12 @@ export const moderationRoutes = new Hono<App>({ strict: false })
 			// `now`, so it can't come out with 0 left.
 			const now = new Date()
 			const ban = await getActiveBan(c.env.DB, id, now)
-			return c.json(ban ? banBlockDetails(ban, now) : NOT_BLOCKED)
+			if (ban) return c.json(banBlockDetails(ban, now))
+			// Le ban posé depuis le SITE (`econ` `POST /api/site/ban`) ne vit pas dans `report`
+			// mais sur le blob du compte : sans cette lecture, un joueur banni depuis le site
+			// était refusé au login sans jamais voir l'écran qui explique son ban.
+			const siteBan = await getSiteBan(c.env.DB, id, now)
+			return c.json(siteBan ? siteBanBlockDetails(siteBan, now) : NOT_BLOCKED)
 		}
 	)
 	// The reasons the client offers when a player starts a vote-to-kick. Order matters —

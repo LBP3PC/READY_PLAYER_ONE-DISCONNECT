@@ -20,6 +20,7 @@ import {
 	levelReward,
 	levelsReached,
 	listInfluencerIds,
+	movePlayerToDorm,
 	ownsInvention,
 	SavedImageType,
 	setOutfit,
@@ -43,7 +44,8 @@ import { censorSwears } from '../../api/src/sanitize'
 // client's own decoder (both owned by the `notify` worker). Imported rather than copied so
 // the frames this worker builds are typed by the shapes the client actually parses — a
 // wrong or renamed key (see the `Platform`/`BalanceType` trap) fails the build here.
-import { BalanceAddType } from '../../notify/src/notification-payloads'
+import { BalanceAddType, KickReportCategory } from '../../notify/src/notification-payloads'
+import type { ModerationKickPayload } from '../../notify/src/notification-payloads'
 import { NotificationType } from '../../notify/src/notification-types'
 import adCarouselItems from '../static/ad-carousel-items.json'
 import consumableDefinitions from '../static/consumables.json'
@@ -224,6 +226,7 @@ import {
 } from './room-key-db'
 import { getRoomPurchasables } from './room-purchasables-db'
 import { halloweenCatalog, halloweenIsLive } from './halloween-shop'
+import { dailyStorefront } from './daily-storefront'
 import { basePriceListings, basePriceStorefront } from './storefront-pricing'
 import {
 	addWishlistItem,
@@ -1694,8 +1697,10 @@ async function loadStorefront(c: Context<App>, storefrontType: number): Promise<
 	)
 	if (!res.ok) return null
 	// Les prix de base sont appliqués ICI, le chemin que lit aussi l'achat : le prix que le
-	// joueur a vu sur le tableau est donc celui que `priceCheck` vérifie.
-	const catalog = basePriceStorefront((await res.json()) as Storefront)
+	// joueur a vu sur le tableau est donc celui que `priceCheck` vérifie. La rotation du jour
+	// vient juste après les prix, et AVANT la thématisation : l'évènement Halloween garde sa
+	// sélection et sa date de fin tant qu'il dure (voir daily-storefront.ts).
+	const catalog = dailyStorefront(basePriceStorefront((await res.json()) as Storefront))
 	// La boutique Halloween remplace le catalogue AVANT les extras maison : l'abonnement REC
 	// BLUE Plus, les bundles et les teintures restent achetables pendant l'évènement.
 	const themed = await themedCatalog(c, catalog, Number(storefrontType), build)
@@ -6601,9 +6606,9 @@ const app = new Hono<App>({ strict: false })
 			if (!res.ok) return c.notFound()
 			// The REC BLUE Plus subscription and the bundles are not in any `sf*.json` — they
 			// are added here too, or the client would list a store they cannot see them in.
-			// Les mêmes prix de base et les mêmes extras que `loadStorefront` : ce qui est affiché
-			// est ce qui est facturé.
-			const catalog = basePriceStorefront((await res.json()) as Storefront)
+			// Les mêmes prix de base, la même rotation du jour et les mêmes extras que
+			// `loadStorefront` : ce qui est affiché est ce qui est facturé.
+			const catalog = dailyStorefront(basePriceStorefront((await res.json()) as Storefront))
 			// Même thématisation que `loadStorefront` : pendant la boutique Halloween, ce qui est
 			// affiché ici est ce qui sera facturé là-bas.
 			const themed = await themedCatalog(c, catalog, Number(id), build)
@@ -9201,6 +9206,47 @@ app.post('/api/site/ban', async (c) => {
 		.bind(account.accountId)
 		.run()
 		.catch(() => undefined)
+
+	// Le joueur DÉJÀ en session ne doit pas continuer à jouer : on le prévient et on le
+	// ramène au dortoir, exactement comme `www` le fait pour un ban posé sur un signalement.
+	// `match` refuse ensuite toute room sauf le dortoir, où il retrouve cet écran. Le ban est
+	// déjà enregistré : un hub indisponible ne doit pas le faire échouer.
+	try {
+		const presence = await getPresence<{ roomInstanceId?: number }>(c.env.DB, account.accountId)
+		if (presence) {
+			// Lu avant le déplacement, pour que le cadre nomme la session quittée et non le
+			// dortoir d'arrivée.
+			const gameSessionId = presence.roomInstance?.roomInstanceId ?? 0
+			await movePlayerToDorm(c.env.DB, account.accountId)
+			const frame: ModerationKickPayload = {
+				ReportCategory: KickReportCategory.Misc,
+				Duration:
+					until === null
+						? 2_147_483_647
+						: Math.max(1, Math.ceil((Date.parse(until) - Date.now()) / 1000)),
+				GameSessionId: gameSessionId,
+				IsHostKick: false,
+				Message: reason === '' ? 'Rule violation' : reason,
+				PlayerIdReporter: null,
+				IsBan: true,
+				IsVoiceModAutoban: false,
+				IsWarning: false,
+				VoteKickReason: '',
+				TimeoutStartedAt: null,
+			}
+			await c.env.RECFLARE_NOTIFICATIONS_HUB.getByName(HUB_INSTANCE).notifyPlayersEphemeral(
+				[account.accountId],
+				NotificationType.ModerationKick,
+				{ ...frame }
+			)
+		}
+	} catch (err) {
+		logger.error('failed to tell a site-banned player they are banned', {
+			accountId: account.accountId,
+			error: err instanceof Error ? err.message : String(err),
+		})
+	}
+
 	return c.json({ ok: true, accountId: account.accountId, banned: true, reason, until })
 })
 
@@ -9526,6 +9572,111 @@ app.post('/api/site/buy', async (c) => {
 		ok: true,
 		balance,
 		charged: charge,
+		item: { id: purchasableItemId, name: item.GiftDrop.FriendlyName ?? '' },
+	})
+})
+
+// ---------------------------------------------------------------------------
+// Cadeaux de l'administration : offrir un objet directement dans la boîte du joueur.
+// Le seul renseignement saisi est le pseudo ; l'objet est choisi dans le catalogue de la
+// vitrine et part par `grantGiftDrop`, donc la boîte est celle d'un achat — mêmes lignes
+// d'inventaire, même frame poussée au client. Aucun crédit n'est débité : c'est un don.
+// ---------------------------------------------------------------------------
+
+/** Les vitrines où l'administration peut piocher, dans l'ordre du menu du site. */
+const GIFT_STOREFRONTS = [3, 2, 1, 100, 101, 102, 103, 300, 400, 401, 402, 403, 404, 405, 406, 500, 600]
+
+/**
+ * `GET /api/site/catalog?storefront=3` : tout ce que la vitrine contient, prix ou non —
+ * un cadeau n'a pas de prix, donc le filtre du catalogue de vente ne s'applique pas ici.
+ */
+app.get('/api/site/catalog', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const storefrontType = Number(c.req.query('storefront') ?? '3')
+	if (!Number.isInteger(storefrontType) || !GIFT_STOREFRONTS.includes(storefrontType)) {
+		return c.json({ error: 'bad request' }, 400)
+	}
+
+	const storefront = await loadStorefront(c, storefrontType)
+	if (storefront === null) return c.json({ error: 'no such storefront' }, 404)
+
+	const items = storefront.StoreItems.flatMap((item) => {
+		const name = item.GiftDrop.FriendlyName ?? ''
+		if (name === '') return []
+		return [
+			{
+				id: item.PurchasableItemId,
+				name,
+				desc: item.GiftDrop.AvatarItemDesc ?? '',
+				price: tokenPrice(item),
+				plusOnly: item.GiftDrop.SubscribersOnly === true,
+			},
+		]
+	})
+	items.sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+
+	return c.json({ ok: true, storefront: storefrontType, storefronts: GIFT_STOREFRONTS, items })
+})
+
+/** `POST /api/site/gift-item { username, storefront, item, message }` : un cadeau en boîte. */
+app.post('/api/site/gift-item', async (c) => {
+	const expected = String(c.env.SITE_BRIDGE_TOKEN ?? '')
+	const given = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '')
+	if (expected === '' || given !== expected) return c.json({ error: 'unauthorized' }, 401)
+
+	const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null
+	if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+		return c.json({ error: 'bad request' }, 400)
+	}
+	const username = String(body.username ?? '').trim().toLowerCase()
+	const storefrontType = Number(body.storefront)
+	const purchasableItemId = Number(body.item)
+	if (
+		username === '' ||
+		!Number.isInteger(storefrontType) ||
+		!Number.isInteger(purchasableItemId)
+	) {
+		return c.json({ error: 'bad request' }, 400)
+	}
+
+	const account = await resolveGameAccount(c.env.DB, username)
+	if (account === null) return c.json({ error: 'no such account' }, 404)
+
+	const item = await findStoreItem(c, storefrontType, purchasableItemId)
+	if (item === null) return c.json({ error: 'no such item' }, 404)
+
+	// Le message de la boîte : celui de l'administration, sinon le défaut d'un achat.
+	const message = String(body.message ?? '').trim().slice(0, 200) || DEFAULT_GIFT_MESSAGE
+	// La quantité : seul un consommable s'empile, et ses exemplaires tiennent dans UNE boîte —
+	// c'est la ligne groupée de la boutique (`copies`). Un objet qu'on ne possède qu'une fois
+	// ne peut pas être donné deux fois, donc la quantité y retombe à 1.
+	const wanted = Number(body.quantity ?? 1)
+	if (!Number.isSafeInteger(wanted) || wanted < 1 || wanted > 99) {
+		return c.json({ error: 'bad request' }, 400)
+	}
+	const stacks =
+		typeof item.GiftDrop.ConsumableItemDesc === 'string' &&
+		item.GiftDrop.ConsumableItemDesc !== ''
+	const copies = stacks ? wanted : 1
+	const granted = await grantGiftDrop(c, account.accountId, item.GiftDrop, message, {
+		fromPlayerId: COACH_ACCOUNT_ID,
+		giftContext: null,
+		copies,
+	})
+	// Le joueur n'a rien cliqué dans le jeu : sans cette frame, la boîte n'apparaîtrait
+	// qu'après un redémarrage du client.
+	await pushGiftReceived(c, account.accountId, granted, message, COACH_ACCOUNT_ID)
+
+	return c.json({
+		ok: true,
+		username,
+		accountId: account.accountId,
+		giftId: granted.id,
+		quantity: copies,
+		stacks,
 		item: { id: purchasableItemId, name: item.GiftDrop.FriendlyName ?? '' },
 	})
 })

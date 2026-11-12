@@ -50,6 +50,7 @@ import {
 	TOKEN_TTL_SECONDS,
 	validateAndGetAccountId,
 	validateIdentityAssertion,
+	validatePhotonAuthToken,
 } from '@repo/jwt'
 
 // The account-wide ban lives on a `report` row, whose table the api worker owns; its db
@@ -354,6 +355,152 @@ async function authedId(c: Context<App>): Promise<number | null> {
 	return validateAndGetAccountId(c.req.raw, await c.env.JWT_SECRET.get())
 }
 
+/** A signed JWT has exactly three base64url segments. */
+const PHOTON_JWT_RE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/
+
+/** Decode a Base64/base64url blob when it contains printable token/JSON text. */
+function decodePhotonBase64(value: string): string | null {
+	const compact = value.replace(/\s+/g, '')
+	if (compact.length < 16 || !/^[A-Za-z0-9+/_-]+={0,2}$/.test(compact)) return null
+	try {
+		const b64 = compact.replace(/-/g, '+').replace(/_/g, '/')
+		const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4)
+		const binary = atob(padded)
+		const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
+		const decoded = new TextDecoder().decode(bytes).trim()
+		return decoded !== '' && /^[\x09\x0a\x0d\x20-\x7e]+$/.test(decoded) ? decoded : null
+	} catch {
+		return null
+	}
+}
+
+/** Keys Photon or the client uses for the custom-auth payload. */
+function isPhotonTokenKey(key: string): boolean {
+	return /^(authpostdata|clientauthenticationdata|data|accesstoken|access_token|token)$/i.test(key)
+}
+
+/**
+ * Collect token candidates from whatever Photon forwarded. The 2023 client puts the JWT in a
+ * byte[] `AuthPostData`; Photon sends that as a raw body on some hosts and Base64 on others.
+ * Nested JSON/form values are unwrapped, and opaque strings are kept so validation can reject
+ * them with `invalid access token` rather than `missing access token`.
+ */
+function collectPhotonTokens(
+	value: unknown,
+	tokens: string[],
+	depth = 0,
+	allowOpaque = true,
+): void {
+	if (depth > 6 || value === null || value === undefined) return
+
+	if (typeof value === 'string') {
+		const text = value.trim()
+		if (text === '') return
+		if (PHOTON_JWT_RE.test(text)) {
+			tokens.push(text)
+			return
+		}
+		if (text.startsWith('{') || text.startsWith('[')) {
+			try {
+				collectPhotonTokens(JSON.parse(text), tokens, depth + 1, allowOpaque)
+				return
+			} catch {
+				// Not JSON after all — fall through to the other forms.
+			}
+		}
+		if (text.includes('=') && !text.startsWith('{')) {
+			try {
+				const params = new URLSearchParams(text)
+				let found = false
+				for (const [key, candidate] of params) {
+					if (!isPhotonTokenKey(key)) continue
+					collectPhotonTokens(candidate, tokens, depth + 1)
+					found = true
+				}
+				if (found) return
+			} catch {
+				// Malformed form data; the opaque fallback below can still be validated.
+			}
+		}
+		const embedded = text.match(/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/)
+		if (embedded) {
+			tokens.push(embedded[0])
+			return
+		}
+		const decoded = decodePhotonBase64(text)
+		if (decoded !== null) {
+			collectPhotonTokens(decoded, tokens, depth + 1, allowOpaque)
+			if (tokens.length > 0) return
+		}
+		if (allowOpaque) tokens.push(text)
+		return
+	}
+
+	if (Array.isArray(value)) {
+		if (value.length > 0 && value.every((item) => typeof item === 'number')) {
+			try {
+				const bytes = Uint8Array.from(value as number[])
+				collectPhotonTokens(new TextDecoder().decode(bytes), tokens, depth + 1, allowOpaque)
+				return
+			} catch {
+				// Not a byte array; fall through to arrays of values.
+			}
+		}
+		for (const item of value) collectPhotonTokens(item, tokens, depth + 1, allowOpaque)
+		return
+	}
+
+	if (typeof value === 'object') {
+		for (const [key, candidate] of Object.entries(value as Record<string, unknown>)) {
+			if (isPhotonTokenKey(key)) collectPhotonTokens(candidate, tokens, depth + 1)
+		}
+	}
+}
+
+/** Photon may send auth data in the query, a raw body, JSON, a form, or Base64. */
+async function readPhotonAuthTokens(c: Context<App>): Promise<string[]> {
+	const tokens: string[] = []
+	for (const key of [
+		'accessToken',
+		'access_token',
+		'token',
+		'Token',
+		'AuthPostData',
+		'authPostData',
+		'ClientAuthenticationData',
+		'clientAuthenticationData',
+		'Data',
+		'data',
+		'AuthGetParameters',
+	]) {
+		for (const value of c.req.queries(key) ?? []) {
+			collectPhotonTokens(value, tokens, 0, key !== 'AuthGetParameters')
+		}
+	}
+
+	const raw = await c.req.text().catch(() => '')
+	if (raw !== '') collectPhotonTokens(raw, tokens, 0)
+
+	return [...new Set(tokens)]
+}
+
+/**
+ * Photon Cloud custom authentication. Photon calls this URL with the client's
+ * `ClientAuthenticationData` and expects `{ ResultCode: 1, UserId }`; the token is
+ * the HS256 credential this server issued to that player, so its `sub` is the id.
+ * A missing/invalid token answers `ResultCode: 3` (auth failed), not an HTTP error.
+ */
+async function photonCustomAuth(c: Context<App>) {
+	const tokens = await readPhotonAuthTokens(c)
+	if (tokens.length === 0) return c.json({ ResultCode: 3, Message: 'missing access token' })
+	const secret = await c.env.JWT_SECRET.get()
+	for (const token of tokens) {
+		const accountId = await validatePhotonAuthToken(token, secret)
+		if (accountId !== null) return c.json({ ResultCode: 1, UserId: String(accountId), Message: 'ok' })
+	}
+	return c.json({ ResultCode: 3, Message: 'invalid access token' })
+}
+
 /** Whether one account row holds a role. Absent/false both mean no role. */
 function holdsRole(account: Account, role: 'developer' | 'moderator' | 'screenshare'): boolean {
 	// Match the same staff override used when minting account tokens.
@@ -513,6 +660,28 @@ async function issueSession(
 
 	const roleAccount = await getAccount(c.env.DB, accountId)
 	if (!roleAccount) return oauthError(c, 'invalid_grant', 'account no longer exists')
+
+	// Un compte banni par le SITE garde son jeton : c'est lui qui mène le client à l'écran de
+	// bannissement (`api` `moderationBlockDetails`), exactement comme un ban posé sur un
+	// signalement. Ce qui reste fermé, c'est le jeu — `match` refuse toute room sauf le
+	// dortoir — et le blob du compte porte le motif et la date de fin que l'écran affiche.
+	// Le ban vient d'econ (`POST /api/site/ban`) ; une date passée le lève d'elle-même.
+	const verdict = await c.env.DB.prepare(
+		`SELECT json_extract(data, '$.banned') AS banned,
+		        json_extract(data, '$.banReason') AS banReason,
+		        json_extract(data, '$.banUntil') AS banUntil
+		 FROM account WHERE account_id = ?1`
+	)
+		.bind(accountId)
+		.first<{ banned: number | null; banReason: string | null; banUntil: string | null }>()
+	const banEnd = verdict?.banUntil ? Date.parse(verdict.banUntil) : 0
+	if (verdict?.banned === 1 && (banEnd === 0 || banEnd > Date.now())) {
+		logger.info('token issued to a site-banned account', {
+			accountId,
+			grantType,
+			until: verdict?.banUntil ?? null,
+		})
+	}
 
 	const accessToken = await generateToken(
 		String(accountId),
@@ -1793,6 +1962,25 @@ const app = new Hono<App>()
 				}
 			}
 
+			// Même règle qu'au login : le banni garde de quoi rafraîchir sa session, sinon son
+			// client perd la connexion avant d'avoir pu afficher l'écran de bannissement. Le jeu
+			// reste fermé par `match`, et une date de fin passée lève le ban d'elle-même.
+			const banRow = await c.env.DB.prepare(
+				`SELECT json_extract(data, '$.banned') AS banned,
+				        json_extract(data, '$.banReason') AS banReason,
+				        json_extract(data, '$.banUntil') AS banUntil
+				 FROM account WHERE account_id = ?1`
+			)
+				.bind(accountId)
+				.first<{ banned: number | null; banReason: string | null; banUntil: string | null }>()
+			const banEnd = banRow?.banUntil ? Date.parse(banRow.banUntil) : 0
+			if (banRow?.banned === 1 && (banEnd === 0 || banEnd > Date.now())) {
+				logger.info('refresh issued to a site-banned account', {
+					accountId,
+					until: banRow?.banUntil ?? null,
+				})
+			}
+
 			return c.json({
 				access_token: accessToken,
 				expires_in: TOKEN_TTL_SECONDS,
@@ -1804,6 +1992,30 @@ const app = new Hono<App>()
 			})
 		}
 	)
+
+	// Link only after the site has authenticated the site user and obtained this game token.
+	// A service token alone cannot choose an account: the game bearer is also verified here.
+	.post('/internal/site/link', async (c) => {
+		const expected = c.env.SITE_BRIDGE_TOKEN ?? ''
+		if (!expected || c.req.header('x-site-bridge-token') !== expected) return c.body(null, 401)
+		const id = await authedId(c)
+		if (id === null || !(await getAccount(c.env.DB, id))) return c.body(null, 401)
+		const body = (await c.req.json().catch(() => null)) as { siteUserId?: unknown } | null
+		const siteId = typeof body?.siteUserId === 'string' ? body.siteUserId : ''
+		if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(siteId)) {
+			return c.json({ error: 'invalid site identity' }, 400)
+		}
+		const links = await c.env.DB.prepare(
+			'SELECT game_account_id AS gameId, site_user_id AS siteId FROM site_identity_links WHERE game_account_id = ?1 OR site_user_id = ?2'
+		).bind(id, siteId).all<{ gameId: number; siteId: string }>()
+		if (links.results.length > 0) {
+			const same = links.results.length === 1 && links.results[0].gameId === id && links.results[0].siteId === siteId
+			return same ? c.json({ ok: true }) : c.json({ error: 'identity already linked' }, 409)
+		}
+		await c.env.DB.prepare('INSERT OR IGNORE INTO site_identity_links (game_account_id, site_user_id) VALUES (?1, ?2)').bind(id, siteId).run()
+		const inserted = await c.env.DB.prepare('SELECT site_user_id AS siteId FROM site_identity_links WHERE game_account_id = ?1').bind(id).first<{ siteId: string }>()
+		return inserted?.siteId === siteId ? c.json({ ok: true }) : c.json({ error: 'identity already linked' }, 409)
+	})
 
 	// Change the caller's password. Auth-gated. Stores a PBKDF2 hash on the account
 	// row (the raw password is never persisted). When the account already has a
@@ -2113,6 +2325,12 @@ const app = new Hono<App>()
 			return c.json(nonce)
 		}
 	)
+
+// Photon Cloud custom authentication. Photon's dashboard "Custom Authentication"
+// URL points here; the client's op-230 auth blob carries the HS256 token minted by
+// this server, and the endpoint answers the ResultCode/UserId contract Photon expects.
+app.get('/photon/customauth', describeRoute({ hide: true }), (c) => photonCustomAuth(c))
+app.post('/photon/customauth', describeRoute({ hide: true }), (c) => photonCustomAuth(c))
 
 // The generated spec. Documentation only — no request is validated against it (see
 // openapi.ts). `hide: true` keeps this route out of its own output.

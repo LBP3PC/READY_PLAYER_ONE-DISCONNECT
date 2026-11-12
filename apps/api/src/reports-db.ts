@@ -636,3 +636,64 @@ export function banBlockDetails(ban: ReportRow, now: Date = new Date()) {
 		TimeoutStartedAt: null,
 	}
 }
+
+/**
+ * La catégorie annoncée pour un ban posé depuis le SITE : il n'y a pas de signalement
+ * derrière, donc pas de `report_category` à reprendre. 6 est la conduite en jeu, la
+ * catégorie fourre-tout que le client nomme pour ce genre de blocage.
+ */
+const SITE_BAN_CATEGORY = 6
+
+/** Un bannissement posé depuis le site : son motif et sa date de fin, tels qu'écrits. */
+export type SiteBan = { reason: string | null; until: string | null }
+
+/**
+ * Le bannissement posé par le SITE — `econ` `POST /api/site/ban` l'écrit sur le blob du
+ * compte (`banned`, `banReason`, `banUntil`), là où `getActiveBan` lit les lignes `report`.
+ *
+ * Même règle d'expiration que partout ailleurs (`match` `siteBanActive`, `auth` au login) :
+ * une date de fin passée le lève d'elle-même, sans que personne ait à le retirer.
+ */
+export async function getSiteBan(
+	db: D1Database,
+	accountId: number,
+	now: Date = new Date()
+): Promise<SiteBan | null> {
+	const row = await db
+		.prepare(
+			`SELECT json_extract(data, '$.banned') AS banned,
+			        json_extract(data, '$.banReason') AS banReason,
+			        json_extract(data, '$.banUntil') AS banUntil
+			 FROM account WHERE account_id = ?1`
+		)
+		.bind(accountId)
+		.first<{ banned: number | null; banReason: string | null; banUntil: string | null }>()
+	if (row?.banned !== 1) return null
+	const end = row.banUntil ? Date.parse(row.banUntil) : 0
+	if (end !== 0 && end <= now.getTime()) return null
+	return { reason: row.banReason ?? null, until: row.banUntil ?? null }
+}
+
+/**
+ * Le blocage d'un ban du site, dans la forme que le client affiche.
+ *
+ * Même DTO que `banBlockDetails` : `Duration` est le nombre de secondes QUI RESTENT
+ * (`PERMANENT_BAN_DURATION` sans date de fin), `IsBan` vrai, `TimeoutStartedAt` nul. Le
+ * `Message` porte le motif écrit par l'administration du site quand il y en a un, et le
+ * message fixe des bans de signalement sinon — c'est la seule différence de fond avec un
+ * ban issu d'un signalement, faute de `report_category` à annoncer.
+ */
+export function siteBanBlockDetails(ban: SiteBan, now: Date = new Date()) {
+	const duration =
+		ban.until === null
+			? PERMANENT_BAN_DURATION
+			: Math.max(1, Math.ceil((Date.parse(ban.until) - now.getTime()) / 1000))
+	return {
+		...NOT_BLOCKED,
+		ReportCategory: SITE_BAN_CATEGORY,
+		Duration: duration,
+		IsBan: true,
+		Message: ban.reason ?? 'Rule violation',
+		TimeoutStartedAt: null,
+	}
+}
