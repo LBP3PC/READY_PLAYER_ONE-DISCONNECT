@@ -22,17 +22,21 @@ public static class LocalizationNoisePatch
 {
     private const string Needle = "Could not find an entry with key";
 
-    private static int _dropped;
+    private static bool _announced;
 
     private static bool Drop(string text)
     {
         if (text == null || text.IndexOf(Needle, System.StringComparison.Ordinal) < 0) return false;
 
-        _dropped++;
-        // First drop, then every hundred: enough to prove the filter is alive without
-        // rebuilding the noise it exists to remove.
-        if (_dropped == 1 || _dropped % 100 == 0)
-            Plugin.Log.LogInfo($"[LOCALISATION] avertissement de cle manquante filtre ({_dropped})");
+        // One line per session, and nothing after: the calls come in by the thousand per
+        // minute, so any periodic counter would just replace the noise it removes. There is
+        // no shutdown hook either, so a final tally would never be printed anyway.
+        if (!_announced)
+        {
+            _announced = true;
+            Plugin.Log.LogInfo("[LOCALISATION] avertissements de cles manquantes filtres (silencieux ensuite)");
+        }
+
         return true;
     }
 
