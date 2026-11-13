@@ -1,47 +1,53 @@
 {
-    "version":  "2.2.3",
-    "server":  "https://ns.recblue.net",
-    "photon":  {
-                   "realtime":  "f1188190-4175-4fe4-bf99-5f02ab4cb550",
-                   "voice":  "419db913-5705-4de2-a086-708c051c4746",
-                   "chat":  "a3948bf6-25dc-460b-82a0-6b30c708459d"
-               },
-    "notes":  "Pack REC BLUE verifie par empreinte SHA-256. Le jeu Rec Room n\u0027est pas distribue : le launcher utilise une installation existante et n\u0027ajoute que le pack et sa configuration.",
-    "files":  [
-                  {
-                      "url":  "https://builds.bepinex.dev/projects/bepinex_be/791/BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.791%2Bb782da4.zip",
-                      "dest":  "",
-                      "archive":  true,
-                      "sha256":  "bb1c510909b69522733791f3a0817a487379a52da6468a492f1c9c19b3ec6f9a",
-                      "skipIf":  "BepInEx/core/BepInEx.Core.dll",
-                      "note":  "Chargeur BepInEx 6 IL2CPP be.791 (open source)"
-                  },
-                  {
-                      "url":  "download/rec-blue/RecNetPlugin.dll",
-                      "dest":  "BepInEx/plugins/RecNetPlugin.dll",
-                      "sha256":  "6c3fcc3bfd17ac3692f47e43add08355e302395dd63f910f4a9d8ef9a2b492d9",
-                      "note":  "Plugin RecNet 20230414.2"
-                  },
-                  {
-                      "url":  "download/rec-blue/RecBlueFps.dll",
-                      "dest":  "BepInEx/plugins/RecBlueFps.dll",
-                      "sha256":  "76762b3fb66be12eed97f32da52a449a3567331bbf9f6b0992a6ae938b609a1c",
-                      "note":  "Plugin FPS 1.3.2 : limite d'images configurable sans perte de qualite"
-                  },
-                  {
-                      "url":  "download/rec-blue/net.rec.plugin.cfg",
-                      "dest":  "BepInEx/net.rec.plugin.cfg",
-                      "sha256":  "d4f2e0dc72bd3c70f54667e36d8e775dbc767120545c550ea2a594f85a9ce397",
-                      "skipIf":  "BepInEx/config/net.rec.plugin.cfg",
-                      "note":  "Configuration du plugin : nameserver ns.recblue.net et Photon"
-                  },
-                  {
-                      "url":  "https://dl.recblue.net/game/bepinex-interop.zip",
-                      "dest":  "",
-                      "archive":  true,
-                      "sha256":  "d701cc3f78302f9a805cc287e7739804cfb4b3b053ded154e5bc0e653bb0467c",
-                      "note":  "Assemblies BepInEx deja generees (evite le premier demarrage de 5 minutes)",
-                      "skipIf":  "BepInEx/interop/Assembly-CSharp.dll"
-                  }
-              ]
+  "version": "2.2.5",
+  "server": "https://ns.recblue.net",
+  "photon": {
+    "realtime": "f1188190-4175-4fe4-bf99-5f02ab4cb550",
+    "voice": "419db913-5705-4de2-a086-708c051c4746",
+    "chat": "a3948bf6-25dc-460b-82a0-6b30c708459d"
+  },
+  "notes": "Pack REC BLUE verifie par empreinte SHA-256. Le jeu Rec Room n'est pas distribue : le launcher utilise une installation existante et n'ajoute que le pack et sa configuration.",
+  "files": [
+    {
+      "url": "https://builds.bepinex.dev/projects/bepinex_be/791/BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.791%2Bb782da4.zip",
+      "dest": "",
+      "archive": true,
+      "sha256": "bb1c510909b69522733791f3a0817a487379a52da6468a492f1c9c19b3ec6f9a",
+      "skipIf": "BepInEx/core/BepInEx.Core.dll",
+      "note": "Chargeur BepInEx 6 IL2CPP be.791 (open source)"
+    },
+    {
+      "url": "download/rec-blue/RecNetPlugin.dll",
+      "dest": "BepInEx/plugins/RecNetPlugin.dll",
+      "sha256": "48328f74f397034fbd2d2d1ca04131ba76304be404a9f0a1a8f5e603bb7e07ee",
+      "note": "Plugin RecNet 20230414.2"
+    },
+    {
+      "url": "download/rec-blue/RecBlueFps.dll",
+      "dest": "BepInEx/plugins/RecBlueFps.dll",
+      "sha256": "ded98877369ff014771e73febd659b3748d136f833578ca125795314a86c945f",
+      "note": "FPS 1.5.2 : compte et horodate les a-coups > 100 ms (a 240 Hz, 30 ms = 7 images sautees), en plus des gels > 400 ms"
+    },
+    {
+      "url": "download/rec-blue/net.rec.plugin.cfg",
+      "dest": "BepInEx/net.rec.plugin.cfg",
+      "sha256": "d4f2e0dc72bd3c70f54667e36d8e775dbc767120545c550ea2a594f85a9ce397",
+      "skipIf": "BepInEx/config/net.rec.plugin.cfg",
+      "note": "Configuration du plugin : nameserver ns.recblue.net et Photon"
+    },
+    {
+      "url": "https://dl.recblue.net/game/bepinex-interop.zip",
+      "dest": "",
+      "archive": true,
+      "sha256": "d701cc3f78302f9a805cc287e7739804cfb4b3b053ded154e5bc0e653bb0467c",
+      "note": "Assemblies BepInEx deja generees (evite le premier demarrage de 5 minutes)",
+      "skipIf": "BepInEx/interop/Assembly-CSharp.dll"
+    },
+    {
+      "url": "download/rec-blue/RecBlueBranding.dll",
+      "dest": "BepInEx/plugins/RecBlueBranding.dll",
+      "sha256": "37c5b896d9db1cdfd9d5b0f4072b6e0b38efad5fb1b80766ff2708ec255b7570",
+      "note": "Branding 2.9.5 : priorite AboveNormal (aligne sur le plugin FPS), handle de process mis en cache"
+    }
+  ]
 }
