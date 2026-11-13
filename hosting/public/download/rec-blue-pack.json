@@ -47,7 +47,7 @@
       "url": "download/rec-blue/RecBlueBranding.dll",
       "dest": "BepInEx/plugins/RecBlueBranding.dll",
       "sha256": "37c5b896d9db1cdfd9d5b0f4072b6e0b38efad5fb1b80766ff2708ec255b7570",
-      "note": "Branding 2.9.5 : priorite AboveNormal (aligne sur le plugin FPS), handle de process mis en cache"
+      "note": "Branding 2.9.4 : priorite AboveNormal (aligne sur le plugin FPS), handle de process mis en cache"
     }
   ]
 }
