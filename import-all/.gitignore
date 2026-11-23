@@ -1,0 +1,7 @@
+# Binaires regeneres par les scripts a partir de l'export Rec Room (map-a-deposer/)
+# Jamais versionses : volumineux et reproductibles.
+*.binpb
+*.inv
+*.htr
+*.jpg
+*.png

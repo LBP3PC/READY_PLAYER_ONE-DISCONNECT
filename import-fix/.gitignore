@@ -1,0 +1,5 @@
+# Binaires regeneres par strip_htr.py depuis import-fix/*.binpb
+*.binpb
+
+# Reponses d'API capturees pour verification, pas du code
+stripped/api/

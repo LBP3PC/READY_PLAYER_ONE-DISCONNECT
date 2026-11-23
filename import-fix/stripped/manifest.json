@@ -1,0 +1,47 @@
+{
+ "78": {
+  "room": 66,
+  "file": "import-fix/stripped\\66_78.binpb",
+  "refs_removed": 1,
+  "old_bytes": 879604,
+  "new_bytes": 879549,
+  "hash": "gKGtbTt8OLR5pqjwGDhdlGdIXSrmeNQS91fndvEhOpM=",
+  "key": "2026-11-23/53b8bd6a-9974-4e50-8fb1-127eb7413b28"
+ },
+ "82": {
+  "room": 70,
+  "file": "import-fix/stripped\\70_82.binpb",
+  "refs_removed": 7,
+  "old_bytes": 735620,
+  "new_bytes": 735302,
+  "hash": "2eQlm6wHGon/hv5PoqWsPazk9qACASQdEQwVY6aczDQ=",
+  "key": "2026-11-23/3d752d97-48a5-4f61-af64-d85b77d88916"
+ },
+ "84": {
+  "room": 70,
+  "file": "import-fix/stripped\\70_84.binpb",
+  "refs_removed": 7,
+  "old_bytes": 515688,
+  "new_bytes": 515370,
+  "hash": "9VcodkIUBNhRi2NegcLB6NJSHSkCxqpHmPKqPwTa6X0=",
+  "key": "2026-11-23/e46831d6-7538-4bd0-8b3e-ab7075b3bab4"
+ },
+ "85": {
+  "room": 71,
+  "file": "import-fix/stripped\\71_85.binpb",
+  "refs_removed": 7,
+  "old_bytes": 412581,
+  "new_bytes": 412259,
+  "hash": "BNijcl71YK0i9zyBiJEShDy+lw6Z8ZxLjgagauQL7qU=",
+  "key": "2026-11-23/4801b8ee-8340-42b7-8578-1eb1d87fdf86"
+ },
+ "76": {
+  "room": 64,
+  "file": "import-fix/stripped\\64_76.binpb",
+  "refs_removed": 7,
+  "old_bytes": 951438,
+  "new_bytes": 951116,
+  "hash": "AG4sLcsO8dVpwgkMX7P+YrAG7cZSescmchvOqWZJiLU=",
+  "key": "2026-11-23/4c92ce1c-2856-419d-ab98-850427a65b04"
+ }
+}
