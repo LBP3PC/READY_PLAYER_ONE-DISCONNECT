@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { describeRoute, openAPIRouteHandler, validator } from 'hono-openapi'
 import { useWorkersLogger } from 'workers-tagged-logger'
+import { z } from 'zod'
 
 import {
 	beginEmailCode,
@@ -16,6 +17,7 @@ import {
 	getAccountByUsername,
 	getAccountsByIds,
 	pendingEmailCode,
+	renameDormRoom,
 	SEARCH_LIMIT,
 	searchAccounts,
 	updateAccount,
@@ -70,6 +72,48 @@ import type { Context } from 'hono'
 import type { DescribeRouteOptions } from 'hono-openapi'
 import type { Account, EmailCodeIssue } from '@repo/domain'
 import type { App } from './context'
+
+/**
+ * Whether an account holds one of the staff roles the client badges a nametag with. The
+ * same projection the `auth` worker answers: absent and false both mean no role.
+ */
+function holdsRole(account: Account, role: 'developer' | 'moderator' | 'screenshare'): boolean {
+	if (role === 'screenshare') return account.hasScreenshare === true
+	return (role === 'developer' ? account.isDeveloper : account.isModerator) === true
+}
+
+/**
+ * The ONE-player role lookup: a BARE JSON boolean — the client reads the body as a bool, not
+ * as an object — or an empty 404 for a player this server has no account for. An id that is
+ * not a number is answered as unknown rather than as a 400, like `auth`'s identical route.
+ */
+async function roleAnswer(
+	c: Context<App>,
+	role: 'developer' | 'moderator' | 'screenshare',
+	id: string
+) {
+	const accountId = Number.parseInt(id, 10)
+	const account = Number.isNaN(accountId) ? null : await getAccount(c.env.DB, accountId)
+	if (!account) return c.body(null, 404)
+	return c.json(holdsRole(account, role))
+}
+
+/**
+ * The BULK role filter: WHICH of the players asked about hold the role, as an array of ints
+ * in the order asked and de-duplicated. A filter, so nothing is an error — an id that names
+ * no account, or names one without the role, is left out.
+ */
+async function roleFilterAnswer(c: Context<App>, role: 'developer' | 'moderator') {
+	// `queries` and not `query`: the ids arrive as a REPEATED parameter, and `query` would
+	// collapse them to the first and answer about one player out of the set.
+	const asked = c.req.queries('id') ?? []
+	const ids = [...new Set(asked.map((v) => Number.parseInt(v, 10)).filter(Number.isInteger))]
+	if (ids.length === 0) return c.json([])
+
+	const accounts = await getAccountsByIds(c.env.DB, ids)
+	const holders = new Set(accounts.filter((a) => holdsRole(a, role)).map((a) => a.accountId))
+	return c.json(ids.filter((id) => holders.has(id)))
+}
 
 /**
  * Account reads/writes are backed by the shared `accounts` table in D1 (schema
@@ -514,6 +558,121 @@ const app = new Hono<App>()
 	// lookup and stays for callers (and docs) that prefer it.
 	.post('/account/bulk', describeRoute(bulkRouteSpec('body')), bulkAccounts)
 
+	// ---- Staff roles -------------------------------------------------------
+	// Whether a player holds the developer / moderator / screenshare role. The client asks
+	// its identity host this BEFORE drawing a nametag's DEV or MOD title and the little
+	// buttons beside it, so a 404 here leaves the plate bare even though the name itself
+	// arrived fine. The `auth` worker serves the same routes; these are the same answers
+	// from the host the client actually calls.
+	.get(
+		'/role/developer/:id',
+		describeRoute({
+			tags: ['Roles'],
+			summary: 'Whether a player is a developer',
+			description:
+				'A BARE JSON boolean — the client reads the body as a bool, not as an object. An ' +
+				'id that names no account, or is not a number, is an empty 404.',
+			parameters: [
+				{
+					name: 'id',
+					in: 'path',
+					required: true,
+					description: 'Account id',
+					schema: { type: 'string' },
+				},
+			],
+			responses: { 200: json(z.boolean(), 'True when they hold the role') },
+		}),
+		(c) => roleAnswer(c, 'developer', c.req.param('id'))
+	)
+	.get(
+		'/role/moderator/:id',
+		describeRoute({
+			tags: ['Roles'],
+			summary: 'Whether a player is a moderator',
+			description:
+				'A BARE JSON boolean — the client reads the body as a bool, not as an object. An ' +
+				'id that names no account, or is not a number, is an empty 404.',
+			parameters: [
+				{
+					name: 'id',
+					in: 'path',
+					required: true,
+					description: 'Account id',
+					schema: { type: 'string' },
+				},
+			],
+			responses: { 200: json(z.boolean(), 'True when they hold the role') },
+		}),
+		(c) => roleAnswer(c, 'moderator', c.req.param('id'))
+	)
+	.get(
+		'/role/screenshare/:id',
+		describeRoute({
+			tags: ['Roles'],
+			summary: 'Whether a player may screenshare',
+			description:
+				'A BARE JSON boolean — the client reads the body as a bool, not as an object. An ' +
+				'id that names no account, or is not a number, is an empty 404.',
+			parameters: [
+				{
+					name: 'id',
+					in: 'path',
+					required: true,
+					description: 'Account id',
+					schema: { type: 'string' },
+				},
+			],
+			responses: { 200: json(z.boolean(), 'True when they hold the role') },
+		}),
+		(c) => roleAnswer(c, 'screenshare', c.req.param('id'))
+	)
+	// The BULK forms: which of the named players hold the role, as an array of ints in the
+	// order asked. A filter, so nothing here is an error — an id without the role, or naming
+	// no account, is simply left out.
+	.get(
+		'/role/developer',
+		describeRoute({
+			tags: ['Roles'],
+			summary: 'Which of these players are developers',
+			description:
+				'The ids that hold the role, as an array of ints in the order asked; `[]` when none ' +
+				'do. The ids arrive as a repeated `id` parameter (`?id=1&id=2`).',
+			parameters: [
+				{
+					name: 'id',
+					in: 'query',
+					required: false,
+					description: 'Repeated once per account id',
+					schema: { type: 'integer' },
+				},
+			],
+			responses: { 200: json(z.array(z.int()), 'The ids that hold the role') },
+		}),
+		(c) => roleFilterAnswer(c, 'developer')
+	)
+	.get(
+		'/role/moderator',
+		describeRoute({
+			tags: ['Roles'],
+			summary: 'Which of these players are moderators',
+			description:
+				'The ids that hold the role, as an array of ints in the order asked; `[]` when none ' +
+				'do. The ids arrive as a repeated `id` parameter (`?id=1&id=2`).',
+			parameters: [
+				{
+					name: 'id',
+					in: 'query',
+					required: false,
+					description: 'Repeated once per account id',
+					schema: { type: 'integer' },
+				},
+			],
+			responses: { 200: json(z.array(z.int()), 'The ids that hold the role') },
+		}),
+		(c) => roleFilterAnswer(c, 'moderator')
+	)
+
 	.get(
 		'/account/:id/bio',
 		describeRoute({
@@ -738,6 +897,9 @@ const app = new Hono<App>()
 				username,
 				availableUsernameChanges: remaining - 1,
 			})
+			// Le dortoir porte le pseudo du propriétaire dans son nom : il suit le changement,
+			// sinon il reste à l'ancien pseudo pour toujours.
+			await renameDormRoom(c.env.DB, id, username)
 			await pushAccountUpdate(c, updated)
 			return usernameResult(c, '', toAccountDto(updated))
 		}
@@ -1193,7 +1355,7 @@ app.get(
 						'D1 database, whose `account` schema is owned by the `auth` worker.',
 					].join('\n'),
 				},
-				servers: [{ url: 'https://accounts.recflare.net', description: 'Production' }],
+				servers: [{ url: 'https://accounts.recblue.net', description: 'Production' }],
 				components: {
 					securitySchemes: {
 						bearerAuth: {

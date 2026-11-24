@@ -2017,6 +2017,23 @@ const app = new Hono<App>()
 		return inserted?.siteId === siteId ? c.json({ ok: true }) : c.json({ error: 'identity already linked' }, 409)
 	})
 
+	// Only the trusted site bridge can check the current badge for a verified link.
+	.post('/internal/site/developer', async (c) => {
+		const expected = c.env.SITE_BRIDGE_TOKEN ?? ''
+		if (!expected || c.req.header('x-site-bridge-token') !== expected) return c.body(null, 401)
+		c.header('Cache-Control', 'no-store')
+		const body = (await c.req.json().catch(() => null)) as { siteUserId?: unknown } | null
+		const siteId = typeof body?.siteUserId === 'string' ? body.siteUserId : ''
+		if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(siteId)) {
+			return c.json({ error: 'invalid site identity' }, 400)
+		}
+		const link = await c.env.DB.prepare(
+			'SELECT game_account_id AS gameId FROM site_identity_links WHERE site_user_id = ?1'
+		).bind(siteId).first<{ gameId: number }>()
+		const account = link ? await getAccount(c.env.DB, link.gameId) : null
+		return c.json({ developer: account?.isDeveloper === true })
+	})
+
 	// Change the caller's password. Auth-gated. Stores a PBKDF2 hash on the account
 	// row (the raw password is never persisted). When the account already has a
 	// password, `oldPassword` must match; the first time it's set, `oldPassword` is
@@ -2348,7 +2365,7 @@ app.get(
 						'of the Rec Room backend.',
 					].join('\n'),
 				},
-				servers: [{ url: 'https://auth.recflare.net', description: 'Production' }],
+				servers: [{ url: 'https://auth.recblue.net', description: 'Production' }],
 				components: {
 					securitySchemes: {
 						bearerAuth: {

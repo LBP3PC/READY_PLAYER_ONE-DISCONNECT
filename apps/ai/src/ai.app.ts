@@ -413,7 +413,7 @@ app.get(
 						'endpoints document names, instead of a failed request.',
 					].join('\n'),
 				},
-				servers: [{ url: 'https://ai.recflare.net', description: 'Production' }],
+				servers: [{ url: 'https://ai.recblue.net', description: 'Production' }],
 				components: {
 					securitySchemes: {
 						bearerAuth: {

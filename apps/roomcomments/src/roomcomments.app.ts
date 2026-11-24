@@ -241,7 +241,7 @@ app.get(
 						'own brand-new comment too.',
 					].join('\n'),
 				},
-				servers: [{ url: 'https://roomcomments.recflare.net', description: 'Production' }],
+				servers: [{ url: 'https://roomcomments.recblue.net', description: 'Production' }],
 				components: {
 					securitySchemes: {
 						bearerAuth: {

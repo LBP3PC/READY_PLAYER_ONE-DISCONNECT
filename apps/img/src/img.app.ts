@@ -384,7 +384,7 @@ app.get(
 						'points at keys here.',
 					].join('\n'),
 				},
-				servers: [{ url: 'https://img.recflare.net', description: 'Production' }],
+				servers: [{ url: 'https://img.recblue.net', description: 'Production' }],
 			},
 		})
 	)

@@ -92,6 +92,20 @@ async function serveAsset(c: Context<App>, key: string) {
 }
 
 /**
+ * `serveAsset`, but typed for a media player. The shared helper stamps EVERY blob
+ * `application/octet-stream` — correct for an assetbundle the game reads itself, wrong for a
+ * video, which the client's player decides whether to open by its content type. The status,
+ * `Range` handling and body are the shared ones; only the type is restated.
+ */
+async function serveVideo(c: Context<App>, key: string) {
+	const response = await serveAsset(c, key)
+	if (response.status !== 200 && response.status !== 206) return response
+	const headers = new Headers(response.headers)
+	headers.set('content-type', key.endsWith('.webm') ? 'video/webm' : 'video/mp4')
+	return new Response(response.body, { status: response.status, headers })
+}
+
+/**
  * Cache-Control on every file this worker serves — 30 days (86400 × 30). These are big,
  * rarely-changing blobs fetched by key: a room scene, an invention, a signature blob. The
  * keys are content-addressed or date-foldered UUIDs, so a changed asset arrives under a
@@ -102,6 +116,17 @@ async function serveAsset(c: Context<App>, key: string) {
  * would pin a stale config for the whole window.
  */
 const CACHE_CONTROL = `public, max-age=${86400 * 30}`
+
+/**
+ * What `/sigs/<name>` answers when the bucket holds no blob under that name.
+ *
+ * The client carries its signature-blob names in the build (`/sigs/<guid>` is a compiled-in
+ * constant, not a link this server hands out), and it downloads them as part of the boot
+ * data. A 404 there is a hard `Failed to download` — the loading screen then stops at half
+ * — while nothing on either side actually verifies the bytes (content signature checks are
+ * bypassed in the client). A stub of the size a signature has lets the fetch complete.
+ */
+const SIG_STUB = new Uint8Array(256)
 
 /**
  * What may reach the ASSETS binding as a config filename: one path segment, no slashes,
@@ -251,8 +276,9 @@ const app = new Hono<App>()
 		async (c) => (await serveConfig(c, c.req.param('name'))) ?? c.notFound()
 	)
 
-	// Signature blobs by name. Streamed from R2 under the `sigs/` key prefix;
-	// 404 when missing.
+	// Signature blobs by name. Streamed from R2 under the `sigs/` key prefix; a name with
+	// no blob answers a stub instead of a 404, because the client names these itself and
+	// treats a miss as a failed download (see SIG_STUB).
 	.get(
 		'/sigs/:sigName',
 		describeRoute({
@@ -265,7 +291,20 @@ const app = new Hono<App>()
 			parameters: [keyParam('sigName', 'The blob name.', false), ...CONDITIONAL_HEADERS],
 			responses: assetResponses('The signature blob'),
 		}),
-		(c) => serveAsset(c, `sigs/${c.req.param('sigName')}`)
+		async (c) => {
+			const res = await serveAsset(c, `sigs/${c.req.param('sigName')}`)
+			if (res.status !== 404) return res
+			// Absent blob: answer the stub rather than a 404 that stops the boot (see SIG_STUB).
+			console.log('sigs stub', { name: c.req.param('sigName') })
+			return new Response(SIG_STUB, {
+				status: 200,
+				headers: {
+					'content-type': 'application/octet-stream',
+					'accept-ranges': 'bytes',
+					'cache-control': CACHE_CONTROL,
+				},
+			})
+		}
 	)
 
 	// Room build data by name. The client fetches this for a SubRoom's DataBlob to
@@ -360,6 +399,27 @@ const app = new Hono<App>()
 			responses: assetResponses('The assetbundle'),
 		}),
 		(c) => serveAsset(c, `avatar/${c.req.param('asset')}`)
+	)
+
+	// Community-board video blobs by name — what `/api/communityboard/v2/current` lists in
+	// its `Videos[].BlobName` and the home screen's YouTube panel streams. They live in the
+	// CDN bucket rather than the image one, which serves images only, and are streamed with
+	// range support so a player can seek.
+	.get(
+		'/video/:name{.+}',
+		describeRoute({
+			tags: ['Assets'],
+			summary: 'Serve a community-board video blob',
+			description: [
+				'Streams the object stored under `video/<name>` — the file a community board',
+				'announces as its `BlobName`. The worker does not interpret the bytes; a `Range`',
+				'request is answered with a 206 and a truthful `Content-Range`, which is what lets',
+				'the client seek inside a long video instead of downloading all of it.',
+			].join(' '),
+			parameters: [keyParam('name', 'The blob name.', true), ...CONDITIONAL_HEADERS],
+			responses: assetResponses('The video blob'),
+		}),
+		(c) => serveVideo(c, `video/${c.req.param('name')}`)
 	)
 
 	// SDK source downloads use an opaque upload capability (no bearer on this
@@ -526,7 +586,7 @@ app.get(
 						'that turns out to be all of them.',
 					].join('\n'),
 				},
-				servers: [{ url: 'https://cdn.recflare.net', description: 'Production' }],
+				servers: [{ url: 'https://cdn.recblue.net', description: 'Production' }],
 			},
 		})
 	)

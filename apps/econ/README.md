@@ -1,6 +1,6 @@
 # econ
 
-Economy Worker served on the `econ` subdomain (`econ.recflare.net`). Hosts the
+Economy Worker served on the `econ` subdomain (`econ.recblue.net`). Hosts the
 avatar/economy endpoints the game client calls on the `econ` service (distinct from the
 main `api` worker, which also serves many of them — the client may call either host).
 
@@ -276,7 +276,7 @@ generated rotation and the pinned file, since they are the same shape on the wir
 | ---------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ChallengeMapId`       | `1347`                         | Id of the rotation as a whole ("map" of challenges). Echoed back on `updateProgress`. Generated as `1000 + weekIndex`; the four-digit floor keeps it clear of hand-authored ids (17, 19), which would otherwise read a player's old rows as progress against a different set. |
 | `CompletedRequired`    | `false`                        | _(inferred)_ All-or-nothing: `true` makes the `Gift` need every challenge, `false` the three-of-five threshold below.                                                                                                                                                         |
-| `StartAt` / `EndAt`    | `2026-03-25T21:00:00`          | The window, 7 days apart, **no timezone suffix** — unlike `ServerTime`. Treat as UTC.                                                                                                                                                                                         |
+| `StartAt` / `EndAt`    | `2026-03-25T21:00:00`          | The window, 3 days apart, **no timezone suffix** — unlike `ServerTime`. Treat as UTC.                                                                                                                                                                                         |
 | `ServerTime`           | `2026-03-31T14:42:54.2754728Z` | .NET round-trip timestamp (7-digit fraction, `Z`). The client dates the countdown off this. Generated rotations send the REAL clock — see below.                                                                                                                              |
 | `Challenges`           | array                          | The week's challenges, rendered in order.                                                                                                                                                                                                                                     |
 | `Gift`                 | object                         | The reward preview for finishing the set.                                                                                                                                                                                                                                     |

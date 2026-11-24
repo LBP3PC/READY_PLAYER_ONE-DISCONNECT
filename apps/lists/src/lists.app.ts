@@ -1069,7 +1069,7 @@ app.get(
 						'caller’s own.',
 					].join('\n'),
 				},
-				servers: [{ url: 'https://lists.recflare.net', description: 'Production' }],
+				servers: [{ url: 'https://lists.recblue.net', description: 'Production' }],
 				components: {
 					securitySchemes: {
 						bearerAuth: {

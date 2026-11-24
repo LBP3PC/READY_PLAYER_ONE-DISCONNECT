@@ -1836,7 +1836,7 @@ app.get(
 						'`value` rather than null.',
 					].join('\n'),
 				},
-				servers: [{ url: 'https://clubs.recflare.net', description: 'Production' }],
+				servers: [{ url: 'https://clubs.recblue.net', description: 'Production' }],
 				components: {
 					securitySchemes: {
 						bearerAuth: {

@@ -156,8 +156,9 @@ const app = new Hono<App>()
 			description: [
 				'The authenticated player’s settings as `{ PlayerId, Key, Value }` entries, read from',
 				'their KV map. A player with nothing stored is seeded with the reference defaults',
-				'(Recroom.OOBE, TUTORIAL_COMPLETE_MASK, FIRST_TIME_IN_FLAGS), which are persisted on',
-				'that first read.',
+				'(Recroom.OOBE, TUTORIAL_COMPLETE_MASK, FIRST_TIME_IN_FLAGS), and a map that already',
+				'exists is topped up with whichever defaults it lacks (never overwriting a value the',
+				'player set), both persisted on that read.',
 			].join(' '),
 			security: AUTHED,
 			responses: {
@@ -170,11 +171,23 @@ const app = new Hono<App>()
 			if (id === null) return unauthorized(c)
 
 			const kvKey = `player:${id}`
-			let stored = await c.env.RECFLARE_PLAYER_SETTINGS.get<Record<string, string>>(kvKey, 'json')
-			if (!stored || Object.keys(stored).length === 0) {
-				stored = Object.fromEntries(DEFAULT_SETTINGS.map((s) => [s.Key, s.Value]))
-				await c.env.RECFLARE_PLAYER_SETTINGS.put(kvKey, JSON.stringify(stored))
+			const stored =
+				(await c.env.RECFLARE_PLAYER_SETTINGS.get<Record<string, string>>(kvKey, 'json')) ?? {}
+
+			// Top up an EXISTING map with any default it is missing, rather than only seeding a
+			// brand-new player. A map written before a default was introduced — or by a bare PUT,
+			// which stores just the posted key — has no `ShowOwnNames`, and the client then draws
+			// no nametag over anyone's head, its own included: the plate is simply absent, with no
+			// error anywhere. Only MISSING keys are added, so a player who opted out with `False`
+			// keeps it.
+			let changed = false
+			for (const { Key, Value } of DEFAULT_SETTINGS) {
+				if (stored[Key] === undefined) {
+					stored[Key] = Value
+					changed = true
+				}
 			}
+			if (changed) await c.env.RECFLARE_PLAYER_SETTINGS.put(kvKey, JSON.stringify(stored))
 
 			return c.json(Object.entries(stored).map(([Key, Value]) => ({ PlayerId: id, Key, Value })))
 		}
@@ -198,12 +211,12 @@ const app = new Hono<App>()
 				'dropped. An unparseable or empty body is a no-op 200, not a 400, and so is a PUT whose',
 				'values are already stored — nothing is written to KV. Keys under `Growth.YIR.` (the',
 				'client’s Year-In-Review telemetry) and `MakerPenSessionCount`, which change on every',
-				'post and nothing reads, are dropped rather than stored. Empty body on success.',
+				'post and nothing reads, are dropped rather than stored. Returns the stored settings on success.',
 			].join(' '),
 			security: AUTHED,
 			requestBody: formOrJson(SettingFormWrite, SettingJsonWrite, 'The setting(s) to write'),
 			responses: {
-				200: { description: 'Applied, or nothing parseable to apply (empty body)' },
+				200: json(PlayerSettingEntry.array(), 'The player’s settings after the write'),
 				401: UNAUTHORIZED_RESPONSE,
 			},
 		}),
@@ -211,14 +224,23 @@ const app = new Hono<App>()
 			const id = await authedId(c)
 			if (id === null) return unauthorized(c)
 
+			const storedSettings = async (): Promise<PlayerSettingEntry[]> => {
+				const stored =
+					(await c.env.RECFLARE_PLAYER_SETTINGS.get<Record<string, string>>(
+						`player:${id}`,
+						'json'
+					)) ?? {}
+				return Object.entries(stored).map(([Key, Value]) => ({ PlayerId: id, Key, Value }))
+			}
+
 			const incoming = (await parseSettings(c)).filter((s) => !isIgnoredSetting(s.key))
-			if (incoming.length === 0) return c.body(null, 200)
+			if (incoming.length === 0) return c.json(await storedSettings())
 
 			const patch: Record<string, string> = {}
 			for (const { key, value } of incoming) patch[key] = value
 
 			await mergePlayerSettings(c.env.RECFLARE_PLAYER_SETTINGS, id, patch)
-			return c.body(null, 200)
+			return c.json(await storedSettings())
 		}
 	)
 
@@ -293,7 +315,7 @@ app.get(
 						'reference defaults on a player’s first read.',
 					].join('\n'),
 				},
-				servers: [{ url: 'https://playersettings.recflare.net', description: 'Production' }],
+				servers: [{ url: 'https://playersettings.recblue.net', description: 'Production' }],
 				components: {
 					securitySchemes: {
 						bearerAuth: {

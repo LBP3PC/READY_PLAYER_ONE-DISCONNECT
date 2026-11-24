@@ -421,7 +421,7 @@ app.get(
 						'by its `FileType`, and the `cdn` worker serves them back from the same bucket.',
 					].join('\n'),
 				},
-				servers: [{ url: 'https://storage.recflare.net', description: 'Production' }],
+				servers: [{ url: 'https://storage.recblue.net', description: 'Production' }],
 				components: {
 					securitySchemes: {
 						bearerAuth: {

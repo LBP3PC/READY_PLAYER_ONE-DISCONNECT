@@ -1,6 +1,6 @@
 # accounts
 
-Accounts Worker served on the `accounts` subdomain (`accounts.recflare.net`) — a Hono
+Accounts Worker served on the `accounts` subdomain (`accounts.recblue.net`) — a Hono
 app for account reads, profile mutations and lookups. Accounts live in the shared
 `recflare` D1 database, whose `account` schema and migrations are owned by the `auth`
 worker; this worker binds it read/write.

@@ -1200,6 +1200,30 @@ const serveRoomPage = <T extends { Results: Room[] }>(page: T): T => ({
 })
 
 /**
+ * `CarouselEndpoint` slugs that a tag can genuinely fill: the seeded rooms carry `pvp` and
+ * `quest`, so those two categories draw real rooms out of the hot feed.
+ */
+const CAROUSEL_TAGS: Record<string, string> = {
+	battle_algoendpoint: 'pvp',
+	quests_algoendpoint: 'quest',
+}
+
+/**
+ * Slugs the discovery pages name with nothing curated behind them yet. Answering an empty
+ * page keeps the row off the page; a 404 is a carousel the client shows as failed.
+ */
+const EMPTY_CAROUSELS = new Set([
+	'staffpicks',
+	'inkshowcase',
+	'recentlyupdated',
+	'roleplay_algoendpoint',
+	'casual_algoendpoint',
+	'horror_algoendpoint',
+	'explore_algoendpoint',
+	'hangout_algoendpoint',
+])
+
+/**
  * Client envelope for room mutations: `{ success, error, value }` (lowercase). `value` is
  * the updated room (served through {@link serveRoom}) or null on a refusal.
  */
@@ -1665,7 +1689,7 @@ const app = new Hono<App>()
 	//
 	// Paged like the hot feed (`skip`/`take`, take defaults to 100) and answers the same
 	// `{ Results, TotalResults }` envelope its sibling feeds do. `staffpicks` and the
-	// `*_algoendpoint` rows keep 404ing until each is given a feed of its own.
+	// `*_algoendpoint` rows are answered by `/rooms/carousel/:name` below.
 	.get(
 		'/rooms/carousel/rising',
 		describeRoute({
@@ -1685,6 +1709,51 @@ const app = new Hono<App>()
 			const skip = Number.parseInt(c.req.query('skip') ?? '0', 10) || 0
 			const take = Number.parseInt(c.req.query('take') ?? '100', 10) || 100
 			return c.json(serveRoomPage(await getTrendingRooms(c.env.DB, skip, take)))
+		}
+	)
+
+	// The rest of the `CarouselEndpoint` slugs the discovery pages name. The client asks for
+	// one by name under this same prefix, so a page source can add a row without the server
+	// knowing the row exists — but until now every slug but `foryou`/`rising` was a 404, and
+	// the client draws a 404 as a carousel that FAILED to load rather than as an empty one.
+	//
+	// Only the tags the seeded rooms actually carry (`pvp`, `quest`) can fill a category, so
+	// those two answer the hot feed filtered by tag. The rest of the named slugs are real
+	// names with nothing curated behind them yet and answer an EMPTY page — the client then
+	// draws no row, which is the honest answer (the same reasoning as
+	// `/rooms/curated_playlists`), rather than the retries a 404 provokes.
+	//
+	// A slug that is NOT one of the page sources' names keeps 404ing: it is a typo or a row
+	// this server has never seen, and answering `[]` would hide that.
+	.get(
+		'/rooms/carousel/:name',
+		describeRoute({
+			tags: ['Discovery'],
+			summary: 'A discovery carousel by slug',
+			description: [
+				'Fills a `CarouselEndpoint` section by the slug its row names. `battle_algoendpoint`',
+				'and `quests_algoendpoint` serve the hot feed restricted to the `pvp` and `quest`',
+				'tags; the other slugs the discovery pages name (staffpicks, recentlyupdated,',
+				'inkshowcase, the remaining `*_algoendpoint` categories) have nothing curated',
+				'behind them yet and answer an empty page, which the client draws as no row. Any',
+				'other slug is a 404.',
+			].join(' '),
+			parameters: pageParams(100),
+			responses: {
+				200: json(PagedRooms, 'The carousel page'),
+				404: { description: 'No carousel carries that name' },
+			},
+		}),
+		async (c) => {
+			const name = c.req.param('name').toLowerCase()
+			if (EMPTY_CAROUSELS.has(name)) return c.json(serveRoomPage({ Results: [], TotalResults: 0 }))
+
+			const tag = CAROUSEL_TAGS[name]
+			if (tag === undefined) return c.notFound()
+
+			const skip = Number.parseInt(c.req.query('skip') ?? '0', 10) || 0
+			const take = Number.parseInt(c.req.query('take') ?? '100', 10) || 100
+			return c.json(serveRoomPage(await getHotRooms(c.env.DB, tag, skip, take)))
 		}
 	)
 
@@ -5597,7 +5666,7 @@ app.get(
 						'client reads the flag, not the status.',
 					].join('\n'),
 				},
-				servers: [{ url: 'https://rooms.recflare.net', description: 'Production' }],
+				servers: [{ url: 'https://rooms.recblue.net', description: 'Production' }],
 				tags: [
 					{
 						name: 'Custom',

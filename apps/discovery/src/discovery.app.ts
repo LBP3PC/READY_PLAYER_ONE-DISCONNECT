@@ -169,7 +169,7 @@ app.get(
 						'itself.',
 					].join('\n'),
 				},
-				servers: [{ url: 'https://discovery.recflare.net', description: 'Production' }],
+				servers: [{ url: 'https://discovery.recblue.net', description: 'Production' }],
 			},
 		})
 	)

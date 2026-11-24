@@ -1,6 +1,6 @@
 # auth
 
-Auth Worker served on the `auth` subdomain (`auth.recflare.net`) — a Hono app that
+Auth Worker served on the `auth` subdomain (`auth.recblue.net`) — a Hono app that
 authenticates players and issues the JWTs every other worker verifies.
 
 ## Routes

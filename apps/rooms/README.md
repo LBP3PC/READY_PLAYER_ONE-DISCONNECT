@@ -1,6 +1,6 @@
 # rooms
 
-Room Worker served on the `rooms` subdomain (`rooms.recflare.net`) — a Hono app owning
+Room Worker served on the `rooms` subdomain (`rooms.recblue.net`) — a Hono app owning
 room storage, the browse/search feeds, per-player cheers and favorites, the owner's room
 settings, and subrooms.
 

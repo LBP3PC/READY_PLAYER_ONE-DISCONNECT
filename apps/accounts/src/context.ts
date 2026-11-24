@@ -27,7 +27,7 @@ export type Env = SharedHonoEnv & {
 	/** See `auth`: the address emails come from; unset means `no-reply@<DOMAIN>`. */
 	EMAIL_FROM?: string
 	/**
-	 * Base domain, e.g. `recflare.net`, injected for every worker at deploy time
+	 * Base domain, e.g. `recblue.net`, injected for every worker at deploy time
 	 * (`--var DOMAIN`). The confirmation email links to `www.<domain>/confirm-email`.
 	 */
 	DOMAIN: string

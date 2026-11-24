@@ -1,6 +1,6 @@
 # cdn
 
-CDN Worker served on the `cdn` subdomain (`cdn.recflare.net`) — a Hono app that streams
+CDN Worker served on the `cdn` subdomain (`cdn.recblue.net`) — a Hono app that streams
 the binary blobs the client downloads while playing out of the shared `recflare-cdn` R2
 bucket, plus the JSON config files the client reads from `/config/`.
 

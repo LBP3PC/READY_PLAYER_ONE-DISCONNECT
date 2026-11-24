@@ -91,7 +91,7 @@ app.get(
 						'client calls that host and the copy here is a stub, which each route says.',
 					].join('\n'),
 				},
-				servers: [{ url: 'https://api.recflare.net', description: 'Production' }],
+				servers: [{ url: 'https://api.recblue.net', description: 'Production' }],
 				components: {
 					securitySchemes: {
 						bearerAuth: {

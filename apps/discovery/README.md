@@ -1,6 +1,6 @@
 # discovery
 
-Discovery Worker served on the `discovery` subdomain (`discovery.recflare.net`) — a Hono
+Discovery Worker served on the `discovery` subdomain (`discovery.recblue.net`) — a Hono
 app that tells the client which carousels each of its discovery pages shows, and in what
 order.
 

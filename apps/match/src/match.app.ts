@@ -4015,7 +4015,7 @@ app.get(
 						'instances nobody is standing in any more.',
 					].join('\n'),
 				},
-				servers: [{ url: 'https://match.recflare.net', description: 'Production' }],
+				servers: [{ url: 'https://match.recblue.net', description: 'Production' }],
 				components: {
 					securitySchemes: {
 						bearerAuth: {

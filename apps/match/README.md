@@ -1,6 +1,6 @@
 # match
 
-Matchmaking Worker served on the `match` subdomain (`match.recflare.net`) — a Hono app
+Matchmaking Worker served on the `match` subdomain (`match.recblue.net`) — a Hono app
 that handles player presence and places players into room instances. Rooms, room
 instances and presence all live in the shared `recflare` D1 database.
 
@@ -8,7 +8,7 @@ instances and presence all live in the shared `recflare` D1 database.
 
 | Method | Path                                 | Auth | Description                                                   |
 | ------ | ------------------------------------ | ---- | ------------------------------------------------------------- |
-| POST   | `/player/login`                      |      | Login ack (no-op; must not touch presence)                    |
+| POST   | `/player/login`                      |      | Login ack → `{ errorCode: 0 }` (must not touch presence)      |
 | POST   | `/player/exclusivelogin`             |      | Exclusive-login ack (no-op) → `{ errorCode: 0 }`              |
 | POST   | `/player/logout`                     | ✓\*  | Clear presence (except the Orientation seed)                  |
 | POST   | `/player/notifydisconnect`           |      | Disconnect notification (no-op ack)                           |

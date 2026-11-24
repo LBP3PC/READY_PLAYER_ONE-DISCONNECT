@@ -399,7 +399,7 @@ app.get(
 						'Unreadable bodies are answered (empty board / unranked), never rejected.',
 					].join('\n'),
 				},
-				servers: [{ url: 'https://leaderboard.recflare.net', description: 'Production' }],
+				servers: [{ url: 'https://leaderboard.recblue.net', description: 'Production' }],
 			},
 		})
 	)

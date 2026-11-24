@@ -8681,7 +8681,7 @@ app.get(
 						'inventory, consumables, saved outfits and gift boxes are D1-backed.',
 					].join('\n'),
 				},
-				servers: [{ url: 'https://econ.recflare.net', description: 'Production' }],
+				servers: [{ url: 'https://econ.recblue.net', description: 'Production' }],
 				components: {
 					securitySchemes: {
 						bearerAuth: {

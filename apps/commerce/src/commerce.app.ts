@@ -198,7 +198,7 @@ app.get(
 						'purchase initiation answers with a placeholder transaction id.',
 					].join('\n'),
 				},
-				servers: [{ url: 'https://commerce.recflare.net', description: 'Production' }],
+				servers: [{ url: 'https://commerce.recblue.net', description: 'Production' }],
 			},
 		})
 	)

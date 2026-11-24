@@ -7,6 +7,8 @@ export type Env = SharedHonoEnv & {
 	// seeds new players' presence to the Orientation room (the shared `presence`
 	// table, see @repo/domain) so the match heartbeat keeps them there.
 	DB: D1Database
+	/** Secret partagé uniquement avec le worker du site, pour lier les identités prouvées. */
+	SITE_BRIDGE_TOKEN?: string
 	// Shared Secrets Store binding for the HS256 signing key. Resolve the value with
 	// `await env.JWT_SECRET.get()`. Every worker binds the same store, so tokens
 	// signed here verify in all of them. Provisioned via `wrangler secrets-store`;
@@ -112,7 +114,7 @@ export type Env = SharedHonoEnv & {
 	 */
 	ROLLOUT_GAME_VERSIONS?: string
 	/**
-	 * Base domain, e.g. `recflare.net`. Injected for every worker at deploy time
+	 * Base domain, e.g. `recblue.net`. Injected for every worker at deploy time
 	 * (`--var DOMAIN`). Studio's device-login response points the browser at
 	 * `www.<domain>/device`, so auth has to know the same domain `ns` advertises.
 	 */

@@ -1563,7 +1563,7 @@ app.get(
 						'client dispatches on it and silently drops a numeric one.)',
 					].join('\n'),
 				},
-				servers: [{ url: 'https://chat.recflare.net', description: 'Production' }],
+				servers: [{ url: 'https://chat.recblue.net', description: 'Production' }],
 				components: {
 					securitySchemes: {
 						bearerAuth: {

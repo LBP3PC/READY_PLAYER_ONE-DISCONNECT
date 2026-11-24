@@ -1,6 +1,6 @@
 # ai
 
-AI worker served on the `ai` subdomain (`ai.recflare.net`). The client checks here before
+AI worker served on the `ai` subdomain (`ai.recblue.net`). The client checks here before
 offering any of its AI features — Game AI in a room, the Roomie assistant, and Maker AI's
 usage meter.
 
