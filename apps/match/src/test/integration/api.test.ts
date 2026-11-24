@@ -2047,8 +2047,10 @@ describe('auth-gated endpoints', () => {
 		expect(res.status).toBe(401)
 	})
 
-	test('POST /matchmake/dorm returns the same personal dorm (idempotent)', async () => {
-		// First entry (fresh account 43) creates the dorm; a second returns the same one.
+	test('POST /matchmake/dorm returns the same dorm but a fresh session each entry', async () => {
+		// First entry (fresh account 43) creates the dorm; each further entry enters the
+		// same ROOM in a NEW session — reusing the Photon room is what made the client
+		// fail every other load with `Code 8700`.
 		const first = (await (
 			await exports.default.fetch(`${ORIGIN}/matchmake/dorm`, {
 				method: 'POST',
@@ -2078,11 +2080,12 @@ describe('auth-gated endpoints', () => {
 			name: "@Roomie's Dorm",
 			location: '76d98498-60a1-430c-ab76-b54a29b7a163',
 			isPrivate: true,
-			// Same dorm room + reused instance (stable id + Photon room), not a new one.
+			// Same dorm ROOM — the dorm itself persists…
 			roomId: first.roomInstance.roomId,
-			photonRoomId: first.roomInstance.photonRoomId,
-			roomInstanceId: first.roomInstance.roomInstanceId,
 		})
+		// …but never the same session: a new instance and a new Photon room per entry.
+		expect(body.roomInstance.roomInstanceId).not.toBe(first.roomInstance.roomInstanceId)
+		expect(body.roomInstance.photonRoomId).not.toBe(first.roomInstance.photonRoomId)
 	})
 
 	// The dorm a player picks (`rooms` `PUT /dormroom/me`, stored in their settings map)
@@ -2124,7 +2127,7 @@ describe('auth-gated endpoints', () => {
 		expect((await dorm()).roomId).toBe(provisioned)
 	})
 
-	test('POST /matchmake/dorm gives each client build its own dorm instance', async () => {
+	test('POST /matchmake/dorm gives every entry, and so every client build, its own dorm instance', async () => {
 		const dorm = async (version: string) =>
 			(await (
 				await exports.default.fetch(`${ORIGIN}/matchmake/dorm`, {
@@ -2140,16 +2143,22 @@ describe('auth-gated endpoints', () => {
 		const newer = await dorm('20250718.01')
 		expect(newer.roomInstance.roomId).toBe(older.roomInstance.roomId)
 
-		// ...but a separate session per build. A dorm takes guests, so a mixed one is a
-		// room where neither side can see what the other spawned; the owner on a new build
-		// and a guest still on the old one are deliberately kept apart.
+		// ...but a separate session per entry. A dorm takes guests, so a mixed session is
+		// a room where neither side can see what the other spawned; the owner on a new
+		// build and a guest still on the old one were deliberately kept apart, and since
+		// every entry now mints its own session that holds by construction.
 		expect(newer.roomInstance.roomInstanceId).not.toBe(older.roomInstance.roomInstanceId)
 		expect(newer.roomInstance.photonRoomId).not.toBe(older.roomInstance.photonRoomId)
 
-		// Each build's instance is still the stable one it re-enters (id + Photon room),
-		// and coming back on the older build doesn't hand back the newer session.
-		expect(await dorm('20250424.01')).toMatchObject({ roomInstance: older.roomInstance })
-		expect(await dorm('20250718.01')).toMatchObject({ roomInstance: newer.roomInstance })
+		// Coming back — on either build — never hands back a session already used; it is
+		// always a Photon room nobody has joined before.
+		const seen = new Set([older.roomInstance.photonRoomId, newer.roomInstance.photonRoomId])
+		for (const version of ['20250424.01', '20250718.01']) {
+			const again = await dorm(version)
+			expect(again.roomInstance.roomId).toBe(older.roomInstance.roomId)
+			expect(seen.has(again.roomInstance.photonRoomId)).toBe(false)
+			seen.add(again.roomInstance.photonRoomId)
+		}
 	})
 
 	test('a matchmake echoes the request’s CorrelationId (and mirrors errorCode as result)', async () => {
@@ -4464,11 +4473,13 @@ describe('account bans', () => {
 		expect(body.errorCode).toBe(0)
 		expect(body.roomInstance).not.toBeNull()
 
-		// Their OWN dorm, the same one every time — not a room anyone else can reach.
+		// Their OWN dorm, the same ROOM every time — not a room anyone else can reach. Each
+		// entry is a fresh session of it (see playerDormInstance), so the instance ids differ.
 		const again = (await (await matchmake('/matchmake/dorm', '6008')).json()) as {
-			roomInstance: { roomInstanceId: number } | null
+			roomInstance: { roomInstanceId: number; roomId: number } | null
 		}
-		expect(again.roomInstance?.roomInstanceId).toBe(body.roomInstance!.roomInstanceId)
+		expect(again.roomInstance?.roomId).toBe(body.roomInstance!.roomId)
+		expect(again.roomInstance?.roomInstanceId).not.toBe(body.roomInstance!.roomInstanceId)
 
 		// And it is only the dorm — the ban is otherwise untouched.
 		expect(await (await matchmake('/matchmake/room/2', '6008')).json()).toEqual(refused(55))
@@ -4503,11 +4514,12 @@ describe('account bans', () => {
 		// NOT the room they were standing in.
 		expect(body.roomInstance?.roomInstanceId).not.toBe(joined.roomInstance.roomInstanceId)
 		expect(body.roomInstance?.roomId).not.toBe(joined.roomInstance.roomId)
-		// It is their dorm — the same instance `/matchmake/dorm` answers.
+		// It is their dorm — the same room `/matchmake/dorm` answers, in its own session.
 		const dorm = (await (await matchmake('/matchmake/dorm', '6011')).json()) as {
-			roomInstance: { roomInstanceId: number } | null
+			roomInstance: { roomInstanceId: number; roomId: number } | null
 		}
-		expect(dorm.roomInstance?.roomInstanceId).toBe(body.roomInstance?.roomInstanceId)
+		expect(dorm.roomInstance?.roomId).toBe(body.roomInstance?.roomId)
+		expect(dorm.roomInstance?.roomInstanceId).not.toBe(body.roomInstance?.roomInstanceId)
 	})
 
 	// An evader signs in like anyone else (`auth` issues them a token), so they must be able to

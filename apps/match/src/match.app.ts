@@ -30,7 +30,6 @@ import {
 	getRoomById,
 	getRoomByName,
 	getRoomInstance,
-	getRoomInstancesByRoom,
 	getRoomInstanceSummariesByRoom,
 	getRoomInvite,
 	getSharedPrivateInstance,
@@ -1953,41 +1952,42 @@ async function matchmakeIntoRoom(c: Context<App>) {
  * show up on the next visit — what persists about a dorm is the ROOM and the scene saved
  * in it, not the session.
  *
- * One instance PER CLIENT BUILD: a dorm isn't private to its owner — they can invite
- * people in — so it's an instance like any other and a build gets its own. An owner on a
- * new build and a guest still on the old one end up in different sessions of the same
- * dorm and can't see each other, which is the point: a mixed instance is a room where
- * each side silently fails to see what the other spawned.
- *
- * A dorm instance is reused while it lasts — the owner leaving and coming back on the
- * same build lands in the same session — but it is swept like any other once it sits
- * empty past the grace window, and they simply get a fresh one on the next visit.
+ * Every entry mints a NEW instance: the previous session is never reused, so the owner
+ * always joins a Photon room nobody has been in before. That is what keeps a re-entry
+ * from landing on a session the client can no longer load (the alternating `Code 8700`),
+ * and it also keeps each client build in its own session by construction — a dorm isn't
+ * private to its owner, so a mixed instance would be a room where each side silently
+ * fails to see what the other spawned. The session left behind holds nobody once the
+ * owner is elsewhere, and the cron sweep retires it like any other empty instance.
  */
 async function playerDormInstance(c: Context<App>, accountId: number): Promise<RoomInstance> {
 	// The dorm the player picked (`rooms` `PUT /dormroom/me`) replaces their provisioned one.
 	const room = await getPlayerDormRoom(c.env.DB, c.env.RECFLARE_PLAYER_SETTINGS, accountId)
 	const f = instanceFieldsFromRoom(room)
 	const gameVersion = await callerGameVersion(c)
-	// Reuse this build's dorm instance (private, so getJoinableInstance won't find it).
-	let instance = (await getRoomInstancesByRoom(c.env.DB, f.roomId, gameVersion))[0]
-	if (!instance) {
-		instance = await createRoomInstance(c.env.DB, {
-			ownerAccountId: accountId,
-			roomId: f.roomId,
-			subRoomId: f.subRoomId,
-			location: f.location,
-			dataBlob: f.dataBlob,
-			photonRoomId: crypto.randomUUID(),
-			// Same single region as /player/connection-info; otherwise the stored instance
-			// falls back to `us` and the 2023 client gets a region mismatch.
-			photonRegionId: instancePhotonRegion(c.env),
-			name: f.name,
-			maxCapacity: f.maxCapacity,
-			isPrivate: true,
-			roomInstanceType: f.roomInstanceType,
-			gameVersion,
-		})
-	}
+	// A FRESH Photon session on every entry — no reuse of the previous one.
+	// Re-entering the dorm used to hand back the same instance, and with it the same
+	// Photon room id; the client then alternated between a good join and
+	// "Unknown error loading room (Code 8700)" in `JoinRoomLoadWithPhoton`. A dorm is
+	// private to its owner and nobody else is placed in it by matchmaking, so nothing
+	// depends on the session outliving the visit: only the ROOM and the scene saved in
+	// it persist (re-read above). Sessions left empty are retired by the cron sweep.
+	const instance = await createRoomInstance(c.env.DB, {
+		ownerAccountId: accountId,
+		roomId: f.roomId,
+		subRoomId: f.subRoomId,
+		location: f.location,
+		dataBlob: f.dataBlob,
+		photonRoomId: crypto.randomUUID(),
+		// Same single region as /player/connection-info; otherwise the stored instance
+		// falls back to `us` and the 2023 client gets a region mismatch.
+		photonRegionId: instancePhotonRegion(c.env),
+		name: f.name,
+		maxCapacity: f.maxCapacity,
+		isPrivate: true,
+		roomInstanceType: f.roomInstanceType,
+		gameVersion,
+	})
 	return roomInstanceFromRoom(c.env, room, true, instance.roomInstanceId, instance.photonRoomId)
 }
 
