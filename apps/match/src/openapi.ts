@@ -115,8 +115,9 @@ export const RoomInstanceSummaryDto = z.object({
  * A player's presence as the client reads it (`GET /player`, `POST /player/heartbeat`).
  * `isOnline` means "has a live (unexpired) presence row", NOT "is in a room" — a player
  * can be online in the lobby with `roomInstance` null. The `photon*`/`voice*`
- * connection fields are only populated in a matchmaking response, never here, but the
- * client needs the keys present, so they're always null.
+ * connection fields are populated on the CALLER's own payload so the 2023 client can
+ * connect straight from `/player`; a batch lookup of other players keeps them null and
+ * never hands out their credentials.
  */
 export const PlayerDto = z.object({
 	playerId: z.int(),
@@ -128,15 +129,23 @@ export const PlayerDto = z.object({
 	statusVisibility: z.int(),
 	vrMovementMode: z.int(),
 	platform: z.int(),
-	photonAuthToken: z.null(),
-	photonRealtimeAppId: z.null(),
-	photonVoiceAppId: z.null(),
-	photonChatAppId: z.null(),
-	photonRegion: z.null(),
-	photonRoomId: z.null(),
-	voiceConnectionInfo: z.null(),
-	voiceServerId: z.null(),
-	experiments: z.null(),
+	photonAuthToken: z
+		.string()
+		.nullable()
+		.describe('Only on the caller’s own payload; null for other players'),
+	photonRealtimeAppId: z.string().nullable(),
+	photonVoiceAppId: z.string().nullable(),
+	photonChatAppId: z.string().nullable(),
+	photonRegion: z.string().nullable(),
+	photonRoomId: z.string().nullable(),
+	voiceConnectionInfo: z.string().nullable(),
+	voiceServerId: z.string().nullable(),
+	experiments: z
+		.union([
+			z.array(z.unknown()),
+			z.record(z.string(), z.union([z.number(), z.boolean()])),
+		])
+		.describe('Empty when none are assigned; connection flags on the caller’s own payload'),
 })
 
 /**
