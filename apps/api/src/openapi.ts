@@ -397,7 +397,7 @@ export const CreateCustomAvatarItemMetadata = z.object({
 		.number()
 		.int()
 		.optional()
-		.describe('Tokens, 0–1000 (MAX_PLAYER_ITEM_PRICE); 0 when left out'),
+		.describe('Tokens, 0–10 000 (MAX_PLAYER_ITEM_PRICE); 0 when left out'),
 	BaseAvatarItemId: z.number().int(),
 	BaseAvatarItemColor: z.string().describe('Hex colour, e.g. `#F55C1A`'),
 	Accessibility: z.number().int().optional(),
@@ -477,7 +477,7 @@ export const CustomAvatarItemDto = z.object({
 export const UpdateCustomAvatarItemRequest = z.object({
 	Name: z.string().nullable().optional(),
 	Description: z.string().nullable().optional(),
-	Price: z.number().int().nullable().optional().describe('Tokens, 0–1000 (MAX_PLAYER_ITEM_PRICE)'),
+	Price: z.number().int().nullable().optional().describe('Tokens, 0–10 000 (MAX_PLAYER_ITEM_PRICE)'),
 	Accessibility: z.number().int().nullable().optional(),
 })
 
@@ -1143,6 +1143,37 @@ export const KeepsakeConfig = z.object({
 export const KeepsakeCategories = z.object({
 	Results: JsonArray.describe('The categories — empty, as no keepsake catalog is stored'),
 	TotalResults: z.int().describe('How many results `Results` carries'),
+})
+
+/**
+ * `GET /api/keepsakes/rooms/{roomId}` — a room's keepsake instances.
+ *
+ * Served as an OBJECT with an empty `KeepsakeInstanceIds`, never as a bodiless 204: the
+ * 2023 client's `GetAllKeepsakeInstanceIdsAndCategoriesForRoom` deserializes this into a
+ * non-null DTO and maps `KeepsakeInstanceIds` out of it, so an empty body leaves it with
+ * a null model and throws `NullReferenceException` on every room-panel refresh
+ * (`RRUI.Data.RoomModel.GetUncollectedKeepsakeCountPerCategoryForRoom`, reached from
+ * `CompositeController.OnModelChanged`) — which is the watch menu's « This Room » panel
+ * freezing rather than just showing no keepsakes.
+ */
+export const KeepsakeRoomInstances = z.object({
+	KeepsakeRoomId: z.int().describe('The room the instances belong to'),
+	KeepsakeInstanceIds: z
+		.array(z.int())
+		.describe('The room’s keepsake instances — empty, as nothing stores keepsakes'),
+})
+
+/**
+ * `GET /api/keepsakes/events/{eventId}` — the keepsakes a progression event hands out.
+ *
+ * Same rule as {@link KeepsakeRoomInstances}: an object with empty collections, because
+ * the client maps them and a 404 (the route did not exist) or an empty body throws in
+ * the same room-panel refresh path.
+ */
+export const KeepsakeEventInstances = z.object({
+	KeepsakeProgressionEventId: z.int().describe('The progression event the instances belong to'),
+	KeepsakeProgressionEventIds: z.array(z.int()).describe('The event’s keepsake progression ids — empty'),
+	KeepsakeInstanceIds: z.array(z.int()).describe('The event’s keepsake instances — empty'),
 })
 
 /**

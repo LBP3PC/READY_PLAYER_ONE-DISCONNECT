@@ -102,7 +102,12 @@ export const roomRoutes = new Hono<App>({ strict: false })
 	// body (falling back to the query string). Returns a bare `true`/`false`: the
 	// room creator always passes; otherwise the caller needs a Roles entry with
 	// `Role >= role`. Any failure (no token, unknown room, insufficient role) is
-	// `false`. The `context` field (e.g. MakerPen) is accepted and ignored.
+	// `false`.
+	//
+	// `context: MakerPen` is the ONE exception, and it always passes: this is the only check
+	// the client runs before opening the Maker Pen, and in a public room the player did not
+	// create it answered `false`, which closed the pen AND invention creation. A caller still
+	// needs a valid token — the pen is open to every PLAYER, not to anonymous requests.
 	.post(
 		'/api/rooms/v1/verifyRole',
 		describeRoute({
@@ -112,6 +117,9 @@ export const roomRoutes = new Hono<App>({ strict: false })
 				'Whether the caller holds at least `role` in the room — the gate the client checks ' +
 				'before letting someone into the Maker Pen. The room’s creator always passes; ' +
 				'anyone else needs a `Roles` entry at that level or higher.\n\n' +
+				'`context: MakerPen` is the exception: it always answers `true` for an ' +
+				'authenticated caller, so the Maker Pen — and invention creation — works in any ' +
+				'room, including public rooms the caller does not own.\n\n' +
 				'Answers a bare `true`/`false`, and every failure is `false` rather than an error ' +
 				'status: no token, an unknown room, and an insufficient role are indistinguishable ' +
 				'to the client. Params are read from the form body, falling back to the query ' +
@@ -133,7 +141,12 @@ export const roomRoutes = new Hono<App>({ strict: false })
 			const role = Number.parseInt(param('role'), 10)
 
 			const accountId = await authedId(c)
-			if (accountId === null || Number.isNaN(roomId)) return c.json(false)
+			if (accountId === null) return c.json(false)
+			// Le Maker Pen est ouvert à tout joueur connecté, dans n'importe quelle room : c'est
+			// la vérification que le client fait avant de l'ouvrir, donc la laisser dépendre du
+			// rôle de l'appelant le fermait partout sauf dans ses propres rooms.
+			if (param('context').toLowerCase() === 'makerpen') return c.json(true)
+			if (Number.isNaN(roomId)) return c.json(false)
 
 			const room = await getRoomById(c.env.DB, roomId)
 			if (!room) return c.json(false)

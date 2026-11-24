@@ -2405,9 +2405,20 @@ describe('public endpoints', () => {
 		expect(await res.json()).toMatchObject({ KeepsakeFeatureEnabled: false })
 	})
 
-	test('GET /api/keepsakes/rooms/:id returns 204; categories returns an empty result set', async () => {
+	test('GET /api/keepsakes/rooms/:id and /events/:id answer empty objects; categories an empty result set', async () => {
+		// Objects with empty collections, not 204s: the client deserializes these and maps
+		// `KeepsakeInstanceIds`, so a bodiless 204 (or the 404 the events path used to give)
+		// left its model null and threw on every room-panel refresh.
 		const room = await exports.default.fetch(`${ORIGIN}/api/keepsakes/rooms/1`)
-		expect(room.status).toBe(204)
+		expect(room.status).toBe(200)
+		expect(await room.json()).toEqual({ KeepsakeRoomId: 1, KeepsakeInstanceIds: [] })
+		const event = await exports.default.fetch(`${ORIGIN}/api/keepsakes/events/18`)
+		expect(event.status).toBe(200)
+		expect(await event.json()).toEqual({
+			KeepsakeProgressionEventId: 18,
+			KeepsakeProgressionEventIds: [],
+			KeepsakeInstanceIds: [],
+		})
 		// A result set, not a list: the client parses this one as an object and an array
 		// fails it outright ("expected '{', actual '['").
 		const cats = await exports.default.fetch(`${ORIGIN}/api/keepsakes/categories`)
@@ -7341,6 +7352,8 @@ describe('player reports', () => {
 				IsBan: true,
 				// Le motif écrit par l'administration du site nomme le ban.
 				Message: 'Triche',
+				// La ligne d'aide renvoie vers REC BLUE, pas vers le support de Rec Room.
+				BottomMessageOverride: 'Pour toute information, contacte-nous sur recblue.net',
 			})
 		})
 
@@ -7356,7 +7369,11 @@ describe('player reports', () => {
 				)
 				.run()
 
-			const { Duration: _duration, ...unblocked } = NOT_BLOCKED
+			const {
+				Duration: _duration,
+				BottomMessageOverride: _help,
+				...unblocked
+			} = NOT_BLOCKED
 			const body = (await details('GET', '227')) as Record<string, unknown>
 			// Sans motif écrit par l'administration, c'est le message fixe des bans de
 			// signalement que l'écran affiche.
@@ -7365,6 +7382,7 @@ describe('player reports', () => {
 				ReportCategory: 6,
 				IsBan: true,
 				Message: 'Rule violation',
+				BottomMessageOverride: 'Pour toute information, contacte-nous sur recblue.net',
 			})
 			expect(body.Duration).toBeGreaterThan(3595)
 			expect(body.Duration).toBeLessThanOrEqual(3600)
@@ -7375,6 +7393,27 @@ describe('player reports', () => {
 				 WHERE account_id = 227`
 			).run()
 			expect(await details('GET', '227')).toEqual(NOT_BLOCKED)
+		})
+
+		// Le bouton « Ban appeal code » : la route manquait, le client affichait donc
+		// « An error occurred » sous son propre écran de bannissement.
+		test('serves a ban appeal code', async () => {
+			const anon = await exports.default.fetch(`${ORIGIN}/api/banappeal/generateCode`)
+			expect(anon.status).toBe(401)
+
+			const res = await exports.default.fetch(`${ORIGIN}/api/banappeal/generateCode`, {
+				headers: await bearer('228'),
+			})
+			expect(res.status).toBe(200)
+			const body = (await res.json()) as { success?: boolean; error?: string; value?: string }
+			expect(body.success).toBe(true)
+			expect(body.error).toBe('')
+			// Le client fait `new Uri(value)` puis l'ouvre : une chaîne qui n'est pas une URI
+			// absolue levait `UriFormatException` au clic. Le bouton ouvre donc le client
+			// mail vers le support REC BLUE, le code en objet.
+			expect(body.value).toMatch(
+				/^mailto:support@recblue\.net\?subject=Ban%20appeal%20[A-Z0-9]{8}$/
+			)
 		})
 	})
 })
@@ -11235,6 +11274,7 @@ describe('openapi', () => {
 			'GET /api/inventions/v2/search',
 			'GET /api/inventions/v3/publish',
 			'GET /api/keepsakes/categories',
+			'GET /api/keepsakes/events/{eventId}',
 			'GET /api/keepsakes/globalconfig',
 			'GET /api/keepsakes/rooms/{roomId}',
 			'GET /api/messages/v1/favoriteFriendOnlineStatus',

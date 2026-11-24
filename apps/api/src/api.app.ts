@@ -76,10 +76,10 @@ app.get(
 		openAPIRouteHandler(app, {
 			documentation: {
 				info: {
-					title: 'recflare api',
+					title: 'REC BLUE api',
 					version: '1.0.0',
 					description: [
-						'The catch-all Game API for recflare, a private-server reimplementation of the Rec',
+						'The catch-all Game API for REC BLUE, a private-server reimplementation of the Rec',
 						'Room backend: everything the client calls that has not been split out into its own',
 						'worker yet. Today that is config, the friend graph, inventions, saved photos,',
 						'player events, reputation and the assorted sinks the client hits while loading.',

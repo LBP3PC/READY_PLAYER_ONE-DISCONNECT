@@ -1200,12 +1200,14 @@ export async function setInventionCheer(
 export async function isInventionCheered(
 	db: D1Database,
 	playerId: number,
-	inventionId: number
+	// Digits as TEXT as well as a number: the caller's own inventions carry 64-bit ids, and
+	// a parsed one is rounded into an id that no row has.
+	inventionId: number | string
 ): Promise<boolean> {
 	const row = await db
 		.prepare(
 			`SELECT 1 AS found FROM invention_interaction
-			 WHERE player_id = ?1 AND invention_id = ?2 AND cheered = 1`
+			 WHERE player_id = ?1 AND invention_id = CAST(?2 AS INTEGER) AND cheered = 1`
 		)
 		.bind(playerId, inventionId)
 		.first<{ found: number }>()
@@ -1409,4 +1411,196 @@ export async function getInventionById(
 		.bind(inventionId)
 		.first<InventionRow>()
 	return row ? (JSON.parse(row.data) as SavedInvention) : null
+}
+
+/**
+ * Look up by the id exactly as the client wrote it. A Rec Room invention id is a 64-bit
+ * number that a JS `number` cannot hold, so `Number.parseInt` rounds it and the lookup
+ * misses; the digits are cast inside SQLite instead, where the id is an exact INTEGER.
+ * A value that is not digits, or too long for int64, is treated as no invention.
+ */
+export async function getInventionByRawId(
+	db: D1Database,
+	rawId: string
+): Promise<SavedInvention | null> {
+	const raw = await getInventionRawByRawId(db, rawId)
+	return raw === null ? null : (JSON.parse(raw) as SavedInvention)
+}
+
+/**
+ * The stored JSON text, untouched. Encoding an invention with `JSON.stringify` would route
+ * its 64-bit `InventionId` through a JS number and print it rounded, so callers that hand
+ * the record straight back to the client must return this string as-is.
+ */
+export async function getInventionRawByRawId(
+	db: D1Database,
+	rawId: string
+): Promise<string | null> {
+	if (!/^[0-9]{1,19}$/.test(rawId)) return null
+	const row = await db
+		.prepare('SELECT data FROM invention WHERE id = CAST(?1 AS INTEGER)')
+		.bind(rawId)
+		.first<InventionRow>()
+	return row ? row.data : null
+}
+
+/**
+ * Several inventions by the ids exactly as the client wrote them, as stored JSON text keyed
+ * by those same digits.
+ *
+ * Same reason as {@link getInventionRawByRawId}: the ids are 64-bit and a JS number rounds
+ * them, so the digits are cast inside SQLite and handed back as text. Keying by the exact
+ * digits lets a caller put the rows back in the order it asked for without ever holding one
+ * in a number.
+ */
+export async function getInventionsRawByRawIds(
+	db: D1Database,
+	rawIds: string[]
+): Promise<Map<string, string>> {
+	const ids = [...new Set(rawIds.filter((id) => /^[0-9]{1,19}$/.test(id)))]
+	if (ids.length === 0) return new Map()
+	// One bound JSON array rather than a placeholder per id: a room's worth of ids overflows
+	// the 100-variable cap on a statement.
+	const { results } = await db
+		.prepare(
+			`SELECT CAST(id AS TEXT) AS id_text, data FROM invention
+			 WHERE id IN (SELECT CAST(value AS INTEGER) FROM json_each(?1))`
+		)
+		.bind(JSON.stringify(ids))
+		.all<{ id_text: string; data: string }>()
+	return new Map(results.map((row) => [row.id_text, row.data]))
+}
+
+/**
+ * The caller's own inventions as stored JSON text, newest first — what `v2/mine` serves.
+ *
+ * Exactly the rows {@link getMyInventions} picks (created plus bought, drafts included), but
+ * never decoded and re-encoded: re-encoding routes every `InventionId` through a JS number
+ * and prints it rounded, and the client then asks about an id that does not exist.
+ */
+export async function getMyInventionsRawJson(
+	db: D1Database,
+	playerId: number
+): Promise<string> {
+	const columns = `SELECT data, CAST(id AS TEXT) AS id_text, json_extract(data, '$.CreatedAt') AS created_at`
+	const [created, bought] = await Promise.all([
+		db
+			.prepare(`${columns} FROM invention WHERE creator_player_id = ?1`)
+			.bind(playerId)
+			.all<{ data: string; id_text: string; created_at: string | null }>(),
+		db
+			.prepare(
+				`${columns} FROM invention i
+				 JOIN inventory_invention v ON v.invention_id = i.id
+				 WHERE v.account_id = ?1`
+			)
+			.bind(playerId)
+			.all<{ data: string; id_text: string; created_at: string | null }>(),
+	])
+
+	const byId = new Map<string, { data: string; created_at: string | null }>()
+	for (const row of [...created.results, ...bought.results]) {
+		byId.set(row.id_text, { data: row.data, created_at: row.created_at })
+	}
+	const rows = [...byId.entries()].sort(
+		([aId, a], [bId, b]) =>
+			(b.created_at ?? '').localeCompare(a.created_at ?? '') ||
+			// BigInt, not Number: comparing two 19-digit ids as numbers is a coin flip.
+			(BigInt(bId) > BigInt(aId) ? 1 : BigInt(bId) < BigInt(aId) ? -1 : 0)
+	)
+	return `[${rows.map(([id, row]) => toClientJson(row.data, id)).join(',')}]`
+}
+
+/**
+ * One stored record as the client reads it — {@link withClientInvention}'s flat `RRInvention`
+ * laid over the stored keys — serialized as JSON text with its 64-bit id intact.
+ *
+ * `exactId` is the row's own digits, straight from `CAST(id AS TEXT)`. Encoding routes the
+ * id through a JS number and prints it rounded, so the digits are put back into the text; the
+ * substitution covers `CurrentVersion.InventionId` too, which carries the same rounded value.
+ */
+export function toClientJson(raw: string, exactId?: string): string {
+	const record = JSON.parse(raw) as SavedInvention
+	const id = exactId ?? /^\s*\{[^}]*?"InventionId":([0-9]+)/.exec(raw)?.[1]
+	if (id === undefined) return JSON.stringify(withClientInvention(record))
+	return JSON.stringify(withClientInvention(record)).split(`"InventionId":${record.InventionId}`).join(`"InventionId":${id}`)
+}
+
+/**
+ * A single version, by the id as the client wrote it — {@link getInventionVersion} without the
+ * rounding, for the 64-bit ids the client's own inventions carry.
+ */
+export async function getInventionVersionByRawId(
+	db: D1Database,
+	bucket: R2Bucket,
+	rawId: string,
+	versionNumber: number
+): Promise<InventionVersion | null> {
+	const invention = await getInventionByRawId(db, rawId)
+	if (invention === null) return null
+	if (
+		versionNumber !== CURRENT_INVENTION_VERSION &&
+		invention.CurrentVersionNumber !== versionNumber
+	) {
+		return null
+	}
+	// Same one-time backfill as {@link getInventionVersion}: a version saved before its blob was
+	// hashed carries no hash, so hash it now and keep it. The write is done on the stored TEXT
+	// and matched on the cast id — re-encoding the record would round its 64-bit id.
+	if (invention.CurrentVersion.BlobHash === null) {
+		const hash = await inventionBlobHash(bucket, invention.CurrentVersion.BlobName)
+		if (hash !== null) {
+			invention.CurrentVersion = { ...invention.CurrentVersion, BlobHash: hash }
+			const raw = await getInventionRawByRawId(db, rawId)
+			if (raw !== null) {
+				await db
+					.prepare('UPDATE invention SET data = ?1 WHERE id = CAST(?2 AS INTEGER)')
+					.bind(raw.replace(/"BlobHash":(?:null|"[^"]*")/, `"BlobHash":"${hash}"`), rawId)
+					.run()
+			}
+		}
+	}
+	return invention.CurrentVersion
+}
+
+/**
+ * An invention's tags, by the id as the client wrote it — {@link getInventionTags} for 64-bit
+ * ids. Null when there is no such invention, so `v1/details` can 404 rather than pretend.
+ */
+export async function getInventionTagsByRawId(
+	db: D1Database,
+	rawId: string
+): Promise<InventionTag[] | null> {
+	const invention = await getInventionByRawId(db, rawId)
+	return invention === null ? null : (invention.Tags ?? [])
+}
+
+/**
+ * Whether the player owns every invention asked about, by the ids as the client wrote them —
+ * {@link ownsAllInventions} for the 64-bit ids an imported invention carries.
+ */
+export async function ownsAllInventionsByRawIds(
+	db: D1Database,
+	playerId: number,
+	rawIds: string[]
+): Promise<boolean> {
+	if (rawIds.length === 0) return true
+	const unique = [...new Set(rawIds)]
+	const [byId, owned] = await Promise.all([
+		getInventionsRawByRawIds(db, unique),
+		// Read the acquired ids as digits too: an id bought from the official game is 64-bit,
+		// and `getOwnedInventionIds` hands them back as rounded JS numbers.
+		db
+			.prepare('SELECT CAST(invention_id AS TEXT) AS id_text FROM inventory_invention WHERE account_id = ?1')
+			.bind(playerId)
+			.all<{ id_text: string }>(),
+	])
+	const bought = new Set(owned.results.map((row) => row.id_text))
+	return unique.every((id) => {
+		const raw = byId.get(id)
+		if (raw === undefined) return false
+		// Only the creator is read out; the id itself is never decoded.
+		const creator = /"CreatorPlayerId":([0-9]+)/.exec(raw)?.[1]
+		return creator === String(playerId) || bought.has(id)
+	})
 }

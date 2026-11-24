@@ -2,31 +2,45 @@
   "FeaturedPlayer": {
     "Id": 1,
     "TitleOverride": "",
-    "UrlOverride": null
+    "UrlOverride": "https://recblue.net"
   },
   "FeaturedRoomGroup": {
     "FeaturedRoomGroupId": 2,
     "Name": "Featured Rooms",
-    "Rooms": [
-    ]
+    "Rooms": []
   },
   "CurrentAnnouncement": {
-    "Message": "Server powered by RecFlare",
-    "MoreInfoUrl": "https://recflare.net"
+    "Message": "Bienvenue sur REC BLUE",
+    "MoreInfoUrl": "https://recblue.net"
   },
   "InstagramImages": [
     {
-      "ImageName": "test.jpg",
-      "ImageUrl": "https://github.com/djdevin/recflare"
+      "ImageName": "RecCenter.jpg",
+      "ImageUrl": "https://img.recblue.net"
     }
   ],
+  "_comment": "ImageUrl is the host that serves the FILES named by ImageName. The client reads a board photo as ImageUrl/ImageName, and recblue.net cannot serve a photo: it points at recblue.net/sharecamera/… — never an image route — and left the strip empty. The bytes live on the `img` worker (apps/img), whose static fallback is this image's only copy.",
   "Videos": [
     {
+      "BlobName": "rEbd4ol2llg-fast.mp4",
+      "Title": "LittleBigPlanet 3",
+      "Description": "LBP3 PS4 - la video complete (4:53).",
+      "ThumbnailBlobName": "video/rEbd4ol2llg.jpg",
+      "SourceUrl": "https://www.youtube.com/watch?v=rEbd4ol2llg"
+    },
+    {
+      "BlobName": "r1n_eSnbkp8-fast.mp4",
+      "Title": "LBP3 - enregistrement du 27 aout 2024",
+      "Description": "LBP3 PS4 - la video complete.",
+      "ThumbnailBlobName": "video/r1n_eSnbkp8.jpg",
+      "SourceUrl": "https://www.youtube.com/watch?v=r1n_eSnbkp8"
+    },
+    {
       "BlobName": "something.mp4",
-      "Title": "test",
-      "Description": "test description",
-      "ThumbnailBlobName": "something.jpg",
-      "SourceUrl": "https://www.youtube.com"
+      "Title": "REC BLUE",
+      "Description": "Le serveur communautaire Rec Room.",
+      "ThumbnailBlobName": "video/something.jpg",
+      "SourceUrl": "https://recblue.vercel.app"
     }
   ]
 }

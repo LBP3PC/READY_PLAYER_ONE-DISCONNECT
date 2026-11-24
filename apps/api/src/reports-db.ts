@@ -644,6 +644,9 @@ export function banBlockDetails(ban: ReportRow, now: Date = new Date()) {
  */
 const SITE_BAN_CATEGORY = 6
 
+/** La phrase d'aide affichée sous un ban du site, à la place du support de Rec Room. */
+const SITE_BAN_HELP = 'Pour toute information, contacte-nous sur recblue.net'
+
 /** Un bannissement posé depuis le site : son motif et sa date de fin, tels qu'écrits. */
 export type SiteBan = { reason: string | null; until: string | null }
 
@@ -695,5 +698,9 @@ export function siteBanBlockDetails(ban: SiteBan, now: Date = new Date()) {
 		IsBan: true,
 		Message: ban.reason ?? 'Rule violation',
 		TimeoutStartedAt: null,
+		// La ligne « For more information, please contact us at … » de l'écran : chez Rec
+		// Room elle renvoie vers leur support, ici vers REC BLUE, qui est le seul recours
+		// pour contester un ban posé depuis le site.
+		BottomMessageOverride: SITE_BAN_HELP,
 	}
 }

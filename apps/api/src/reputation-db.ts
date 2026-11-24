@@ -340,7 +340,9 @@ export async function addCheer(
 export async function setSelectedCheer(
 	db: D1Database,
 	accountId: number,
-	category: CheerCategory,
+	// Any ordinal the client's picker can send, not just the counted categories: the
+	// built-in Rec Room badge has no counter column but can still be pinned.
+	category: number,
 	now: Date = new Date()
 ): Promise<Reputation> {
 	const selected = category === CheerCategory.None ? 0 : category

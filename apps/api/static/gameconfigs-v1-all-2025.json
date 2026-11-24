@@ -1428,6 +1428,13 @@
 		"EndTime": null
 	},
 	{
+		"Key": "UGC.InventionSavingEnabled",
+		"Value": "true",
+		"ActiveExperiments": null,
+		"StartTime": null,
+		"EndTime": null
+	},
+	{
 		"Key": "UGC.InventionSpawningEnabled",
 		"Value": "true",
 		"ActiveExperiments": null,
@@ -2241,7 +2248,7 @@
 	},
 	{
 		"Key": "CommunityBoard.HowToBuildLink",
-		"Value": "https://rec.net/creator",
+		"Value": "https://recblue.net",
 		"ActiveExperiments": null,
 		"StartTime": null,
 		"EndTime": null
@@ -4789,7 +4796,7 @@
 	},
 	{
 		"Key": "RoomieAI.Credits.RecNetUrl",
-		"Value": "www.rec.net/roomie",
+		"Value": "https://recblue.net",
 		"ActiveExperiments": "roomie_2025q2_credits_weblinking",
 		"StartTime": null,
 		"EndTime": null
@@ -6055,11 +6062,11 @@
 		"EndTime": null
 	},
 	{
-		 "Key": "BootSequence.AutoCreateAccount",
-		 "Value": "false",
-		 "ActiveExperiments": null,
-		 "StartTime": null,
-		 "EndTime": null
+		"Key": "BootSequence.AutoCreateAccount",
+		"Value": "false",
+		"ActiveExperiments": null,
+		"StartTime": null,
+		"EndTime": null
 	},
 	{
 		"Key": "DataCollection.Enabled",

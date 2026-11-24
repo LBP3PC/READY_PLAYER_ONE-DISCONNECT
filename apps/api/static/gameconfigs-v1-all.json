@@ -213,7 +213,7 @@
 		"EndTime": null,
 		"Key": "CommunityBoard.HowToBuildLink",
 		"StartTime": null,
-		"Value": "https://www.youtube.com/watch?v=O7fb3ux2nDI"
+		"Value": "https://recblue.net"
 	},
 	{
 		"EndTime": null,
@@ -675,7 +675,7 @@
 		"EndTime": null,
 		"Key": "Growth.EnableInfluencerProgram",
 		"StartTime": null,
-		"Value": "false"
+		"Value": "true"
 	},
 	{
 		"EndTime": null,
@@ -2234,6 +2234,12 @@
 	{
 		"EndTime": null,
 		"Key": "UGC.IncludeCurvesInDefaultShapesView",
+		"StartTime": null,
+		"Value": "true"
+	},
+	{
+		"EndTime": null,
+		"Key": "UGC.InventionSavingEnabled",
 		"StartTime": null,
 		"Value": "true"
 	},

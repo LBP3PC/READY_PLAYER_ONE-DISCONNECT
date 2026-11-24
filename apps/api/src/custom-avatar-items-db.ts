@@ -162,13 +162,19 @@ export const OUTFIT_TYPE_CUSTOM_SHIRT = 105
 
 /**
  * The most tokens a PLAYER-MADE item may sell for, inclusive. Enforced on the create and
- * the edit (`POST`/`PUT /api/customAvatarItems/v1`), the only two writes a player has; the
- * client has no ceiling of its own — its `minPriceForPublicItem` is a floor. First-party
- * items are not bound by it: their prices come off the storefront dump and several sit
- * above it (migrations/0032_custom_avatar_item_price_cap.sql clamps only the player-made
- * rows, told apart by `BaseAvatarItemId`).
+ * the edit (`POST`/`PUT /api/customAvatarItems/v1`), the only two writes a player has.
+ *
+ * It is the client's own ceiling too. Its custom-shirt editor refuses a price outside
+ * 100–10 000 (`minPriceForPublicItem` is the floor, this the top), and it fills the field
+ * itself — so a lower cap here rejected prices the form accepted, leaving the shirt
+ * unsaveable: the SAVE button was already disabled by the client's rule, and any valid
+ * price between 1 001 and 10 000 came back from here as a 400.
+ *
+ * First-party items are not bound by it: their prices come off the storefront dump and
+ * several sit above it (migrations/0032_custom_avatar_item_price_cap.sql clamps only the
+ * player-made rows, told apart by `BaseAvatarItemId`).
  */
-export const MAX_PLAYER_ITEM_PRICE = 1000
+export const MAX_PLAYER_ITEM_PRICE = 10000
 
 /**
  * The fewest tokens a player-made item may sell for: a price is 0 (free, open to anyone) or

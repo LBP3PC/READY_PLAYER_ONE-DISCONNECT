@@ -406,6 +406,30 @@ export const moderationRoutes = new Hono<App>({ strict: false })
 			return c.json(siteBan ? siteBanBlockDetails(siteBan, now) : NOT_BLOCKED)
 		}
 	)
+	// Le bouton « Ban appeal code » de l'écran de bannissement : l'ancien client demande ici
+	// un code court à recopier dans son formulaire d'appel. La route n'existait pas — le
+	// client recevait 404 et affichait « An error occurred » sous son propre écran. Le code
+	// n'ouvre aucun droit : il ne sert qu'à identifier une demande, et c'est le site qui
+	// reste le recours pour contester un ban.
+	.get('/api/banappeal/generateCode', async (c) => {
+		const id = await authedId(c)
+		if (id === null) return unauthorized(c)
+		const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+		const bytes = crypto.getRandomValues(new Uint8Array(8))
+		let code = ''
+		for (const byte of bytes) code += alphabet[byte % alphabet.length]
+		// Le client ne se contente pas d'afficher la valeur : il en fait une URI
+		// (`new Uri(value)`) puis l'ouvre. Un code nu (« ABCD2345 ») n'est pas une URI
+		// absolue et le bouton levait `UriFormatException: Invalid URI: The format of the
+		// URI could not be determined.` — mesuré sur un clic réel. Le bouton doit ouvrir
+		// le CLIENT MAIL vers l'adresse de support REC BLUE : `mailto:` est une URI
+		// absolue valide, et le code part dans l'objet pour rester transmissible.
+		return c.json({
+			error: '',
+			success: true,
+			value: `mailto:support@recblue.net?subject=Ban%20appeal%20${code}`,
+		})
+	})
 	// The reasons the client offers when a player starts a vote-to-kick. Order matters —
 	// the client renders them in the order they arrive — and the list is grouped by the
 	// `ReportCategory` the resulting report is filed under, hate first, then sexual

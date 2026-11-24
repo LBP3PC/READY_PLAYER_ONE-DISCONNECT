@@ -21,6 +21,8 @@ import {
 	JsonObject,
 	KeepsakeCategories,
 	KeepsakeConfig,
+	KeepsakeEventInstances,
+	KeepsakeRoomInstances,
 	SanitizeRequest,
 	stringParam,
 	UNAUTHORIZED_RESPONSE,
@@ -34,6 +36,101 @@ import {
 
 import type { Context } from 'hono'
 import type { App } from '../context'
+
+/**
+ * The site's own photo gallery — « Photos prises en jeu » on recblue.net, which it feeds
+ * from `/api/game/photos` — mirrored into the board's Instagram strip.
+ *
+ * The board is otherwise a static blob (`static/community-board.json`), and its photos are
+ * injected per request instead of baked in: players publish from the game, the site shows
+ * them straight away, and the board follows without a redeploy. A minute of edge cache
+ * keeps the subrequest off the hot path, and any failure — non-200, bad JSON, no usable
+ * image keys — falls back to the static strip, because a board with slightly stale photos
+ * beats one that fails to load.
+ */
+const SITE_PHOTOS_URL = 'https://recblue.net/api/game/photos?take=12'
+/**
+ * Where the photo files live. The site only lists them; and it cannot serve them —
+ * `recblue.net/sharecamera/…` has never been an image route, so handing the client that
+ * left every photo on the board empty. (`SITE_PHOTOS_CACHE_KEY` below is not a file URL.)
+ */
+const BOARD_PHOTOS_HOST = 'https://img.recblue.net'
+/** Seconds the photo list is cached at the edge before the site is asked again. */
+const SITE_PHOTOS_CACHE_SECONDS = 60
+/** Cache entry key; a plain URL nothing else requests. */
+const SITE_PHOTOS_CACHE_KEY = 'https://api.recblue.net/__cache/community-board-photos'
+/** A board photo, as the client's Instagram strip reads it. */
+interface BoardPhoto {
+	ImageName: string
+	ImageUrl: string
+}
+
+/**
+ * The `img` worker key behind a site photo URL, or null when it is not one. The site serves
+ * its photos with an absolute URL whose path is the `img` key — possibly under `image/`,
+ * the `storage` prefix the worker strips back off — so both spellings resolve.
+ */
+function sitePhotoKey(url: unknown): string | null {
+	if (typeof url !== 'string' || url === '') return null
+	let path: string
+	try {
+		path = decodeURIComponent(new URL(url).pathname)
+	} catch {
+		return null
+	}
+	const key = path.replace(/^\//, '').replace(/^image\//, '')
+	return key === '' || key.includes('..') ? null : key
+}
+
+/** The board's `InstagramImages` taken live from the site, or null when unavailable. */
+async function siteInstagramImages(): Promise<BoardPhoto[] | null> {
+	const cache = typeof caches === 'undefined' ? undefined : caches.default
+	let body: string
+
+	const cached = await cache?.match(SITE_PHOTOS_CACHE_KEY)
+	if (cached) {
+		body = await cached.text()
+	} else {
+		const response = await fetch(SITE_PHOTOS_URL, {
+			headers: { accept: 'application/json' },
+			// A board request must not hang on the site: give up and serve the static strip.
+			signal: AbortSignal.timeout(2000),
+		})
+		if (!response.ok) return null
+		body = await response.text()
+		if (cache) {
+			await cache
+				.put(
+					SITE_PHOTOS_CACHE_KEY,
+					new Response(body, {
+						headers: {
+							'content-type': 'application/json',
+							'cache-control': `max-age=${SITE_PHOTOS_CACHE_SECONDS}`,
+						},
+					})
+				)
+				.catch(() => undefined)
+		}
+	}
+
+	const data: unknown = JSON.parse(body)
+	const list = Array.isArray(data) ? data : ((data as { photos?: unknown } | null)?.photos ?? [])
+	if (!Array.isArray(list)) return null
+
+	const images: BoardPhoto[] = []
+	for (const photo of list) {
+		const key = sitePhotoKey((photo as { url?: unknown } | null)?.url)
+		if (key) images.push({ ImageName: key, ImageUrl: BOARD_PHOTOS_HOST })
+	}
+	return images.length > 0 ? images : null
+}
+
+/** The static board with the site's live photos in place of its baked-in strip. */
+async function communityBoardWithPhotos(): Promise<typeof communityBoard> {
+	const images = await siteInstagramImages().catch(() => null)
+	if (images === null) return communityBoard
+	return { ...communityBoard, InstagramImages: images }
+}
 
 /**
  * A sanitize request, as the client posts it:
@@ -212,12 +309,17 @@ export const gameplayRoutes = new Hono<App>({ strict: false })
 			tags: ['Gameplay'],
 			summary: 'Keepsake feature switches',
 			description:
-				'Whether keepsakes (room mementos) are on and how many a room may hold. The ' +
-				'feature reports as enabled, but nothing stores keepsakes yet.',
+				'Whether keepsakes (room mementos) are on and how many a room may hold. Reports ' +
+				'OFF because nothing stores keepsakes: announcing the feature while every read ' +
+				'behind it answers empty makes the room UI build its keepsake icon list against a ' +
+				'null model, which throws `NullReferenceException` every time the room panel ' +
+				'refreshes (92 of 107 in one session, `RoomModel.GetUncollectedKeepsakeCountPer' +
+				'CategoryForRoom` and `CompositeController.Dispose`). With the feature off the ' +
+				'panel skips it; turn it back on with a real catalog, not before.',
 			responses: { 200: json(KeepsakeConfig, 'The keepsake config') },
 		}),
 		(c) =>
-			c.json({ KeepsakeFeatureEnabled: true, KeepsakeRoomLimit: 10, SocialXpBoostEnabled: false })
+			c.json({ KeepsakeFeatureEnabled: false, KeepsakeRoomLimit: 0, SocialXpBoostEnabled: false })
 	)
 	.get(
 		'/api/keepsakes/rooms/:roomId',
@@ -225,12 +327,42 @@ export const gameplayRoutes = new Hono<App>({ strict: false })
 			tags: ['Gameplay'],
 			summary: 'A room’s keepsakes',
 			description:
-				'No keepsake storage yet. Answers 204 with no body rather than an empty list — ' +
-				'that is what the reference does, and the client treats a body here as data.',
+				'No keepsake storage yet, so the room has no instances — but this answers a JSON ' +
+				'object, never a bodiless 204: the client deserializes it into a non-null DTO and ' +
+				'maps `KeepsakeInstanceIds` out of it, so an empty body left it with a null model ' +
+				'and threw `NullReferenceException` on every room-panel refresh ' +
+				'(`RoomModel.GetUncollectedKeepsakeCountPerCategoryForRoom`), which froze the ' +
+				'watch menu’s room panel instead of merely showing no keepsakes.',
 			parameters: [idParam('roomId', 'Room id')],
-			responses: { 204: { description: 'No keepsakes (empty body)' } },
+			responses: { 200: json(KeepsakeRoomInstances, 'The room’s keepsake instances — empty') },
 		}),
-		(c) => c.body(null, 204)
+		(c) =>
+			c.json({
+				KeepsakeRoomId: Number.parseInt(c.req.param('roomId') ?? '', 10) || 0,
+				KeepsakeInstanceIds: [],
+			})
+	)
+	// The keepsakes a progression event hands out. This path did not exist, so the client's
+	// keepsake load for an event 404'd and its model stayed null — the same NRE loop as the
+	// room read above, from the same refresh. Empty collections, not a 404.
+	.get(
+		'/api/keepsakes/events/:eventId',
+		describeRoute({
+			tags: ['Gameplay'],
+			summary: 'A progression event’s keepsakes',
+			description:
+				'No keepsake storage yet, so an event has no instances. Answers the empty object the ' +
+				'client maps, rather than the 404 it used to get — which left the room panel’s ' +
+				'keepsake model null and threw on every refresh.',
+			parameters: [idParam('eventId', 'Progression event id')],
+			responses: { 200: json(KeepsakeEventInstances, 'The event’s keepsake instances — empty') },
+		}),
+		(c) =>
+			c.json({
+				KeepsakeProgressionEventId: Number.parseInt(c.req.param('eventId') ?? '', 10) || 0,
+				KeepsakeProgressionEventIds: [],
+				KeepsakeInstanceIds: [],
+			})
 	)
 	// A counted result set, NOT the bare list the stubs around it serve: the client parses
 	// this one as an object and an array fails it outright — "expected:'{', actual:'[', at
@@ -263,10 +395,12 @@ export const gameplayRoutes = new Hono<App>({ strict: false })
 			summary: 'The current community board',
 			description:
 				'The rotating community board on the home screen — featured player, featured room ' +
-				'group, announcement and image strips. Served verbatim from a static blob.',
+				'group, announcement and image strips. Served from a static blob, except the ' +
+				'`InstagramImages` strip, which is taken live from the site’s « Photos prises en jeu » ' +
+				'feed (edge-cached for a minute) so photos published in game appear without a deploy.',
 			responses: { 200: json(JsonObject, 'The community board') },
 		}),
-		(c) => c.json(communityBoard)
+		async (c) => c.json(await communityBoardWithPhotos())
 	)
 	// Circuit chip lists — the palettes the Maker Pen's circuit board groups its chips into
 	// (`/api/CircuitChipLists/Favorites`, `/api/CircuitChipLists/Recent`, and so on). The path
@@ -315,8 +449,9 @@ export const gameplayRoutes = new Hono<App>({ strict: false })
 			summary: 'Analytics event sink',
 			description:
 				'The client’s GameSight attribution/analytics events. Accepted and dropped — ' +
-				'nothing is persisted. Answers 200 with an empty body.',
-			responses: { 200: { description: 'Accepted (empty body)' } },
+				'nothing is persisted. Answers the `OkResponse` shape (`Success`, `Error`) the 2023 client’s ' +
+				'decoder reads it as an object — a blank body fails as "Response was empty", an array as a malformed response.',
+			responses: { 200: { description: 'Accepted (OkResponse)' } },
 		}),
-		(c) => c.body(null, 200)
+		(c) => c.json({ Success: true, Error: null })
 	)

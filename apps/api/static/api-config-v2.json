@@ -254,6 +254,456 @@
 			"Level": 50,
 			"RequiredXp": 1080,
 			"GiftRarity": 50
+		},
+		{
+			"Level": 51,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 52,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 53,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 54,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 55,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 56,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 57,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 58,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 59,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 60,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 61,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 62,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 63,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 64,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 65,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 66,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 67,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 68,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 69,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 70,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 71,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 72,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 73,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 74,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 75,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 76,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 77,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 78,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 79,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 80,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 81,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 82,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 83,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 84,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 85,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 86,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 87,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 88,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 89,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 90,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 91,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 92,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 93,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 94,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 95,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 96,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 97,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 98,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 99,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 100,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 101,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 102,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 103,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 104,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 105,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 106,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 107,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 108,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 109,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 110,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 111,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 112,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 113,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 114,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 115,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 116,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 117,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 118,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 119,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 120,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 121,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 122,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 123,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 124,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 125,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 126,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 127,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 128,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 129,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 130,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 131,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 132,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 133,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 134,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 135,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 136,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 137,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 138,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 139,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
+		},
+		{
+			"Level": 140,
+			"RequiredXp": 1080,
+			"GiftRarity": 30
 		}
 	],
 	"DailyObjectives": [

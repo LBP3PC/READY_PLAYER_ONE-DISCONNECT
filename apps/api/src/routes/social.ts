@@ -614,6 +614,26 @@ export const socialRoutes = new Hono<App>({ strict: false })
 	// friended. The un- variants just clear the same flag. Auth-gated. The resulting
 	// relationship is delivered via a RelationshipChanged hub notification (see
 	// applyFlag); the HTTP body is just the { Success, Message } ack.
+	// The platform-level ignore list: accounts a platform (Steam, Meta) asks the game to hide.
+	// Nothing on this server carries one, and the client logs a launch error on anything but a
+	// 2xx — so answer the neutral empty list instead of 404ing.
+	.on(
+		['GET', 'POST'],
+		'/api/relationships/v1/bulkignoreplatformusers',
+		describeRoute({
+			tags: ['Relationships'],
+			summary: 'The platform-level ignored accounts (always empty here)',
+			description:
+				'Accounts a platform asks the game to hide. This server has no such list, so it ' +
+				'answers an empty array; the client treats a failure here as a launch error.',
+			security: AUTHED,
+			responses: { 200: json(JsonArray, 'Always empty'), 401: UNAUTHORIZED_RESPONSE },
+		}),
+		async (c) => {
+			if ((await authedId(c)) === null) return unauthorized(c)
+			return c.json([])
+		}
+	)
 	.on(
 		['GET', 'POST'],
 		'/api/relationships/v1/ignore',

@@ -242,6 +242,12 @@ function formField(
 ): string | undefined {
 	const raw = body[name]
 	if (typeof raw === 'string' && raw !== '') return raw
+	// Le client ne poste pas toujours du form-encoded : sur un corps JSON, `CheerCategory`
+	// arrive en NOMBRE et `Anonymous` en BOOLEEN. Sans ces deux conversions la route lisait
+	// `undefined`, repondait 200 avec `{ Success: false }` et le client ne selectionnait
+	// rien — la panne silencieuse du selecteur de badge.
+	if (typeof raw === 'number' && Number.isFinite(raw)) return String(raw)
+	if (typeof raw === 'boolean') return String(raw)
 	return c.req.query(name) || undefined
 }
 
@@ -298,6 +304,47 @@ export const progressionRoutes = new Hono<App>({ strict: false })
 			responses: { 200: json(ReputationDto, 'The player’s reputation') },
 		}),
 		async (c) => c.json(await getReputation(c.env.DB, Number.parseInt(c.req.param('id'), 10)))
+	)
+	// How many players subscribe to (follow) an account — the number behind the social
+	// page’s `Subscribers` tile. The 2023 client walks a chain of spellings for this path
+	// (the reference renamed it over the years) and stops at the first that answers, so
+	// every spelling serves the same value.
+	//
+	// A BARE INTEGER, like `xpEarnedToday` below: the client decodes a plain `int` here, so
+	// answering `{ ... }` is a decode error rather than a zero. Read from the player’s
+	// `reputation` row; an account with no row reads back 0.
+	.get(
+		'/api/subscriptions/v1/subscribercount/:id{[0-9]+}',
+		describeRoute({
+			tags: ['Progression'],
+			summary: 'How many players subscribe to an account',
+			parameters: [idParam('id', 'Account id')],
+			responses: { 200: json(BareInteger, 'The subscriber count') },
+		}),
+		async (c) =>
+			c.json((await getReputation(c.env.DB, Number.parseInt(c.req.param('id'), 10))).SubscriberCount)
+	)
+	.get(
+		'/api/subscription/v1/subscribercount/:id{[0-9]+}',
+		describeRoute({
+			tags: ['Progression'],
+			summary: 'How many players subscribe to an account (singular spelling)',
+			parameters: [idParam('id', 'Account id')],
+			responses: { 200: json(BareInteger, 'The subscriber count') },
+		}),
+		async (c) =>
+			c.json((await getReputation(c.env.DB, Number.parseInt(c.req.param('id'), 10))).SubscriberCount)
+	)
+	.get(
+		'/api/PlayerSubscriptions/v1/subscriberCount/:id{[0-9]+}',
+		describeRoute({
+			tags: ['Progression'],
+			summary: 'How many players subscribe to an account (PlayerSubscriptions spelling)',
+			parameters: [idParam('id', 'Account id')],
+			responses: { 200: json(BareInteger, 'The subscriber count') },
+		}),
+		async (c) =>
+			c.json((await getReputation(c.env.DB, Number.parseInt(c.req.param('id'), 10))).SubscriberCount)
 	)
 	// How much XP the caller has earned today — what the client measures against its daily
 	// XP cap. A BARE INTEGER (the client decodes a plain `int`), not a progression record.
@@ -515,7 +562,19 @@ export const progressionRoutes = new Hono<App>({ strict: false })
 
 			const body = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>)
 			const category = asInt(formField(body, c, 'CheerCategory'))
-			if (category === null || !(category === CheerCategory.None || isCheerCategory(category))) {
+			// Pinning is a DISPLAY choice, so every category the picker offers is accepted —
+			// including the built-in Rec Room badge, whose ordinal has no counter column here.
+			// Only cheering stays restricted to the categories we can count
+			// (`isCheerCategory`), because that one increments a counter; a pinned badge
+			// whose counter is zero is legal and reads back as 0.
+			//
+			// The picker's ordinals are NOT all small: the built-in Rec Room badge posts
+			// `CheerCategory=9000` (read off the client's own request in `wrangler tail`).
+			// The bound used to be 1000, so that click answered 200 `{ Success: false }` and
+			// the badge silently refused to move — the same quiet failure the form parsing
+			// above once caused. A whole-number ordinal the client can name is accepted;
+			// only nonsense below `None` or absurdly large is refused.
+			if (category === null || category < CheerCategory.None || category > 100_000) {
 				return cheerResult(c, 'CheerCategory is not a cheer category')
 			}
 

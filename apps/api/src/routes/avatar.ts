@@ -38,13 +38,15 @@ import {
 	deleteInvention,
 	getFeaturedInventions,
 	getInventionById,
+	getInventionRawByRawId,
 	getInventionsByCreators,
 	getInventionsByIds,
 	getInventionsByRoom,
 	getInventionTagFilters,
-	getInventionTags,
-	getInventionVersion,
-	getMyInventions,
+	getInventionsRawByRawIds,
+	getInventionTagsByRawId,
+	getInventionVersionByRawId,
+	getMyInventionsRawJson,
 	getTopInventions,
 	INVENTION_TAG_RESULT,
 	inventionDeleteResult,
@@ -52,6 +54,8 @@ import {
 	isInventionCheered,
 	MAX_INVENTION_PRICE,
 	normalizeInventionTags,
+	ownsAllInventionsByRawIds,
+	toClientJson,
 	ownsAllInventions,
 	parsePermissionLevel,
 	publishInvention,
@@ -95,6 +99,7 @@ import {
 	InventionVersionDto,
 	json,
 	JsonArray,
+	JsonObject,
 	jsonBody,
 	LegacyAvatarItemSaves,
 	OPTIONAL_AUTHED,
@@ -112,7 +117,6 @@ import {
 	stringParam,
 	stringQuery,
 	SuccessErrorEnvelope,
-	SuccessValueEnvelope,
 	TagFilters,
 	UNAUTHORIZED_RESPONSE,
 	UnpublishInventionRequest,
@@ -142,6 +146,62 @@ const BULK_CUSTOM_AVATAR_ITEM_CAP = 100
 
 /** The all-zero Guid — what a C# client sends for an unset Guid field. */
 const EMPTY_GUID = '00000000-0000-0000-0000-000000000000'
+
+/**
+ * Where the custom-shirt editor keeps its DRAFT — the design a player is drawing on before the
+ * item exists. It lives in the image bucket rather than a table: one small metadata sidecar per
+ * account plus the design PNG, keyed by the creator's account id, because the editor keeps
+ * exactly one draft per account.
+ */
+const CUSTOM_AVATAR_ITEM_DRAFT_PREFIX = 'avatar-design/'
+
+/** The three draft fields the client reads back; all null means "no draft, start fresh". */
+interface CustomAvatarItemDraft {
+	BaseAvatarItemId: number | null
+	BaseAvatarItemColor: string | null
+	DesignFilename: string | null
+}
+
+const EMPTY_CUSTOM_AVATAR_ITEM_DRAFT = (): CustomAvatarItemDraft => ({
+	BaseAvatarItemId: null,
+	BaseAvatarItemColor: null,
+	DesignFilename: null,
+})
+
+const draftMetaKey = (accountId: number) => `${CUSTOM_AVATAR_ITEM_DRAFT_PREFIX}${accountId}.json`
+const draftDesignKey = (accountId: number, extension: string) =>
+	`${CUSTOM_AVATAR_ITEM_DRAFT_PREFIX}${accountId}-design${extension}`
+
+/** The bare four-key object every `/design` route answers. */
+const draftResponse = (accountId: number, draft: CustomAvatarItemDraft) => ({
+	CreatorAccountId: accountId,
+	...draft,
+})
+
+/**
+ * The caller's draft, or an empty one. A sidecar that will not parse is a draft we cannot
+ * resume — an empty draft, not an error: the alternative is an editor that refuses to open.
+ */
+async function readCustomAvatarItemDraft(
+	images: R2Bucket,
+	accountId: number
+): Promise<CustomAvatarItemDraft> {
+	const object = await images.get(draftMetaKey(accountId))
+	if (!object) return EMPTY_CUSTOM_AVATAR_ITEM_DRAFT()
+	try {
+		const parsed = (await object.json()) as Partial<CustomAvatarItemDraft> | null
+		return {
+			BaseAvatarItemId:
+				typeof parsed?.BaseAvatarItemId === 'number' ? parsed.BaseAvatarItemId : null,
+			BaseAvatarItemColor:
+				typeof parsed?.BaseAvatarItemColor === 'string' ? parsed.BaseAvatarItemColor : null,
+			DesignFilename:
+				typeof parsed?.DesignFilename === 'string' ? parsed.DesignFilename : null,
+		}
+	} catch {
+		return EMPTY_CUSTOM_AVATAR_ITEM_DRAFT()
+	}
+}
 
 /**
  * The refusal for putting a price above 0 on an invention without Rec Room Plus (the token's
@@ -391,7 +451,8 @@ async function createInventionFromBody(
  * The `?id=1&id=2` list the invention batch endpoints take. `id` repeats, and each
  * value may itself be a comma-separated list; anything non-numeric is dropped.
  */
-function inventionIdQuery(c: Context<App>): number[] {
+
+function inventionIdQuery(c: Context<App>): string[] {
 	return parseInventionIds(c.req.queries('id') ?? [])
 }
 
@@ -399,7 +460,7 @@ function inventionIdQuery(c: Context<App>): number[] {
  * {@link inventionIdQuery} for `POST /api/inventions/v2/batch`, which carries the same
  * repeated `id` in a form body instead (the query string is read too, so either works).
  */
-async function inventionIdForm(c: Context<App>): Promise<number[]> {
+async function inventionIdForm(c: Context<App>): Promise<string[]> {
 	const raw = [...(c.req.queries('id') ?? [])]
 	const body = await c.req.parseBody({ all: true }).catch(() => ({}) as Record<string, unknown>)
 	const posted = body.id
@@ -410,27 +471,39 @@ async function inventionIdForm(c: Context<App>): Promise<number[]> {
 }
 
 /**
- * The client asks for official-game inventions by their 64-bit ids, which a JS number
- * can't hold exactly; those never match a local (sequential) id and are simply dropped.
+ * The digits of every id asked about, as TEXT.
+ *
+ * A Rec Room invention id is 64-bit and a JS number cannot hold one: `Number.parseInt`
+ * rounds `7891822250924105916` to `7891822250924106000`, so a lookup by the parsed value
+ * misses an invention that is right there, and re-encoding a record prints the wrong id
+ * back to the client. The digits are therefore kept as a string and cast inside SQLite.
  */
-function parseInventionIds(raw: string[]): number[] {
+function parseInventionIds(raw: string[]): string[] {
 	return raw
 		.flatMap((value) => value.split(','))
-		.map((value) => Number.parseInt(value.trim(), 10))
-		.filter((id) => !Number.isNaN(id))
+		.map((value) => value.trim())
+		.filter((id) => /^[0-9]{1,19}$/.test(id))
 }
 
 /**
  * The inventions `ids` names that the caller may see — the body of both batch routes —
- * with the 2025 client's flat `RRInvention` laid over the stored record, as `v2/mine` serves.
+ * as the stored JSON text, in the order asked for. Returning the stored text untouched is
+ * what keeps a 64-bit `InventionId` exact; decoding and re-encoding would round it.
  */
-async function visibleInventions(c: Context<App>, ids: number[]): Promise<ListedInvention[]> {
-	if (ids.length === 0) return []
+async function visibleInventions(c: Context<App>, ids: string[]): Promise<string> {
+	if (ids.length === 0) return '[]'
 	const playerId = await authedId(c)
-	const inventions = await getInventionsByIds(c.env.DB, ids)
-	return inventions
-		.filter((i) => i.IsPublished || (playerId !== null && i.CreatorPlayerId === playerId))
-		.map(withClientInvention)
+	const byId = await getInventionsRawByRawIds(c.env.DB, ids)
+	// In the order asked for, repeats included: the client sends an id once per reference.
+	const visible = ids
+		.map((id) => ({ id, raw: byId.get(id) }))
+		.filter((row): row is { id: string; raw: string } => row.raw !== undefined)
+		// Read only the two flags that decide visibility; the record itself is not re-encoded.
+		.filter((row) => {
+			const record = JSON.parse(row.raw) as { IsPublished?: boolean; CreatorPlayerId?: number }
+			return record.IsPublished === true || (playerId !== null && record.CreatorPlayerId === playerId)
+		})
+	return `[${visible.map((row) => toClientJson(row.raw, row.id)).join(',')}]`
 }
 
 // ---- Avatar gifts ----------------------------------------------------------
@@ -517,20 +590,24 @@ export const avatarRoutes = new Hono<App>({ strict: false })
 
 	// Custom avatar item gates — real Rec Room client endpoints with no backing
 	// implementation yet; we enable them. Flip to `false` to disable the
-	// corresponding flow. `isCreationAllowedForAccount` wraps its answer in the
-	// success/value envelope; the other two return a bare JSON boolean.
+	// corresponding flow. `isCreationAllowedForAccount` answers the client's two-key
+	// `{ Success, Error }` DTO (PascalCase, and NOT a bare boolean — the 2023 client's
+	// converter registers only those two keys, and a bare boolean or the lowercase
+	// success/value pair leaves it unable to read the answer at all, which is what greys
+	// out the create button and logs "Failed to query if local account can create Custom
+	// Avatar Items"); the other two return a bare JSON boolean.
 	.get(
 		'/api/customAvatarItems/v1/isCreationAllowedForAccount',
 		describeRoute({
 			tags: ['Avatar'],
 			summary: 'May this account create custom items?',
 			description:
-				'A feature gate with no backing implementation — we answer yes. Note this one ' +
-				'wraps its answer in the `{ success, value }` envelope while the two gates below ' +
-				'return a bare boolean.',
-			responses: { 200: json(SuccessValueEnvelope, 'Allowed') },
+				'A feature gate with no backing implementation — we answer yes, as the two-key ' +
+				'`{ Success, Error }` object this client deserializes (the two gates below return ' +
+				'a bare boolean instead).',
+			responses: { 200: json(SuccessErrorEnvelope, 'Allowed') },
 		}),
-		(c) => c.json({ success: true, value: null })
+		(c) => c.json({ Success: true, Error: null })
 	)
 	.get(
 		'/api/customAvatarItems/v1/isCreationEnabled',
@@ -582,7 +659,8 @@ export const avatarRoutes = new Hono<App>({ strict: false })
 				'PNG or JPEG; the key’s extension and the stored content-type come ' +
 				'from that signature, and anything else is refused with a 400 before either file is ' +
 				'written.\n\n' +
-				'`Price` is capped at 1000 tokens (`MAX_PLAYER_ITEM_PRICE`); one above it, or below ' +
+				'`Price` is capped at 10 000 tokens (`MAX_PLAYER_ITEM_PRICE`), the ceiling the ' +
+				'client’s own editor shows; one above it, or below ' +
 				'0, is refused with a 400 rather than clamped, and so is one between 1 and 99 — a ' +
 				'price is 0 (free) or at least 100 (`MIN_PLAYER_ITEM_PRICE`, the ' +
 				'`minPriceForPublicItem` floor). A `Price` above 0 needs Rec Room ' +
@@ -594,7 +672,7 @@ export const avatarRoutes = new Hono<App>({ strict: false })
 				200: json(CustomAvatarItemResponse, 'The created item'),
 				400: json(
 					CustomAvatarItemResponse,
-					'Missing or malformed metadata / files, a file that is not an image, or a `Price` that is not 0 or 100–1000'
+					'Missing or malformed metadata / files, a file that is not an image, or a `Price` that is not 0 or 100–10 000'
 				),
 				401: UNAUTHORIZED_RESPONSE,
 				403: json(CustomAvatarItemResponse, 'A `Price` above 0 without Rec Room Plus'),
@@ -709,6 +787,130 @@ export const avatarRoutes = new Hono<App>({ strict: false })
 			return c.json({ Value: item, Success: true, Error: null, error_id: null })
 		}
 	)
+	// The custom-shirt editor's draft: the design a player has drawn so far, and the base shirt it
+	// is drawn on. Every route answers the bare four-key object the client deserializes
+	// (`CreatorAccountId`, `BaseAvatarItemId`, `DesignFilename`, `BaseAvatarItemColor`). With no
+	// draft the three draft fields are null and the client opens a fresh canvas — a null body
+	// would be a deserialize failure rather than an absence.
+	.get(
+		'/api/customAvatarItems/v1/design',
+		describeRoute({
+			tags: ['Avatar'],
+			summary: 'The caller’s custom-shirt design draft',
+			description:
+				'What the editor has drawn so far, as a BARE object: `CreatorAccountId`, ' +
+				'`BaseAvatarItemId`, `DesignFilename`, `BaseAvatarItemColor`. The last three are null ' +
+				'when the account has no draft. `DesignFilename` is the bucket key the `img` worker ' +
+				'serves the design PNG from. Auth is required — a draft belongs to its account.',
+			security: AUTHED,
+			responses: {
+				200: json(JsonObject, 'The draft, or the three null fields'),
+				401: UNAUTHORIZED_RESPONSE,
+			},
+		}),
+		async (c) => {
+			const id = await authedId(c)
+			if (id === null) return unauthorized(c)
+			return c.json(draftResponse(id, await readCustomAvatarItemDraft(c.env.IMAGES, id)))
+		}
+	)
+	.put(
+		'/api/customAvatarItems/v1/design',
+		describeRoute({
+			tags: ['Avatar'],
+			summary: 'Save the caller’s custom-shirt design draft',
+			description:
+				'Multipart with a `design` PNG/JPEG file and an optional `metadata` JSON part, or a ' +
+				'JSON body, carrying any of `BaseAvatarItemId` and `BaseAvatarItemColor`; a field that ' +
+				'is left out keeps its value from the previous draft. Answers the saved draft in the ' +
+				'same bare four-key object as the GET, so the caller never has to re-read it.',
+			security: AUTHED,
+			responses: {
+				200: json(JsonObject, 'The saved draft'),
+				400: json(JsonObject, 'A `design` that is not an image, or a `metadata` that is not JSON'),
+				401: UNAUTHORIZED_RESPONSE,
+				413: json(JsonObject, 'The design exceeds the per-file upload limit'),
+			},
+		}),
+		async (c) => {
+			const id = await authedId(c)
+			if (id === null) return unauthorized(c)
+			const fail = (message: string) => c.json({ error: message }, 400)
+
+			const contentType = c.req.header('content-type') ?? ''
+			const body = (contentType.includes('application/json')
+				? await c.req.json().catch(() => ({}))
+				: await c.req.parseBody().catch(() => ({}))) as Record<string, unknown>
+			let meta = body
+			if (typeof body.metadata === 'string') {
+				try {
+					const parsed: unknown = JSON.parse(body.metadata)
+					if (parsed && typeof parsed === 'object') meta = parsed as Record<string, unknown>
+				} catch {
+					return fail('metadata is not valid JSON')
+				}
+			}
+
+			const current = await readCustomAvatarItemDraft(c.env.IMAGES, id)
+			let designFilename = current.DesignFilename
+			if (body.design instanceof File) {
+				if (exceedsApiUploadLimit(body.design, maxApiUploadBytes(c.env))) {
+					return c.json({ error: 'design exceeds the upload limit' }, 413)
+				}
+				const bytes = new Uint8Array(await body.design.arrayBuffer())
+				const design = sniffImage(bytes)
+				if (!design) return fail(`design is not a ${SNIFFED_IMAGE_FORMATS} image`)
+				const key = draftDesignKey(id, design.extension)
+				await c.env.IMAGES.put(key, bytes, {
+					httpMetadata: { contentType: design.contentType },
+				})
+				if (designFilename && designFilename !== key) await c.env.IMAGES.delete(designFilename)
+				designFilename = key
+			}
+
+			const draft: CustomAvatarItemDraft = {
+				BaseAvatarItemId:
+					typeof meta.BaseAvatarItemId === 'number' && Number.isInteger(meta.BaseAvatarItemId)
+						? meta.BaseAvatarItemId
+						: current.BaseAvatarItemId,
+				BaseAvatarItemColor:
+					typeof meta.BaseAvatarItemColor === 'string'
+						? meta.BaseAvatarItemColor
+						: current.BaseAvatarItemColor,
+				DesignFilename: designFilename,
+			}
+			await c.env.IMAGES.put(draftMetaKey(id), JSON.stringify(draft), {
+				httpMetadata: { contentType: 'application/json' },
+			})
+			return c.json(draftResponse(id, draft))
+		}
+	)
+	.delete(
+		'/api/customAvatarItems/v1/design',
+		describeRoute({
+			tags: ['Avatar'],
+			summary: 'Discard the caller’s custom-shirt design draft',
+			description:
+				'Deletes the draft and its design PNG, then answers the now-empty bare four-key ' +
+				'object. A miss is not an error — deleting a draft that is not there is how the ' +
+				'editor starts over.',
+			security: AUTHED,
+			responses: {
+				200: json(JsonObject, 'The empty draft'),
+				401: UNAUTHORIZED_RESPONSE,
+			},
+		}),
+		async (c) => {
+			const id = await authedId(c)
+			if (id === null) return unauthorized(c)
+			const current = await readCustomAvatarItemDraft(c.env.IMAGES, id)
+			const keys = [draftMetaKey(id), current.DesignFilename].filter(
+				(key): key is string => key !== null
+			)
+			await c.env.IMAGES.delete(keys)
+			return c.json(draftResponse(id, EMPTY_CUSTOM_AVATAR_ITEM_DRAFT()))
+		}
+	)
 	.put(
 		'/api/customAvatarItems/v1/:id{[0-9a-fA-F-]{36}}',
 		describeRoute({
@@ -719,7 +921,7 @@ export const avatarRoutes = new Hono<App>({ strict: false })
 				'sends every field and nulls the ones it is not changing, so null means "leave ' +
 				'alone". Only the creator may edit. `ModifiedAt` is bumped. Answers the updated ' +
 				'item in the same `{ Value, Success, Error, error_id }` envelope as the create. ' +
-				'`Price` is bound the same way as on the create: 0, or 100 to 1000 tokens, or a 400; and ' +
+				'`Price` is bound the same way as on the create: 0, or 100 to 10 000 tokens, or a 400; and ' +
 				'setting one above 0 needs Rec Room Plus (the token’s `rn.plus` claim), or a 403.',
 			security: AUTHED,
 			parameters: [stringParam('id', 'The `CustomAvatarItemId`')],
@@ -728,7 +930,7 @@ export const avatarRoutes = new Hono<App>({ strict: false })
 				200: json(CustomAvatarItemResponse, 'The updated item'),
 				400: json(
 					CustomAvatarItemResponse,
-					'Malformed body, or a `Price` that is not 0 or 100–1000'
+					'Malformed body, or a `Price` that is not 0 or 100–10 000'
 				),
 				401: UNAUTHORIZED_RESPONSE,
 				403: json(
@@ -1393,10 +1595,15 @@ export const avatarRoutes = new Hono<App>({ strict: false })
 			},
 		}),
 		async (c) => {
-			const inventionId = Number.parseInt(c.req.query('inventionId') ?? '', 10)
-			if (Number.isNaN(inventionId)) return c.json({ error: 'inventionId is required' }, 400)
-			const invention = await getInventionById(c.env.DB, inventionId)
-			return invention ? c.json(invention) : c.notFound()
+			// Read the digits as text: a 64-bit id does not survive `Number.parseInt`, and the
+			// client's own inventions carry ids in that range.
+			const rawInventionId = (c.req.query('inventionId') ?? '').trim()
+			if (!/^[0-9]+$/.test(rawInventionId)) {
+				return c.json({ error: 'inventionId is required' }, 400)
+			}
+			const raw = await getInventionRawByRawId(c.env.DB, rawInventionId)
+			// Served as the stored text: re-encoding would round a 64-bit id.
+			return raw === null ? c.notFound() : c.body(raw, 200, { 'content-type': 'application/json' })
 		}
 	)
 
@@ -1438,7 +1645,10 @@ export const avatarRoutes = new Hono<App>({ strict: false })
 				),
 			},
 		}),
-		async (c) => c.json(await visibleInventions(c, inventionIdQuery(c)))
+		async (c) =>
+			c.body(await visibleInventions(c, inventionIdQuery(c)), 200, {
+				'content-type': 'application/json',
+			})
 	)
 
 	// The same batch with the ids in a form body (`id=1&id=2`) — what the 2025+ client
@@ -1460,7 +1670,10 @@ export const avatarRoutes = new Hono<App>({ strict: false })
 				),
 			},
 		}),
-		async (c) => c.json(await visibleInventions(c, await inventionIdForm(c)))
+		async (c) =>
+			c.body(await visibleInventions(c, await inventionIdForm(c)), 200, {
+				'content-type': 'application/json',
+			})
 	)
 
 	// Whether the caller owns every invention in a lineage (`?id=101&id=102&id=103`) —
@@ -1493,7 +1706,7 @@ export const avatarRoutes = new Hono<App>({ strict: false })
 		async (c) => {
 			const playerId = await authedId(c)
 			if (playerId === null) return unauthorized(c)
-			return c.json(await ownsAllInventions(c.env.DB, playerId, inventionIdQuery(c)))
+			return c.json(await ownsAllInventionsByRawIds(c.env.DB, playerId, inventionIdQuery(c)))
 		}
 	)
 
@@ -1537,8 +1750,10 @@ export const avatarRoutes = new Hono<App>({ strict: false })
 		async (c) => {
 			const playerId = await authedId(c)
 			if (playerId === null) return c.json({ IsCheering: false })
-			const inventionId = Number.parseInt(c.req.param('inventionId'), 10)
-			return c.json({ IsCheering: await isInventionCheered(c.env.DB, playerId, inventionId) })
+			// The digits, as written: a 64-bit id does not survive `Number.parseInt`.
+			return c.json({
+				IsCheering: await isInventionCheered(c.env.DB, playerId, c.req.param('inventionId')),
+			})
 		}
 	)
 
@@ -1576,18 +1791,30 @@ export const avatarRoutes = new Hono<App>({ strict: false })
 			},
 		}),
 		async (c) => {
-			const inventionId = Number.parseInt(c.req.query('inventionId') ?? '', 10)
-			if (Number.isNaN(inventionId)) return c.json({ error: 'inventionId is required' }, 400)
+			const inventionId = (c.req.query('inventionId') ?? '').trim()
+			if (!/^[0-9]{1,19}$/.test(inventionId)) {
+				return c.json({ error: 'inventionId is required' }, 400)
+			}
 			const versionNumber = Number.parseInt(c.req.query('version') ?? '', 10)
 			if (Number.isNaN(versionNumber)) return c.json({ error: 'version is required' }, 400)
 
-			const version = await getInventionVersion(
+			// By the digits, not a parsed number: the client's own inventions carry 64-bit ids.
+			const version = await getInventionVersionByRawId(
 				c.env.DB,
 				c.env.CDN_ASSETS,
 				inventionId,
 				versionNumber
 			)
-			return version === null ? c.notFound() : c.json(version)
+			if (version === null) return c.notFound()
+			// `InventionId` inside a version is 64-bit too; re-encoding would round it.
+			return c.body(
+				JSON.stringify({ ...version, InventionId: 0 }).replace(
+					'"InventionId":0',
+					`"InventionId":${inventionId}`
+				),
+				200,
+				{ 'content-type': 'application/json' }
+			)
 		}
 	)
 
@@ -1848,9 +2075,11 @@ export const avatarRoutes = new Hono<App>({ strict: false })
 			},
 		}),
 		async (c) => {
-			const inventionId = Number.parseInt(c.req.query('inventionId') ?? '', 10)
-			if (Number.isNaN(inventionId)) return c.json({ error: 'inventionId is required' }, 400)
-			const tags = await getInventionTags(c.env.DB, inventionId)
+			const inventionId = (c.req.query('inventionId') ?? '').trim()
+			if (!/^[0-9]{1,19}$/.test(inventionId)) {
+				return c.json({ error: 'inventionId is required' }, 400)
+			}
+			const tags = await getInventionTagsByRawId(c.env.DB, inventionId)
 			return tags === null ? c.notFound() : c.json({ Tags: tags })
 		}
 	)
@@ -1936,7 +2165,11 @@ export const avatarRoutes = new Hono<App>({ strict: false })
 		async (c) => {
 			const skip = Number.parseInt(c.req.query('skip') ?? '0', 10) || 0
 			const take = Number.parseInt(c.req.query('take') ?? '100', 10) || 100
-			return c.json(await getInventionsByCreators(c.env.DB, inventionIdQuery(c), skip, take))
+			// These are ACCOUNT ids, not invention ids: small, and read as numbers.
+			const creators = parseInventionIds(c.req.queries('id') ?? [])
+				.map((id) => Number(id))
+				.filter((id) => Number.isSafeInteger(id))
+			return c.json(await getInventionsByCreators(c.env.DB, creators, skip, take))
 		}
 	)
 
@@ -2004,7 +2237,9 @@ export const avatarRoutes = new Hono<App>({ strict: false })
 		async (c) => {
 			const id = await authedId(c)
 			if (id === null) return unauthorized(c)
-			return c.json(await getMyInventions(c.env.DB, id))
+			return c.body(await getMyInventionsRawJson(c.env.DB, id), 200, {
+				'content-type': 'application/json',
+			})
 		}
 	)
 
