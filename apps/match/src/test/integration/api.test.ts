@@ -13,6 +13,7 @@ import {
 	createRoomInstance,
 	EMPTY_INSTANCE_GRACE_SECONDS,
 	GAME_VERSION,
+	getPresence,
 	getRoomInstance,
 	modifySubRoom,
 	PRESENCE_SCHEMA_DDL,
@@ -353,9 +354,10 @@ async function bearer(sub = '42', version?: string): Promise<Record<string, stri
 }
 
 describe('public endpoints', () => {
-	test('POST /player/login returns 200', async () => {
+	test('POST /player/login returns { errorCode: 0 }', async () => {
 		const res = await exports.default.fetch(`${ORIGIN}/player/login`, { method: 'POST' })
 		expect(res.status).toBe(200)
+		expect(await res.json()).toEqual({ errorCode: 0 })
 	})
 
 	test('POST /player/exclusivelogin returns { errorCode: 0 }', async () => {
@@ -403,7 +405,7 @@ describe('public endpoints', () => {
 				photonRoomId: null,
 				voiceConnectionInfo: null,
 				voiceServerId: null,
-				experiments: null,
+				experiments: [],
 			},
 		])
 	})
@@ -1589,6 +1591,59 @@ describe('auth-gated endpoints', () => {
 		expect(nextB.roomInstance.roomInstanceId).toBe(next.roomInstance.roomInstanceId)
 	})
 
+	test('player experiment format follows the requesting client build', async () => {
+		for (const [accountId, storedVersion] of [
+			[9301, '20260323.14'],
+			[9302, '20230414'],
+		] as const) {
+			await setPresence(env.DB, {
+				accountId,
+				roomInstance: null,
+				statusVisibility: 0,
+				deviceClass: 0,
+				vrMovementMode: 1,
+				platform: 0,
+				appVersion: storedVersion,
+			})
+		}
+
+		await env.DB.prepare(
+			`UPDATE presence SET data = json_set(data, '$.roomInstance', json(?1)) WHERE account_id = ?2`
+		)
+			.bind(JSON.stringify({ roomInstanceId: 1, playerIds: [9301] }), 9301)
+			.run()
+		await env.DB.prepare(
+			`UPDATE presence SET data = json_set(data, '$.roomInstance', json(?1)) WHERE account_id = ?2`
+		)
+			.bind(JSON.stringify({ roomInstanceId: 2, playerIds: null }), 9302)
+			.run()
+
+		const legacyHeaders = await bearer('9301', '20230414')
+		const legacy = await exports.default.fetch(`${ORIGIN}/player?id=9301&id=9302`, {
+			headers: legacyHeaders,
+		})
+		expect(legacy.status).toBe(200)
+		const legacyPlayers = await legacy.json<Array<{ appVersion: string; experiments: unknown }>>()
+		expect(legacyPlayers[0]).toMatchObject({
+			appVersion: '20260323.14',
+			experiments: [],
+			roomInstance: { playerIds: [9301] },
+		})
+		expect(legacyPlayers[1]).toMatchObject({
+			appVersion: '20230414',
+			experiments: [],
+			roomInstance: { playerIds: [] },
+		})
+
+		const modernHeaders = await bearer('9302', '20260323.14')
+		const modern = await exports.default.fetch(`${ORIGIN}/player?id=9302`, {
+			headers: modernHeaders,
+		})
+		expect(modern.status).toBe(200)
+		const modernPlayers = await modern.json<Array<{ experiments: unknown }>>()
+		expect(modernPlayers[0]?.experiments).toMatchObject({ shouldUseGameServerNetworking: false })
+	})
+
 	test('GET /player/connection-info hands back the Photon room the caller matchmade into', async () => {
 		const matchmaked = (await (
 			await exports.default.fetch(`${ORIGIN}/matchmake/room/2`, {
@@ -1637,6 +1692,39 @@ describe('auth-gated endpoints', () => {
 			},
 			error: null,
 		})
+	})
+
+	test('GET /player?id=self carries the caller’s Photon connection info', async () => {
+		// A build after EXPERIMENT_LIST_MAX_BUILD, so `experiments` is the flags map this
+		// test reads below (the 2023 build gets a LIST instead — see the experiment-format
+		// test, which pins both wire formats).
+		const headers = await bearer('8202', '20260323.14')
+		const matchmaked = (await (
+			await exports.default.fetch(`${ORIGIN}/matchmake/room/2`, {
+				method: 'POST',
+				headers,
+			})
+		).json()) as { roomInstance: { photonRoomId: string } }
+
+		const res = await exports.default.fetch(`${ORIGIN}/player?id=8202`, { headers })
+		expect(res.status).toBe(200)
+		const [self] = (await res.json()) as Array<{
+			photonAuthToken: string
+			photonRealtimeAppId: string
+			photonRegion: string
+			photonRoomId: string
+			experiments: { shouldUseGameServerNetworking: boolean }
+		}>
+		expect(self.photonAuthToken).toMatch(/^[\w-]+\.[\w-]+\.[\w-]+$/)
+		expect(self.photonRealtimeAppId).toBe(env.PHOTON_REALTIME_APP_ID?.trim() || '')
+		expect(self.photonRegion).toBe(env.PHOTON_REGION?.trim() || 'us')
+		expect(self.photonRoomId).toBe(matchmaked.roomInstance.photonRoomId)
+		expect(self.experiments.shouldUseGameServerNetworking).toBe(false)
+
+		// The same batch endpoint must not hand this caller another player's credentials.
+		const otherRes = await exports.default.fetch(`${ORIGIN}/player?id=1`, { headers })
+		const [other] = (await otherRes.json()) as Array<{ photonAuthToken: string | null }>
+		expect(other.photonAuthToken).toBeNull()
 	})
 
 	test('the Photon apps and region come from the operator’s vars', async () => {
@@ -2424,7 +2512,7 @@ describe('auth-gated endpoints', () => {
 		expect(sent).toHaveLength(0)
 	})
 
-	test('login records the LoginLock; a superseded heartbeat gets an empty body', async () => {
+	test('login records the LoginLock; a superseded heartbeat writes nothing', async () => {
 		const headers = await bearer('8100')
 		// Enter a room so there's live presence, then record this session's lock at login.
 		await exports.default.fetch(`${ORIGIN}/matchmake/dorm`, { method: 'POST', headers })
@@ -2443,38 +2531,102 @@ describe('auth-gated endpoints', () => {
 		expect(ok.status).toBe(200)
 		expect(((await ok.json()) as { isOnline: boolean }).isOnline).toBe(true)
 
-		// A heartbeat from a superseded session (different lock) gets nothing.
+		// What the live session left behind, to prove the stale beat changes none of it.
+		const before = await getPresence<{ roomInstanceId: number }>(env.DB, 8100)
+		expect(before?.loginLock).toBe('session-one')
+
+		// A heartbeat from a superseded session (different lock) is ANSWERED, not emptied:
+		// the 2023 client LINQs the heartbeat body and cannot deserialise an empty one (see
+		// the superseded-lock branch in match.app.ts). It is shaped like any other player
+		// payload — and it is still not the live session, because it writes nothing.
 		const stale = await exports.default.fetch(`${ORIGIN}/player/heartbeat`, {
 			method: 'POST',
 			headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' },
 			body: 'LoginLock=session-two',
 		})
 		expect(stale.status).toBe(200)
-		expect(await stale.text()).toBe('')
+		expect(await stale.json()).toMatchObject({
+			playerId: 8100,
+			errorCode: 0,
+			isOnline: true,
+			roomInstance: { roomInstanceId: before?.roomInstance?.roomInstanceId },
+		})
+
+		// ... so the stored presence is exactly as the live beat found it: same lock (the
+		// stale one did not take the session over) and the same TTL (the stale beat did not
+		// refresh it, which is what would have kept a superseded session alive).
+		const after = await getPresence<{ roomInstanceId: number }>(env.DB, 8100)
+		expect(after?.loginLock).toBe('session-one')
+		expect(after?.expiresAt).toBe(before?.expiresAt)
+		expect(after?.appVersion).toBe(before?.appVersion)
 	})
 
-	test('login with no live presence seeds a lobby row carrying the lock', async () => {
+	test('login with no live presence enters the dorm carrying the lock', async () => {
 		const headers = await bearer('8200')
 		await exports.default.fetch(`${ORIGIN}/player/login`, {
 			method: 'POST',
 			headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: 'LoginLock=lobby-lock',
+			body: 'LoginLock=dorm-lock',
 		})
-		// Online in the lobby (no room), and a mismatched heartbeat is rejected on the lock
-		// recorded at login even though no matchmake ever ran.
+		// Load-in needs a room: the login itself enters the dorm, and a mismatched heartbeat
+		// is refused on the lock recorded there even though no matchmake ever ran — refused
+		// as in never applied, since the reply itself has to stay shaped for the client.
 		const hb = await exports.default.fetch(`${ORIGIN}/player/heartbeat`, {
 			method: 'POST',
 			headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: 'LoginLock=lobby-lock',
+			body: 'LoginLock=dorm-lock',
 		})
-		expect(((await hb.json()) as { isOnline: boolean; roomInstance: unknown }).isOnline).toBe(true)
+		const payload = (await hb.json()) as { isOnline: boolean; roomInstance: unknown }
+		expect(payload.isOnline).toBe(true)
+		expect(payload.roomInstance).not.toBeNull()
 
+		const before = await getPresence<{ roomInstanceId: number }>(env.DB, 8200)
+		expect(before?.loginLock).toBe('dorm-lock')
+
+		// The mismatched beat is answered with a shaped payload (the 2023 client cannot read
+		// an empty one) but writes nothing: the lock recorded at login still holds.
 		const stale = await exports.default.fetch(`${ORIGIN}/player/heartbeat`, {
 			method: 'POST',
 			headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' },
 			body: 'LoginLock=other',
 		})
-		expect(await stale.text()).toBe('')
+		expect(stale.status).toBe(200)
+		expect(await stale.json()).toMatchObject({
+			playerId: 8200,
+			errorCode: 0,
+			isOnline: true,
+			roomInstance: { roomInstanceId: before?.roomInstance?.roomInstanceId },
+		})
+		const after = await getPresence<{ roomInstanceId: number }>(env.DB, 8200)
+		expect(after?.loginLock).toBe('dorm-lock')
+		expect(after?.expiresAt).toBe(before?.expiresAt)
+	})
+
+	test('login with an existing lobby presence enters the dorm', async () => {
+		await setPresence(env.DB, {
+			accountId: 8201,
+			roomInstance: null,
+			statusVisibility: 0,
+			deviceClass: 0,
+			vrMovementMode: 1,
+			platform: 0,
+			appVersion: '20230414',
+			loginLock: 'old-lock',
+		})
+		const headers = await bearer('8201')
+		await exports.default.fetch(`${ORIGIN}/player/login`, {
+			method: 'POST',
+			headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' },
+			body: 'LoginLock=new-lock',
+		})
+		const hb = await exports.default.fetch(`${ORIGIN}/player/heartbeat`, {
+			method: 'POST',
+			headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' },
+			body: 'LoginLock=new-lock',
+		})
+		const payload = (await hb.json()) as { isOnline: boolean; roomInstance: unknown }
+		expect(payload.isOnline).toBe(true)
+		expect(payload.roomInstance).not.toBeNull()
 	})
 
 	// Seed presence directly into D1 with a chosen instance and `expiresAt` (epoch
