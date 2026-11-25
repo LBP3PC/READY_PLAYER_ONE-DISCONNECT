@@ -40,3 +40,9 @@ coffres/coffre-recblue-20261125.zip
 
 # Installeurs du lanceur : binaires publies via le Worker, pas versionnes
 *.exe
+
+# Sorties dessai laissees a la racine (releves, captures, reponses dAPI)
+.backup-aa/
+.game-dump/
+.game-shot/
+.tmp-*
