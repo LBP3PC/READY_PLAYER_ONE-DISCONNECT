@@ -1892,21 +1892,31 @@ namespace RecBlueBranding
         private static readonly System.Collections.Generic.HashSet<int> appealLabelSeen = new System.Collections.Generic.HashSet<int>();
         private static readonly System.Collections.Generic.HashSet<string> banAppealHidden = new System.Collections.Generic.HashSet<string>();
         private static float nextBanAppealScan;
+        private static int banAppealScans;
+        private static bool banAppealScanStopped;
 
         /// <summary>
         /// Masque le bouton « Ban appeal code » par son NOM d'objet, sans dependre du texte :
         /// le libelle de ce bouton n'est pas pose par les chemins que le plugin intercepte
-        /// (constate en jeu le 13/11, avec la DLL a jour chargee). Un balayage toutes les
-        /// 3 s suffit — un bouton d'ecran de ban n'a pas besoin d'etre masque au frame pres.
+        /// (constate en jeu le 13/11, avec la DLL a jour chargee).
+        /// Le balayage complet de la scene coute 40 a 200 ms : le repeter toutes les 3 s
+        /// produisait un a-coup visible en permanence pendant les parties. Il s'arrete donc
+        /// des que le bouton est masque, ou apres 60 passes sans resultat (3 minutes,
+        /// largement apres l'ecran de compte) — la plupart des joueurs n'ont aucun bouton
+        /// « appeal » en scene, le balayage etait donc du travail pur. Le masquage par
+        /// libelle (HideBanAppealButton, a chaque SetText) reste actif en permanence.
         /// </summary>
         internal static void BanAppealScanTick(float now)
         {
+            if (banAppealScanStopped) return;
             if (now < nextBanAppealScan) return;
             nextBanAppealScan = now + 3f;
+            banAppealScans++;
             Transform[] all;
             float started = Time.realtimeSinceStartup;
             try { all = Resources.FindObjectsOfTypeAll<Transform>(); }
             catch { return; }
+            bool hidden = false;
             for (int i = 0; i < all.Length; i++)
             {
                 Transform node = all[i];
@@ -1919,11 +1929,22 @@ namespace RecBlueBranding
                 try { active = node.gameObject.activeSelf; } catch { }
                 if (!active) continue;
                 try { node.gameObject.SetActive(false); } catch { continue; }
+                hidden = true;
                 if (banAppealHidden.Add(name))
                     BrandingPlugin.Trace.LogInfo("ban : bouton \"" + name + "\" masque (" + ComponentChain(node, 4) + ")");
             }
             float ms = (Time.realtimeSinceStartup - started) * 1000f;
             if (ms > 30f) BrandingPlugin.Trace.LogInfo("ban : balayage des boutons " + Mathf.RoundToInt(ms) + " ms");
+            if (hidden)
+            {
+                banAppealScanStopped = true;
+                BrandingPlugin.Trace.LogInfo("ban : balayage termine (bouton masque), plus de recherche periodique.");
+            }
+            else if (banAppealScans >= 60)
+            {
+                banAppealScanStopped = true;
+                BrandingPlugin.Trace.LogInfo("ban : balayage arrete apres 60 passes sans bouton (plus d'a-coup periodique).");
+            }
         }
 
         // Une methode DECLAREE (sans corps) ne doit pas etre patchee : c'est ce qui a fait

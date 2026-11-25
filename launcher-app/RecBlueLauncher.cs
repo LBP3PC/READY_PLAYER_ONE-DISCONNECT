@@ -32,9 +32,9 @@ using System.Windows.Forms;
 [assembly: System.Reflection.AssemblyProduct("REC BLUE")]
 [assembly: System.Reflection.AssemblyCompany("REC BLUE")]
 [assembly: System.Reflection.AssemblyCopyright("Copyright (c) REC BLUE 2026")]
-[assembly: System.Reflection.AssemblyVersion("2026.11.11.3")]
-[assembly: System.Reflection.AssemblyFileVersion("2026.11.11.3")]
-[assembly: System.Reflection.AssemblyInformationalVersion("2026.11.11.3")]
+[assembly: System.Reflection.AssemblyVersion("2026.11.25")]
+[assembly: System.Reflection.AssemblyFileVersion("2026.11.25")]
+[assembly: System.Reflection.AssemblyInformationalVersion("2026.11.25")]
 [assembly: System.Reflection.AssemblyCulture("")]
 
 internal static class Launcher
@@ -360,14 +360,14 @@ internal static class Launcher
         new RequiredFile("Recroom_Release.exe", 500 * 1024),
         new RequiredFile("GameAssembly.dll", 100L * 1024 * 1024),
         new RequiredFile("UnityPlayer.dll", 20L * 1024 * 1024),
-        new RequiredFile(@"RecRoom_Data\globalgamemanagers", 1024 * 1024),
+        new RequiredFile(@"Recroom_Release_Data\globalgamemanagers", 1024 * 1024),
         new RequiredFile("Referee.dll", 100 * 1024),
-        new RequiredFile(@"RecRoom_Data\Plugins\x86_64\steam_api64.dll", 100 * 1024)
+        new RequiredFile(@"Recroom_Release_Data\Plugins\x86_64\steam_api64.dll", 100 * 1024)
     };
 
     private static readonly RequiredFile[] PackRequired2025 = new RequiredFile[]
     {
-        new RequiredFile("2025Patch.dll", 100 * 1024),
+        new RequiredFile("2025Patch.dll", 60 * 1024),
         new RequiredFile("Injector.exe", 10 * 1024),
         new RequiredFile("2025patch.ini", 500),
         new RequiredFile("RecRoomScreen.bat", 100),
@@ -485,6 +485,7 @@ internal static class Launcher
     {
         try
         {
+            if (Selected.Injector && !Safe2025Directory()) return;
             File.AppendAllText(LogFile, DateTime.Now.ToString("s", CultureInfo.InvariantCulture) + "  " + text + Environment.NewLine);
         }
         catch { }
@@ -506,7 +507,8 @@ internal static class Launcher
             else
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(target));
-                File.Copy(source, target, true);
+                if (Selected.Injector && File.Exists(target)) File.Delete(target);
+                File.Copy(source, target, !Selected.Injector);
             }
             return true;
         }
@@ -530,6 +532,11 @@ internal static class Launcher
     private static List<string> RepairGame()
     {
         List<string> log = new List<string>();
+        if (Selected.Injector && !Safe2025Directory())
+        {
+            log.Add("Dossier 2025 non valide ou contient un lien : reparation refusee.");
+            return log;
+        }
         if (!Directory.Exists(Backup))
         {
             log.Add("Aucune sauvegarde de reference : " + Backup);
@@ -644,7 +651,59 @@ internal static class Launcher
     internal static bool IsGameFolder(string dir)
     {
         if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return false;
+        if (Selected.Injector && !Safe2025Directory(dir)) return false;
         return ProblemsFor(dir, Selected.GameFiles).Count == 0;
+    }
+
+    // Le profil 2025 n'ecrit que dans son dossier dedie, sans suivre de liens.
+    private static bool Safe2025Directory() { return Safe2025Directory(GameDir); }
+
+    private static bool Safe2025Directory(string dir)
+    {
+        try
+        {
+            if (!Path.GetFullPath(dir).TrimEnd('\\', '/').Equals(
+                Path.GetFullPath(Selected.DefaultGameDir).TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase)) return false;
+            if (!Directory.Exists(dir) || HasReparsePoint(dir)) return false;
+            foreach (RequiredFile file in Selected.GameFiles)
+                if (HasReparsePoint(Path.Combine(dir, file.Path))) return false;
+            foreach (RequiredFile file in Selected.PackFiles)
+            {
+                string path = Path.Combine(dir, file.Path);
+                if (HasReparsePoint(path) || HasReparsePoint(path + ".download") ||
+                    HasReparsePoint(path + ".download.part") || HasReparsePoint(path + ".download.part.txt")) return false;
+            }
+            if (HasReparsePoint(Path.Combine(dir, "REC-BLUE-Launcher.log"))) return false;
+            string backup = Path.Combine(dir, "REC-BLUE-Backup");
+            if (HasReparsePoint(backup)) return false;
+            if (Directory.Exists(backup) && ContainsReparsePoint(backup)) return false;
+            return true;
+        }
+        catch { return false; }
+    }
+
+    private static bool ContainsReparsePoint(string directory)
+    {
+        foreach (string path in Directory.GetFileSystemEntries(directory))
+        {
+            FileAttributes attributes = File.GetAttributes(path);
+            if ((attributes & FileAttributes.ReparsePoint) != 0) return true;
+            if ((attributes & FileAttributes.Directory) != 0 && ContainsReparsePoint(path)) return true;
+        }
+        return false;
+    }
+
+    private static bool HasReparsePoint(string path)
+    {
+        string current = Path.GetFullPath(path);
+        while (current != null)
+        {
+            try { if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0) return true; }
+            catch (FileNotFoundException) { }
+            catch (DirectoryNotFoundException) { }
+            current = Path.GetDirectoryName(current);
+        }
+        return false;
     }
 
     // Rec Room peut etre dans n importe quelle bibliotheque Steam, y compris sur un
@@ -1114,8 +1173,56 @@ internal static class Launcher
 
     // ---- compte REC BLUE -----------------------------------------------------
     private const string SbUrl = "https://nnftdqrbagynbblthkfg.supabase.co";
-    private const string SbKey =
+    // Cle compilee : sert UNIQUEMENT de repli quand le fichier ci-dessous est absent.
+    private const string SbKeyCompilee =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZnRkcXJiYWd5bmJibHRoa2ZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM3MDA5OTEsImV4cCI6MjEwOTI3Njk5MX0.JHTNOWkI9DY1xhU8PKco4KqxsIxp_-IsSZL211NGEE8";
+
+    // Fichier facultatif pose A COTE DE L EXE. Une rotation de cle ne demande alors
+    // aucune recompilation : on remplace le contenu de ce fichier. Formats acceptes,
+    // une seule ligne suffit :
+    //     sb_publishable_xxxxxxxxxxxx
+    //     SupabaseKey=sb_publishable_xxxxxxxxxxxx
+    // Les lignes vides et celles commencant par # ou ; sont ignorees.
+    private const string SbKeyFichier = "REC-BLUE-Supabase.txt";
+
+    private static string sbKeyChargee;
+
+    /// <summary>
+    /// Cle Supabase utilisee pour se connecter. Lit le fichier a cote de l exe au
+    /// premier usage, puis garde le resultat ; revient a la valeur compilee si le
+    /// fichier est absent, vide ou illisible.
+    /// </summary>
+    private static string SbKey
+    {
+        get
+        {
+            if (sbKeyChargee == null) sbKeyChargee = LireCleSupabase();
+            return sbKeyChargee;
+        }
+    }
+
+    private static string LireCleSupabase()
+    {
+        try
+        {
+            string chemin = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SbKeyFichier);
+            if (!File.Exists(chemin)) return SbKeyCompilee;
+
+            foreach (string brute in File.ReadAllLines(chemin))
+            {
+                string ligne = brute.Trim().Trim('"').Trim();
+                if (ligne.Length == 0) continue;
+                if (ligne[0] == '#' || ligne[0] == ';') continue;
+
+                int egal = ligne.IndexOf('=');
+                if (egal >= 0) ligne = ligne.Substring(egal + 1).Trim().Trim('"').Trim();
+                if (ligne.Length > 0) return ligne;
+            }
+        }
+        catch { }
+
+        return SbKeyCompilee;
+    }
     private const string PseudoDomain = "players.recblue.invalid";
 
     internal static string AccountFile
@@ -2037,7 +2144,9 @@ internal static class Launcher
     // qui n'a pas pu tourner renvoie false et ne bloque jamais le lancement.
     private static bool SteamLicenseMissing()
     {
-        string dll = Path.Combine(GameDir, @"RecRoom_Data\Plugins\x86_64\steam_api64.dll");
+        string dll = Path.Combine(GameDir, Selected.Injector
+            ? @"Recroom_Release_Data\Plugins\x86_64\steam_api64.dll"
+            : @"RecRoom_Data\Plugins\x86_64\steam_api64.dll");
         if (!File.Exists(dll)) return false;
         string dir = Path.Combine(Path.GetTempPath(), "REC-BLUE-steamcheck");
         IntPtr library = IntPtr.Zero;
@@ -3435,6 +3544,12 @@ internal static class Launcher
         }
         if (!IsGameFolder(GameDir))
         {
+            if (Selected.Injector)
+            {
+                Status = "Rec Room 2025 introuvable dans C:\\RecRoom2025 : ajoute les fichiers du jeu 2025 dans ce dossier separe.";
+                WriteLog(Status);
+                return;
+            }
             if (GameArchiveUrl == "")
             {
                 Status = T("Rec Room introuvable - choisis d'abord son dossier.", "Rec Room not found - choose its folder first.", "Rec Room no encontrado: elige primero su carpeta.", "Rec Room не найден — сначала выберите его папку.", "Rec Room nicht gefunden – wähle zuerst den Ordner.", "لم يتم العثور على Rec Room - اختر مجلده أولاً.", "未找到 Rec Room，请先选择其文件夹。", "Rec Room non trovato: scegli prima la cartella.", "Rec Room nu a fost găsit - alege mai întâi folderul.", "A Rec Room nem található – válaszd ki először a mappáját.");
@@ -3475,7 +3590,8 @@ internal static class Launcher
 
         System.Threading.Thread worker = new System.Threading.Thread(delegate()
         {
-            try { RunInstall(owner); }
+            bool installed = false;
+            try { RunInstall(owner); installed = true; }
             catch (Exception error)
             {
                 Status = T("Echec de l'installation : ", "Installation failed: ", "Error de instalación: ", "Ошибка установки: ", "Installation fehlgeschlagen: ", "فشل التثبيت: ", "安装失败：", "Installazione non riuscita: ", "Instalare eșuată: ", "Sikertelen telepítés: ") + error.Message;
@@ -3489,7 +3605,7 @@ internal static class Launcher
                 {
                     LaunchAfterInstall = false;
                     // Le joueur a demande le jeu : le pack vient d etre pose, on lance.
-                    StartGame(false);
+                    if (installed) StartGame(false);
                 }
             }
         });
@@ -3522,6 +3638,12 @@ internal static class Launcher
     private static bool EnsureGameFiles(Form owner)
     {
         if (IsGameFolder(GameDir)) return true;
+        if (Selected.Injector)
+        {
+            Status = "Rec Room 2025 introuvable dans C:\\RecRoom2025 : ajoute les fichiers du jeu 2025 dans ce dossier separe.";
+            WriteLog(Status);
+            return false;
+        }
         if (GameArchiveUrl == "")
         {
             Status = T("Le jeu n'est pas installe : ses fichiers ne sont pas encore publies.", "The game is not installed: its files are not published yet.", "El juego no está instalado: sus archivos aún no están publicados.", "Игра не установлена: её файлы ещё не опубликованы.", "Das Spiel ist nicht installiert: seine Dateien sind noch nicht veröffentlicht.", "اللعبة غير مثبتة: ملفاتها لم تُنشر بعد.", "游戏未安装：其文件尚未发布。", "Il gioco non è installato: i suoi file non sono ancora pubblicati.", "Jocul nu este instalat: fișierele sale nu sunt încă publicate.", "A játék nincs telepítve: a fájljai még nincsenek közzétéve.");
@@ -3632,10 +3754,14 @@ internal static class Launcher
 
         string pack = GetText(PackUrl);
         WriteLog("pack : " + PackUrl);
-        BackupPackTargets();
-
         MatchCollection files = Regex.Matches(pack, "\"url\"\\s*:\\s*\"([^\"]+)\"\\s*,\\s*\"dest\"\\s*:\\s*\"([^\"]*)\"([^}]*)");
         if (files.Count == 0) throw new Exception("le manifeste du pack ne contient aucun fichier.");
+        if (Selected.Injector)
+        {
+            if (!Safe2025Directory()) throw new Exception("dossier 2025 non valide ou contient un lien.");
+            Validate2025Manifest(files);
+        }
+        BackupPackTargets();
 
         for (int i = 0; i < files.Count; i++)
         {
@@ -3660,12 +3786,20 @@ internal static class Launcher
                 ? Path.Combine(Path.GetTempPath(), "recblue-" + name)
                 : Path.Combine(GameDir, dest.Replace('/', '\\'));
 
+            if (Selected.Injector && !Safe2025Directory()) throw new Exception("dossier 2025 non valide ou contient un lien.");
             Directory.CreateDirectory(Path.GetDirectoryName(target));
-            Fetch(owner, url, target, name);
-            if (sha != "" && Sha256Of(target) != sha)
+            string downloaded = Selected.Injector ? target + ".download" : target;
+            Fetch(owner, url, downloaded, name);
+            if (sha != "" && Sha256Of(downloaded) != sha)
             {
-                File.Delete(target);
+                File.Delete(downloaded);
                 throw new Exception("empreinte differente pour " + name + ".");
+            }
+            if (Selected.Injector)
+            {
+                if (!Safe2025Directory()) throw new Exception("dossier 2025 non valide ou contient un lien.");
+                if (File.Exists(target)) File.Delete(target);
+                File.Move(downloaded, target);
             }
             if (archive)
             {
@@ -3708,13 +3842,9 @@ internal static class Launcher
                 WriteLog("configuration du plugin copiee dans BepInEx/config");
             }
         }
-        else
-        {
-            EnsureInjectorConfig();
-        }
-        EnsureServerHost();
+        if (!Selected.Injector) EnsureServerHost();
 
-        List<string> problems = ProblemsFor(GameDir, Selected.PackFiles);
+        List<string> problems = GetProblems();
         if (problems.Count > 0) throw new Exception("pack incomplet : " + problems[0]);
 
         Status = T("Installation terminee - clique sur JOUER.", "Installation complete - click PLAY.", "Instalación completada: pulsa JUGAR.", "Установка завершена — нажмите ИГРАТЬ.", "Installation abgeschlossen – klicke auf SPIELEN.", "اكتمل التثبيت - اضغط العب.", "安装完成，请点击开始游戏。", "Installazione completata: premi GIOCA.", "Instalare finalizată - apasă JOACĂ.", "Telepítés kész – kattints a JÁTÉK-ra.");
@@ -3722,23 +3852,23 @@ internal static class Launcher
         Refresh(owner);
     }
 
-    // Renseigne ApiHost dans 2025patch.ini uniquement s'il est vide : une valeur
-    // deja choisie par le joueur n'est jamais ecrasee.
-    private static void EnsureInjectorConfig()
+    private static void Validate2025Manifest(MatchCollection files)
     {
-        string path = Path.Combine(GameDir, "2025patch.ini");
-        if (!File.Exists(path)) return;
-        string text = SafeRead(path);
-        Match match = Regex.Match(text, @"(?m)^[ \t]*ApiHost[ \t]*=[ \t]*([^\r\n]*)");
-        if (!match.Success || match.Groups[1].Value.Trim() != "") return;
-        Group value = match.Groups[1];
-        text = text.Substring(0, value.Index) + Selected.ServerHost + text.Substring(value.Index + value.Length);
-        try
+        HashSet<string> names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (Match file in files)
         {
-            File.WriteAllText(path, text, new UTF8Encoding(false));
-            WriteLog("2025patch.ini : ApiHost=" + Selected.ServerHost);
+            string destination = file.Groups[2].Value;
+            string meta = file.Groups[3].Value;
+            bool allowed = false;
+            foreach (RequiredFile expected in Selected.PackFiles)
+                if (destination.Equals(expected.Path, StringComparison.OrdinalIgnoreCase)) allowed = true;
+            Match skip = Regex.Match(meta, "\"skipIf\"\\s*:\\s*\"([^\"]+)\"");
+            if (!allowed || !names.Add(destination) || meta.IndexOf("\"archive\"", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                !Regex.IsMatch(meta, "\"sha256\"\\s*:\\s*\"[0-9a-fA-F]{64}\"") ||
+                (skip.Success && !skip.Groups[1].Value.Equals(destination, StringComparison.OrdinalIgnoreCase)))
+                throw new Exception("manifeste 2025 invalide : destination ou empreinte refusee.");
         }
-        catch (Exception error) { WriteLog("2025patch.ini : " + error.Message); }
+        if (names.Count != Selected.PackFiles.Length) throw new Exception("manifeste 2025 incomplet.");
     }
 
     // Le pack a longtemps livré l'adresse workers.dev. On la remplace par le domaine
@@ -4082,9 +4212,10 @@ internal static class Launcher
         // Le profil choisi fixe l'executable, le pack, la configuration et le nom du
         // processus. Sans -Profile, on reste exactement sur le comportement 2023, sauf
         // pour un binaire explicitement nomme 2025 : il porte alors son propre profil.
-        if (profileArg == "" &&
-            Path.GetFileNameWithoutExtension(Application.ExecutablePath).IndexOf("2025", StringComparison.OrdinalIgnoreCase) >= 0)
+        bool is2025Executable = Path.GetFileNameWithoutExtension(Application.ExecutablePath).IndexOf("2025", StringComparison.OrdinalIgnoreCase) >= 0;
+        if (is2025Executable)
         {
+            if (profileArg != "" && profileArg != "2025") return 2;
             profileArg = "2025";
         }
         if (profileArg == "2025") Selected = Profile2025;
@@ -4097,9 +4228,14 @@ internal static class Launcher
 
         // Le launcher peut vivre n importe ou : il retient le dossier du jeu dans sa
         // configuration, et detecte une installation Steam si aucun dossier n est connu.
-        ApplyGameDir(Path.GetDirectoryName(Application.ExecutablePath));
+        ApplyGameDir(Selected.Injector ? Selected.DefaultGameDir : Path.GetDirectoryName(Application.ExecutablePath));
         LoadConfig();
         if (fpsArg > 0) { FpsLimit = fpsArg; FpsManual = true; }
+        if (explicitGameDir && Selected.Injector && !Safe2025Directory(requestedGameDir))
+        {
+            Console.WriteLine("Le profil 2025 utilise uniquement C:\\RecRoom2025.");
+            return 2;
+        }
         if (explicitGameDir) ApplyGameDir(requestedGameDir);
         if (!explicitGameDir && !IsGameFolder(GameDir) &&
             Selected.DefaultGameDir != "" && Directory.Exists(Selected.DefaultGameDir))
@@ -4116,7 +4252,7 @@ internal static class Launcher
         }
         // Un launcher telecharge dans un autre dossier ne doit pas oublier le dossier
         // REC BLUE deja installe : sans cela il lance le Rec Room Steam, qui plante.
-        if (!explicitGameDir)
+        if (!explicitGameDir && !Selected.Injector)
         {
             string packed = FindPackedInstall();
             if (packed != "" && InstallScore(packed) > InstallScore(GameDir))
@@ -4754,9 +4890,8 @@ internal static class Launcher
         // Anciennes configurations : le chemin a ete re-echappe plusieurs fois
         // (c:\\\\program files...). On le remet en forme avant de le tester.
         if (dir != "") dir = Regex.Replace(dir, @"\\{2,}", @"\");
-        // Le profil 2025 peut pointer un dossier prepare mais pas encore complet :
-        // on le retient des qu'il existe, pour que le bouton INSTALLER le cible.
-        if (dir != "" && (IsGameFolder(dir) || (!Selected.ScanSteam && Directory.Exists(dir)))) ApplyGameDir(dir);
+        // Le profil 2025 conserve toujours son dossier dedie.
+        if (!Selected.Injector && dir != "" && IsGameFolder(dir)) ApplyGameDir(dir);
     }
 
     private static void SaveConfig()
@@ -4813,6 +4948,11 @@ internal static class Launcher
     // Desinstallation : on retire l installation REC BLUE, jamais les fichiers du jeu.
     private static void Uninstall(Form owner)
     {
+        if (Selected.Injector && !Safe2025Directory())
+        {
+            Status = "Dossier 2025 non valide ou contient un lien : desinstallation refusee.";
+            return;
+        }
         if (GameRunning())
         {
             Status = T("Rec Room tourne : ferme-le avant de desinstaller.", "Rec Room is running: close it before uninstalling.", "Rec Room está abierto: ciérralo antes de desinstalar.", "Rec Room запущен: закройте его перед удалением.", "Rec Room läuft: schließe es vor der Deinstallation.", "Rec Room يعمل: أغلقه قبل إلغاء التثبيت.", "Rec Room 正在运行：请关闭后再卸载。", "Rec Room è in esecuzione: chiudilo prima di disinstallare.", "Rec Room rulează: închide-l înainte de dezinstalare.", "A Rec Room fut: zárd be az eltávolítás előtt.");
@@ -4837,6 +4977,11 @@ internal static class Launcher
             MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);
         if (answer != DialogResult.Yes) return;
 
+        if (Selected.Injector && !Safe2025Directory())
+        {
+            Status = "Dossier 2025 non valide ou contient un lien : desinstallation refusee.";
+            return;
+        }
         int removed = 0;
         if (Selected.Injector)
         {

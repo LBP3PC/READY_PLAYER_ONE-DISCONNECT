@@ -31,6 +31,17 @@ public class SendRequestPatch
         return false;
     }
 
+    // Only fixed labels reach the always-on probe: paths can contain identifiers or secrets too.
+    private static string HttpPhase(string path)
+    {
+        if (path.Equals("/player/heartbeat", StringComparison.OrdinalIgnoreCase)) return "heartbeat";
+        if (path.Equals("/player/login", StringComparison.OrdinalIgnoreCase)) return "login";
+        if (path.StartsWith("/matchmake/", StringComparison.OrdinalIgnoreCase)) return "matchmaking";
+        if (path.StartsWith("/rooms/", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/api/rooms/", StringComparison.OrdinalIgnoreCase)) return "rooms";
+        return "other";
+    }
+
     // Cap logged bodies so a large response/request doesn't flood the log.
     private const int MaxLoggedBodyLength = 10000;
 
@@ -57,9 +68,8 @@ public class SendRequestPatch
         {
             var debug = Plugin.Debug.Value && !IsIgnoredForLogging(request.Uri.AbsoluteUri);
 
-            // Always feed the socket probe, even with Debug off: it is what lets a UDP open/close
-            // line name the HTTP phase it happened in.
-            PhotonSocketProbe.NoteHttp($"{request.MethodType} {request.Uri.AbsoluteUri}");
+            // The probe runs even with Debug off; never store an actual URL or path in it.
+            PhotonSocketProbe.NoteHttp($"{request.MethodType} {HttpPhase(request.Uri.AbsolutePath)}");
 
             if (debug)
             {

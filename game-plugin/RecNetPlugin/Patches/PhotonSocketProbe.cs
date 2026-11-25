@@ -35,9 +35,8 @@ public static class PhotonSocketProbe
     private static string _last = "";
     private static bool _failed;
 
-    // The last HTTP request the client made. SendRequestPatch calls NoteHttp on every request, so
-    // a socket change can name the phase it happened in (boot, room load, heartbeat, …) without
-    // needing the HTTP log (which only exists with Debug on).
+    // The latest HTTP method and fixed phase label, not its URL or path. This is updated even
+    // with Debug off, so socket changes can be correlated without enabling detailed HTTP logs.
     private static volatile string _lastHttp = "<aucune>";
     private static long _lastHttpTicks;
 
@@ -52,7 +51,7 @@ public static class PhotonSocketProbe
         }
     }
 
-    /** Called by SendRequestPatch for every request: the probe line then names the phase. */
+    /** Called by SendRequestPatch with a method and fixed phase label, never a URL or path. */
     public static void NoteHttp(string what)
     {
         _lastHttp = what;

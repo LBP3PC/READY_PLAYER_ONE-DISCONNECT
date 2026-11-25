@@ -141,7 +141,12 @@ Inside `config`, edit the `net.rec.plugin.cfg` file and update as needed:
 - `Photon NameServer` — custom Photon name server host.
 - `Photon NameServer Port` — custom port (`0` uses the default, `4533`).
 - `Debug` — verbose HTTP request/response logging (only needed for development)
-  > ⚠️ Debug logs include **sensitive data** (passwords, auth tokens). Be careful when sharing them.
+  > ⚠️ Debug logs can include **sensitive data** in full URLs, paths and request/response bodies
+  > (including passwords and auth tokens). Be careful when sharing them.
+
+The always-on Photon socket probe records local UDP ports and the latest HTTP method, timestamp and
+fixed phase label (heartbeat, login, matchmaking, rooms or other), not its URL or path. This limit
+applies only to that probe; other plugin and game logs can still contain sensitive information.
 - `Suppress DUID Mismatch` — skips the Create Account / DUID hang (see above). **On by default**; the
   only DUID option meant for normal use. Set `false` only to observe the real mismatch for debugging.
 
