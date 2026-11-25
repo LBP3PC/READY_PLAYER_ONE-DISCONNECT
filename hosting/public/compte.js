@@ -343,7 +343,7 @@
     byId('side-email').textContent = profile.contact_email || '—';
     byId('contact-email').value = profile.contact_email || '';
     byId('name').value = profile.display_name;
-    byId('admin').hidden = !((profile.role === 'admin' || profile.role === 'owner') || profile.role === 'moderator');
+    byId('admin').hidden = !(isAdminRole(profile.role) || profile.role === 'moderator');
     byId('admin-users').replaceChildren();
     try { await loadFactors(); } catch (error) { byId('mfa-state').textContent = 'État de la double authentification indisponible.'; }
   }
