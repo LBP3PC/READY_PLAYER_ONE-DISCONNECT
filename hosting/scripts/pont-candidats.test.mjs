@@ -5,6 +5,8 @@
 // Deux façons d'obtenir un second candidat, selon la route :
 //   - pseudo de la fiche du site (« joueur ») puis partie locale de l'email (« second ») ;
 //   - pseudo demandé (« joueur ») puis nom affiché trouvé côté jeu (« second »).
+// La route avatar passe en plus `usable` à `askGame` : un 200 dont le corps ne se décode
+// pas ne compte pas comme une trouvaille, le candidat suivant est essayé (`cas.usable`).
 // Les routes d'administration ne retiennent qu'un candidat quand la cible est un pseudo :
 // c'est dit cas par cas (`candidats: 1`).
 //
@@ -24,6 +26,14 @@ const env = {
 
 const json = (status, body) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+
+// Un 200 dont le corps n'est pas du JSON exploitable (page d'erreur servie en 200) :
+// c'est exactement ce que `usable` doit refuser avant de passer au candidat suivant.
+const corpsIllisible = () =>
+  new Response('<!doctype html><title>maintenance</title>', {
+    status: 200,
+    headers: { 'content-type': 'text/html' }
+  });
 
 const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; });
@@ -100,7 +110,9 @@ const PLANS = {
   suivant: () => [json(404, {}), json(200, DONNEES)],
   tous404: () => [json(404, {}), json(404, {})],
   refus: () => [json(500, {})],
-  panne: () => ['panne']
+  panne: () => ['panne'],
+  inexploitable: () => [corpsIllisible(), json(200, DONNEES)],
+  tousInexploitables: () => [corpsIllisible(), corpsIllisible()]
 };
 
 const CAS = [
@@ -173,7 +185,14 @@ const CAS = [
     succes: (u) => ({ statut: 200, corps: { username: u, image: 'https://img.example/p/1.png', banner: null } }),
     tous404: { statut: 200, corps: { image: null, banner: null } },
     refus: { statut: 200, corps: { image: null, banner: null }, plan: [json(500, {}), json(500, {})] },
-    panne: { statut: 502, corps: INJOIGNABLE }
+    panne: { statut: 502, corps: INJOIGNABLE },
+    // Seule route qui passe `usable` à `askGame`.
+    usable: true,
+    inexploitable: (u) => ({
+      statut: 200,
+      corps: { username: u, image: 'https://img.example/p/1.png', banner: null }
+    }),
+    tousInexploitables: { statut: 200, corps: { image: null, banner: null } }
   },
   {
     nom: 'site-plus — Plus posé sur la fiche du site',
@@ -362,5 +381,21 @@ for (const cas of CAS) {
       assert.deepEqual(r.corps, attendu.corps);
       assert.equal(r.appels.length, 1, 'on n’insiste pas sur un autre pseudo');
     });
+
+    if (cas.usable) {
+      await t.test('200 au corps inexploitable : candidat suivant, puis échec propre', async () => {
+        const suivant = await executer(cas, PLANS.inexploitable());
+        const attenduSuivant = attenduDe(cas.inexploitable, 'second');
+        assert.equal(suivant.statut, attenduSuivant.statut);
+        assert.deepEqual(suivant.corps, attenduSuivant.corps, 'un 200 illisible n’est pas une trouvaille');
+        assert.equal(suivant.appels.length, 2, 'le candidat suivant a bien été essayé');
+
+        const aucun = await executer(cas, PLANS.tousInexploitables());
+        const attenduAucun = attenduDe(cas.tousInexploitables, 'joueur');
+        assert.equal(aucun.statut, attenduAucun.statut);
+        assert.deepEqual(aucun.corps, attenduAucun.corps, 'aucun candidat exploitable : réponse vide, pas une erreur');
+        assert.equal(aucun.appels.length, 2, 'tous les candidats ont été essayés');
+      });
+    }
   });
 }
