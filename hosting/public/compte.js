@@ -1,5 +1,7 @@
 (() => {
   const byId = id => document.getElementById(id);
+  // Le proprietaire du site administre au meme titre qu'un administrateur.
+  const isAdminRole = role => role === 'admin' || role === 'owner';
   const msg = byId('msg');
   const config = window.RECBLUE_ACCOUNTS;
   const PSEUDO_DOMAIN = 'players.recblue.invalid';
@@ -192,15 +194,19 @@
       };
     } catch (error) { return { certified: false, plus: false, role: '' }; }
   }
-  async function gameRequest(path, payload) {
+  // `payload` a null : lecture (GET), sans corps. Sinon envoi POST, comme le reste de la
+  // page : le jeton, le JSON et les erreurs ne sont traites qu'ici.
+  async function gameRequest(path, payload, method = 'POST') {
     try {
       const token = await sessionToken();
       if (!token) return { ok: false, error: 'session absente' };
-      const response = await fetch(path, {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      const response = await fetch(path, payload === null
+        ? { method, headers: { Authorization: 'Bearer ' + token } }
+        : {
+          method,
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
       const body = await response.json().catch(() => null);
       if (!response.ok) return { ok: false, error: (body && body.error) || ('statut ' + response.status) };
       return body || { ok: true };
@@ -408,7 +414,7 @@
       const apply = document.createElement('button');
       apply.type = 'button'; apply.className = 'btn ghost'; apply.textContent = 'Appliquer';
       // Un modérateur voit la liste mais ne change pas les droits.
-      const isAdmin = (profile?.role === 'admin' || profile?.role === 'owner');
+      const isAdmin = isAdminRole(profile?.role);
       select.disabled = !isAdmin; apply.disabled = !isAdmin; apply.hidden = !isAdmin;
       apply.addEventListener('click', () => guard(apply, async () => {
         // Un seul aller-retour : le Worker écrit le rôle du site (clé de service, sur
@@ -422,7 +428,7 @@
         else if (!game.ok) say('Rôle du site : ' + (site.ok ? label : 'refusé') + '. En jeu, le rôle n’a pas suivi : ' + (game.error || 'serveur de jeu injoignable') + '.');
         else say('Rôle de jeu passé à ' + label + ', mais la fiche du site a refusé : ' + (site.error || 'erreur inconnue') + '.');
         await loadProfile();
-        if ((profile?.role === 'admin' || profile?.role === 'owner')) await listUsers();
+        if (isAdminRole(profile?.role)) await listUsers();
       }));
       // Le badge « Certifié REC BLUE » : accordé par l’administration, rangé sur le compte de jeu.
       const certify = document.createElement('button');
@@ -865,6 +871,49 @@
     card.scrollIntoView({ block: 'start' });
   }
 
+    /**
+   * Le niveau affiché du membre vit dans `recblue_accounts.level` : un chiffre du site,
+   * distinct de la progression du jeu. Chaque membre peut lire son niveau ; le panneau
+   * de réglage reste réservé aux personnes autorisées par le serveur.
+   */
+  async function drawLevelPanel() {
+    const current = revision;
+    const card = byId('level-card');
+    if (!card) return;
+    const cell = byId('side-level');
+    card.hidden = true;
+    if (cell) cell.textContent = '—';
+    const body = await gameRequest('/api/game/member-level', null, 'GET');
+    if (current !== revision) return;
+    card.hidden = !(body.admin === true || body.developer === true);
+    if (cell) {
+      cell.textContent = body.level === null || body.level === undefined ? '—' : String(body.level);
+    }
+  }
+
+  function wireLevelForm() {
+    const form = byId('level-form');
+    if (!form) return;
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const status = byId('level-status');
+      const target = byId('level-target').value.trim();
+      const level = byId('level-value').value.trim();
+      if (target === '') { status.textContent = 'Indiquez le pseudo ou l’identifiant complet du membre.'; return; }
+      status.textContent = 'Enregistrement…';
+      const body = await gameRequest('/api/game/member-level', { target, level });
+      if (body.ok === false) {
+        status.textContent = body.error || 'Le niveau n’a pas été enregistré.';
+        return;
+      }
+      status.textContent =
+        (body.displayName || target) + ' est maintenant au niveau ' + body.level + '.';
+      form.reset();
+      // Le changement peut concerner l'appelant lui-même : la colonne de gauche se remet à jour.
+      drawLevelPanel().catch(() => {});
+    });
+  }
+
   async function init() {
     if (!config?.supabaseUrl || !config?.publishableKey) { say('Service de comptes non configuré.'); return; }
     // Un ancien lien (ou une demande faite depuis un apercu) peut arriver sur un autre
@@ -906,61 +955,6 @@
       }
     } catch (error) { say(error.message); }
   }
-      /**
-     * Le niveau affiché du membre vit dans `recblue_accounts.level` : un chiffre du site,
-     * distinct de la progression du jeu. Chaque membre peut lire son niveau ; le panneau
-     * de réglage reste réservé aux personnes autorisées par le serveur.
-     */
-    async function drawLevelPanel() {
-      const current = revision;
-      const card = byId('level-card');
-      if (!card) return;
-      const cell = byId('side-level');
-      card.hidden = true;
-      if (cell) cell.textContent = '—';
-      const token = await sessionToken();
-      if (!token) return;
-      const response = await fetch('/api/game/member-level', {
-        headers: { Authorization: 'Bearer ' + token },
-        cache: 'no-store'
-      }).catch(() => null);
-      const body = response && response.ok ? await response.json().catch(() => null) : null;
-      if (current !== revision) return;
-      card.hidden = !(body && (body.admin === true || body.developer === true));
-      if (cell) {
-        cell.textContent =
-          body && body.level !== null && body.level !== undefined ? String(body.level) : '—';
-      }
-    }
-
-    function wireLevelForm() {
-      const form = byId('level-form');
-      if (!form) return;
-      form.addEventListener('submit', async event => {
-        event.preventDefault();
-        const status = byId('level-status');
-        const target = byId('level-target').value.trim();
-        const level = byId('level-value').value.trim();
-        if (target === '') { status.textContent = 'Indiquez le pseudo ou l’identifiant complet du membre.'; return; }
-        status.textContent = 'Enregistrement…';
-        const token = await sessionToken();
-        const response = await fetch('/api/game/member-level', {
-          method: 'POST',
-          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ target, level })
-        }).catch(() => null);
-        const body = response ? await response.json().catch(() => null) : null;
-        if (!response || !response.ok) {
-          status.textContent = (body && body.error) || 'Le niveau n’a pas été enregistré.';
-          return;
-        }
-        status.textContent =
-          (body.displayName || target) + ' est maintenant au niveau ' + body.level + '.';
-        form.reset();
-        // Le changement peut concerner l'appelant lui-même : la colonne de gauche se remet à jour.
-        drawLevelPanel().catch(() => {});
-      });
-    }
 
     init();
   })();

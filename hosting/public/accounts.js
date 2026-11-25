@@ -1,5 +1,7 @@
 (() => {
   const byId = id => document.getElementById(id);
+  // Le proprietaire du site administre au meme titre qu'un administrateur.
+  const isAdminRole = role => role === 'admin' || role === 'owner';
   const message = byId('account-message');
   const config = window.RECBLUE_ACCOUNTS;
   // Supabase a besoin d'un identifiant de type email. Les comptes créés avec un
@@ -231,10 +233,10 @@
     if (navCert) navCert.hidden = !certified;
     const plusBadge = byId('account-plus');
     if (plusBadge) plusBadge.hidden = !plusSite;
-    byId('account-admin').hidden = !((profile.role === 'admin' || profile.role === 'owner') || profile.role === 'moderator');
+    byId('account-admin').hidden = !(isAdminRole(profile.role) || profile.role === 'moderator');
     // Les crédits et le Plus restent réservés aux administrateurs : un
     // modérateur ne voit que la liste des comptes.
-    const isAdminMember = (profile.role === 'admin' || profile.role === 'owner');
+    const isAdminMember = isAdminRole(profile.role);
     ['admin-credits', 'admin-plus', 'admin-maintenance', 'admin-announcement', 'admin-gift'].forEach(id => {
       const block = byId(id);
       if (block) block.hidden = !isAdminMember;
@@ -290,7 +292,7 @@
     if (result.error) throw result.error;
     const accounts = result.data;
     await refreshAccount();
-    if (!profile || !((profile.role === 'admin' || profile.role === 'owner') || profile.role === 'moderator')) throw new Error('Accès réservé à l’équipe.');
+    if (!profile || !(isAdminRole(profile.role) || profile.role === 'moderator')) throw new Error('Accès réservé à l’équipe.');
     const fragment = document.createDocumentFragment();
     accounts.forEach(account => {
       const row = document.createElement('div'); row.className = 'detail-row';
@@ -301,7 +303,7 @@
       select.value = account.role;
       const save = document.createElement('button'); save.type = 'button'; save.className = 'button'; save.textContent = 'Appliquer';
       // Seul un administrateur peut changer les droits ; un modérateur consulte la liste.
-      const isAdmin = (profile.role === 'admin' || profile.role === 'owner');
+      const isAdmin = isAdminRole(profile.role);
       select.disabled = !isAdmin; save.disabled = !isAdmin; save.hidden = !isAdmin;
       save.addEventListener('click', () => run(save, async () => {
         const synced = await setSiteRole(account, select.value);
@@ -337,7 +339,7 @@
       code: String((data && data.code) || '')
     };
     const block = byId('admin-maintenance');
-    if (block) block.hidden = !(profile && (profile.role === 'admin' || profile.role === 'owner'));
+    if (block) block.hidden = !(profile && isAdminRole(profile.role));
     const state = byId('maintenance-state');
     if (state) state.textContent = maintenanceState.active
       ? 'Maintenance active : les joueurs doivent saisir le code.'
@@ -350,7 +352,7 @@
     if (code) code.value = maintenanceState.code;
   }
   async function loadMaintenanceAdmin() {
-    if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) {
+    if (!profile || !isAdminRole(profile.role)) {
       const block = byId('admin-maintenance');
       if (block) block.hidden = true;
       return;
@@ -370,7 +372,7 @@
   if (maintenanceForm) maintenanceForm.addEventListener('submit', event => {
     event.preventDefault();
     run(byId('maintenance-toggle'), async () => {
-      if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) throw new Error('Accès administrateur requis.');
+      if (!profile || !isAdminRole(profile.role)) throw new Error('Accès administrateur requis.');
       const token = await sessionToken();
       if (!token) throw new Error('Session absente : reconnecte-toi.');
       const active = !maintenanceState.active;
@@ -394,7 +396,7 @@
   if (announcementForm) announcementForm.addEventListener('submit', event => {
     event.preventDefault();
     run(byId('admin-announcement-submit'), async () => {
-      if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) throw new Error('Accès administrateur requis.');
+      if (!profile || !isAdminRole(profile.role)) throw new Error('Accès administrateur requis.');
       const input = byId('admin-announcement-message');
       const text = String(input.value || '').trim();
       if (!text) throw new Error('Écris le message à envoyer.');
@@ -416,7 +418,7 @@
   if (creditsForm) creditsForm.addEventListener('submit', event => {
     event.preventDefault();
     run(byId('admin-credits-submit'), async () => {
-      if (!profile || !((profile.role === 'admin' || profile.role === 'owner') || profile.role === 'moderator')) throw new Error('Accès réservé à l’équipe.');
+      if (!profile || !(isAdminRole(profile.role) || profile.role === 'moderator')) throw new Error('Accès réservé à l’équipe.');
       const target = byId('admin-credits-target').value.trim();
       const amount = Number(byId('admin-credits-amount').value);
       if (!target) throw new Error('Indiquez un pseudo ou une adresse email.');
@@ -442,7 +444,7 @@
   if (debitForm) debitForm.addEventListener('submit', event => {
     event.preventDefault();
     run(byId('admin-debit-submit'), async () => {
-      if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) throw new Error('Accès administrateur requis.');
+      if (!profile || !isAdminRole(profile.role)) throw new Error('Accès administrateur requis.');
       const target = String(byId('admin-debit-target').value || '').trim();
       if (!target) throw new Error('Indiquez un pseudo de jeu ou une adresse email.');
       const amount = Number(byId('admin-debit-amount').value);
@@ -512,7 +514,7 @@
   if (giftForm) giftForm.addEventListener('submit', event => {
     event.preventDefault();
     run(byId('admin-gift-submit'), async () => {
-      if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) throw new Error('Accès administrateur requis.');
+      if (!profile || !isAdminRole(profile.role)) throw new Error('Accès administrateur requis.');
       const target = String(byId('admin-gift-target').value || '').trim();
       if (!target) throw new Error('Indiquez le pseudo du joueur.');
       const storefront = Number(giftSelect && giftSelect.value) || 3;
@@ -553,7 +555,7 @@
   if (plusForm) plusForm.addEventListener('submit', event => {
     event.preventDefault();
     run(byId('admin-plus-submit'), async () => {
-      if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) throw new Error('Accès administrateur requis.');
+      if (!profile || !isAdminRole(profile.role)) throw new Error('Accès administrateur requis.');
       const target = plusTarget(byId('admin-plus-target').value);
       const day = byId('admin-plus-date').value;
       if (!day) throw new Error('Choisissez la date de fin du REC BLUE Plus.');
@@ -572,7 +574,7 @@
   });
   const plusRemove = byId('admin-plus-remove');
   if (plusRemove) plusRemove.addEventListener('click', () => run(plusRemove, async () => {
-    if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) throw new Error('Accès administrateur requis.');
+    if (!profile || !isAdminRole(profile.role)) throw new Error('Accès administrateur requis.');
     const target = plusTarget(byId('admin-plus-target').value);
     const site = await client.rpc('recblue_grant_plus', { p_identifier: target, p_until: null });
     const jeu = await gameRequest('/api/game/plus', { target, until: null });
@@ -588,7 +590,7 @@
   if (banForm) banForm.addEventListener('submit', event => {
     event.preventDefault();
     run(byId('admin-ban-submit'), async () => {
-      if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) throw new Error('Accès administrateur requis.');
+      if (!profile || !isAdminRole(profile.role)) throw new Error('Accès administrateur requis.');
       const target = String(byId('admin-ban-target').value || '').trim();
       if (!target) throw new Error('Indiquez un pseudo de jeu ou une adresse email.');
       const reason = String(byId('admin-ban-reason').value || '').trim();
@@ -601,7 +603,7 @@
   });
   const banLift = byId('admin-ban-lift');
   if (banLift) banLift.addEventListener('click', () => run(banLift, async () => {
-    if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) throw new Error('Accès administrateur requis.');
+    if (!profile || !isAdminRole(profile.role)) throw new Error('Accès administrateur requis.');
     const target = String(byId('admin-ban-target').value || '').trim();
     if (!target) throw new Error('Indiquez le pseudo du joueur à débannir.');
     const result = await gameRequest('/api/game/ban', { target, ban: false });

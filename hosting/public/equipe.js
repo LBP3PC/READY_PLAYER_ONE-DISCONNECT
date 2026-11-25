@@ -3,6 +3,8 @@
 // jeu via le Worker du site ; le navigateur n'a jamais le jeton partagé.
 (() => {
   const byId = id => document.getElementById(id);
+  // Le proprietaire du site administre au meme titre qu'un administrateur.
+  const isAdminRole = role => role === 'admin' || role === 'owner';
   const config = window.RECBLUE_ACCOUNTS;
   const labels = { member: 'Membre', moderator: 'Modérateur', admin: 'Administrateur' };
   let client = null;
@@ -56,7 +58,7 @@
       wrap.append(badge);
     };
     if (player.online) add('En ligne', 'live');
-    add(labels[player.role] || 'Membre', (player.role === 'admin' || player.role === 'owner') ? 'admin' : player.role === 'moderator' ? 'mod' : '');
+    add(labels[player.role] || 'Membre', isAdminRole(player.role) ? 'admin' : player.role === 'moderator' ? 'mod' : '');
     if (player.isDeveloper) add('Dev');
     if (player.plus) add('Plus');
     if (player.banned) add('Banni', 'banned');

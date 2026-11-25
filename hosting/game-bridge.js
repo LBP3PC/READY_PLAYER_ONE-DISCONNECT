@@ -614,8 +614,10 @@ export async function handleMemberLevel(request, env) {
   // Entier strict : `parseInt` acceptait « 5.9 » et en faisait 5 sans rien dire, et « 12abc »
   // aussi. Un niveau à moitié appliqué est plus déroutant qu'un refus net.
   const text = String(raw).trim();
+  // `^\d{1,3}$` porte toute la regle : entier, sans signe, sans decimale, 999 au
+  // maximum. Tester `level` en plus ne pourrait jamais rien refuser de plus.
   const level = Number(text);
-  if (!/^\d{1,3}$/.test(text) || !Number.isInteger(level) || level > 999) {
+  if (!/^\d{1,3}$/.test(text)) {
     return json(400, { error: 'Niveau invalide : un nombre entier entre 0 et 999.' });
   }
   const target = String((payload && payload.target) || '').trim();
@@ -637,8 +639,9 @@ export async function handleMemberLevel(request, env) {
     .catch(() => null);
   const rows = Array.isArray(found) ? found.filter(row => row && row.id !== undefined) : [];
   const wanted = target.toLowerCase();
+  // Cible UUID : `id=eq.` ne renvoie qu'une fiche, un doublon y est impossible.
   const matches = byId
-    ? rows.slice(0, 1)
+    ? rows
     : rows.filter(row => String(row.display_name || '').trim().toLowerCase() === wanted);
   if (matches.length > 1) {
     return json(409, { error: 'Plusieurs membres portent ce pseudo : indiquez leur identifiant complet à la place.' });
@@ -732,15 +735,6 @@ async function pushGameRole(cfg, target, role) {
     };
   }
   return { ok: false, error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' };
-}
-
-/** Les pseudos candidats d'une cible (« pseudo » ou « adresse email »). */
-function targetsOf(value) {
-  const raw = String(value || '').trim().toLowerCase();
-  const names = (raw.includes('@') ? [pseudoFromEmail(raw), raw] : [raw]).filter(name =>
-    PSEUDO.test(name)
-  );
-  return { raw, names };
 }
 
 /**
