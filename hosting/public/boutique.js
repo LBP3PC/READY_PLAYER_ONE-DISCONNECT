@@ -17,6 +17,8 @@
 
   let client = null;
   let started = false;
+  let activeUser = null;
+  let authRevision = 0;
   let currency = null;
 
   const state = {
@@ -171,7 +173,9 @@
   }
 
   async function loadInventory() {
+    const revision = authRevision;
     const result = await api('/api/game/inventory');
+    if (revision !== authRevision) return;
     if (result.status === 401) {
       show(false);
       return;
@@ -187,12 +191,14 @@
   }
 
   async function loadCatalog(storefront) {
+    const revision = authRevision;
     const loading = byId('boutique-loading');
     if (loading) loading.textContent = 'Chargement de la boutique…';
     state.items = [];
     renderShop();
 
     const result = await api('/api/game/storefront?storefront=' + encodeURIComponent(storefront));
+    if (revision !== authRevision) return;
     if (loading) loading.textContent = '';
     if (result.status === 401) {
       show(false);
@@ -232,12 +238,14 @@
     button.textContent = 'Achat en cours…';
     status('');
 
+    const revision = authRevision;
     const result = await api('/api/game/buy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ storefront: state.storefront, item: entry.id })
     });
 
+    if (revision !== authRevision) return;
     button.disabled = false;
     button.textContent = button.dataset.label || 'Acheter';
 
@@ -271,14 +279,22 @@
     if (!loggedIn) {
       state.wardrobe = [];
       state.items = [];
+      state.catalogs.clear();
+      state.armed = null;
+      currency = null;
+      renderWardrobe();
+      renderShop();
       status('');
     }
   }
 
   async function start() {
-    if (started) return;
-    started = true;
     show(true);
+    if (started) {
+      await Promise.all([loadInventory(), loadCatalog(state.storefront)]);
+      return;
+    }
+    started = true;
 
     const tabs = byId('boutique-tabs');
     if (tabs) {
@@ -347,18 +363,21 @@
 
   function boot() {
     if (!window.supabase || !window.supabase.createClient || !config.supabaseUrl) return;
-    client = window.supabase.createClient(config.supabaseUrl, config.publishableKey, {
+    // Un seul client Supabase par page : `compte.js` publie le sien avant ce script, sinon
+    // deux clients se disputent la même session et le jeton se rafraîchit dans le vide.
+    client = window.recblueClient || window.supabase.createClient(config.supabaseUrl, config.publishableKey, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
     });
 
-    client.auth.getSession().then(({ data }) => {
-      if (data && data.session) start();
-      else show(false);
-    });
-
     client.auth.onAuthStateChange((_event, session) => {
-      if (session) start();
-      else show(false);
+      const userId = session?.user?.id || null;
+      if (userId === activeUser) return;
+      activeUser = userId;
+      const current = ++authRevision;
+      show(false);
+      if (userId) {
+        setTimeout(() => { if (current === authRevision) start(); }, 0);
+      }
     });
   }
 

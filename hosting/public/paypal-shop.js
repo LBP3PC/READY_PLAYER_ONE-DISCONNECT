@@ -5,13 +5,26 @@
   const config = window.RECBLUE_ACCOUNTS || {};
   // Même session que le site : supabase-js range le jeton sous sb-<projet>-auth-token.
   const projectRef = (() => { try { return new URL(config.supabaseUrl).hostname.split('.')[0]; } catch { return ''; } })();
-  const client = window.supabase && config.supabaseUrl && projectRef
-    ? window.supabase.createClient(config.supabaseUrl, config.publishableKey, { auth: { storageKey: 'sb-' + projectRef + '-auth-token', autoRefreshToken: false, detectSessionInUrl: false } })
-    : null;
+  // Un seul client Supabase par page : `accounts.js` publie celui du site, on le réutilise.
+  // Créé seulement au premier besoin, donc après lui ; deux clients sur la même page se
+  // disputeraient le jeton et jetteraient la session au rafraîchissement.
+  let ownClient = null;
+  function authClient() {
+    if (ownClient) return ownClient;
+    if (window.recblueClient) {
+      ownClient = window.recblueClient;
+      return ownClient;
+    }
+    ownClient = window.supabase && config.supabaseUrl && projectRef
+      ? window.supabase.createClient(config.supabaseUrl, config.publishableKey, { auth: { storageKey: 'sb-' + projectRef + '-auth-token', autoRefreshToken: false, detectSessionInUrl: false } })
+      : null;
+    return ownClient;
+  }
   const ONE_TIME = new Set(['pplus', 'pstarter']);
   const defaultLabels = new WeakMap();
 
   async function token() {
+    const client = authClient();
     if (!client) return '';
     const { data } = await client.auth.getSession();
     return (data && data.session && data.session.access_token) || '';
@@ -34,6 +47,7 @@
   }
 
   async function refreshOneTimeState() {
+    const client = authClient();
     if (!client) return;
     try {
       const { data: sessionData } = await client.auth.getSession();

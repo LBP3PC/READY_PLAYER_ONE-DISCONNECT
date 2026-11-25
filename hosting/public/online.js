@@ -78,12 +78,16 @@
         : joueurs(n) + ' en ce moment. Les chambres actuelles sont sur la page Chambres.';
     }
 
+    const ms = Number(etat.ms) > 0 ? Math.round(Number(etat.ms)) : null;
+    const latence = ms === null ? '' : ' Réponse en ' + ms + ' ms.';
     if (gameDetail) {
       gameDetail.textContent = etat.game
-        ? (etat.rooms ? 'Le serveur de jeu et les chambres répondent.' : 'Comptes et économie répondent, les chambres sont muettes.')
+        ? (etat.rooms ? 'Le serveur de jeu et les chambres répondent.' + latence : 'Comptes et économie répondent, les chambres sont muettes.' + latence)
         : 'Le serveur de jeu ne répond pas.';
     }
-    badge(gameBadge, etat.game ? (etat.rooms ? 'Opérationnel' : 'Partiel') : 'Injoignable', etat.game && etat.rooms);
+    badge(gameBadge, etat.game
+      ? ((etat.rooms ? 'Opérationnel' : 'Partiel') + (ms === null ? '' : ' · ' + ms + ' ms'))
+      : 'Injoignable', etat.game && etat.rooms);
 
     if (presenceDetail) {
       presenceDetail.textContent = etat.presence
@@ -100,11 +104,18 @@
   }
 
   function load() {
+    // Délai d'aller-retour vers le serveur de jeu : mesuré autour de la requête de
+    // statut, puis affiché à côté de son état dans le panneau Statut.
+    const horloge = function () {
+      return (window.performance && performance.now) ? performance.now() : Date.now();
+    };
+    const depart = horloge();
     fetch('/api/game/status', { cache: 'no-store' })
       .then(function (response) { return response.ok ? response.json() : null; })
       .then(function (data) {
         if (!data) return;
         etat = {
+          ms: Math.max(1, Math.round(horloge() - depart)),
           game: Boolean(data.game),
           rooms: Boolean(data.rooms),
           presence: Boolean(data.presence),
