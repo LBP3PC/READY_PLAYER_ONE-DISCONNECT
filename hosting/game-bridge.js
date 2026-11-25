@@ -451,25 +451,29 @@ function isAdminRole(role) {
   return value === 'admin' || value === 'owner';
 }
 
+/**
+ * Le controle des routes d'equipe : administrateur du site, rien de plus.
+ *
+ * Il s'appuie sur `siteOperator` pour ne pas relire le role une deuxieme fois en base.
+ * Une fiche absente vaut refus (403) et non « introuvable » : une route reservee n'a pas
+ * a dire a un compte connecte si sa fiche existe, et c'est deja ce que ces routes
+ * repondaient avant la fusion. Le badge developpeur n'est pas demande ici : seul le role
+ * admin ouvre ces routes, l'interroger pour finir en 403 serait un appel pour rien.
+ */
 async function adminVerdict(request, cfg) {
-  const user = await currentUser(request, cfg);
-  if (!user) return { error: json(401, { error: 'Connectez-vous d’abord sur le site.' }) };
-  if (!cfg.serviceKey) return { error: json(503, { error: 'Service de comptes incomplet.' }) };
-  const lookup = await fetch(
-    cfg.supabaseUrl +
-      '/rest/v1/recblue_accounts?select=role&id=eq.' +
-      encodeURIComponent(String(user.id)),
-    { headers: { apikey: cfg.serviceKey, Authorization: 'Bearer ' + cfg.serviceKey } }
-  )
-    .then(response => response.json())
-    .catch(() => null);
-  const role = Array.isArray(lookup) && lookup[0] ? String(lookup[0].role || '') : '';
-  if (!isAdminRole(role)) return { error: json(403, { error: 'Réservé aux administrateurs.' }) };
-  return { user };
+  const operator = await siteOperator(request, cfg, { withDeveloper: false });
+  if (operator.error) {
+    if (operator.error.status === 404) {
+      return { error: json(403, { error: 'Réservé aux administrateurs.' }) };
+    }
+    return { error: operator.error };
+  }
+  if (!operator.admin) return { error: json(403, { error: 'Réservé aux administrateurs.' }) };
+  return { user: operator.user };
 }
 
 /** Administrateur du site, ou développeur dont le compte de jeu est lié au compte site. */
-async function siteOperator(request, cfg) {
+async function siteOperator(request, cfg, { withDeveloper = true } = {}) {
   const user = await currentUser(request, cfg);
   if (!user) return { error: json(401, { error: 'Connectez-vous d’abord sur le site.' }) };
   if (!cfg.serviceKey) return { error: json(503, { error: 'Service de comptes incomplet.' }) };
@@ -491,6 +495,9 @@ async function siteOperator(request, cfg) {
   if (isAdminRole(account.role)) {
     return { user, account, admin: true, developer: false };
   }
+
+  // Une route qui ne regarde que le role admin n'a pas a interroger le pont pour le badge.
+  if (!withDeveloper) return { user, account, admin: false, developer: false };
 
   const developer = await gameDeveloperBadge(cfg, user.id);
   return { user, account, admin: false, developer };
