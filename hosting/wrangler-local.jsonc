@@ -1,0 +1,10 @@
+{
+  // Worker de DEVELOPPEMENT uniquement : `rec-blue-local`, joint sur
+  // rec-blue-local.recblue.workers.dev. Il ne sert PAS recblue.net.
+  // La production est dans wrangler.jsonc (`www`), que `wrangler deploy` prend
+  // par defaut : ce fichier-ci exige --config wrangler-local.jsonc, exprès.
+  "name": "rec-blue-local",
+  "main": "worker.js",
+  "compatibility_date": "2025-10-11",
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true }
+}
