@@ -56,7 +56,7 @@
       wrap.append(badge);
     };
     if (player.online) add('En ligne', 'live');
-    add(labels[player.role] || 'Membre', player.role === 'admin' ? 'admin' : player.role === 'moderator' ? 'mod' : '');
+    add(labels[player.role] || 'Membre', (player.role === 'admin' || player.role === 'owner') ? 'admin' : player.role === 'moderator' ? 'mod' : '');
     if (player.isDeveloper) add('Dev');
     if (player.plus) add('Plus');
     if (player.banned) add('Banni', 'banned');

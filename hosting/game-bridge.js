@@ -405,7 +405,7 @@ export async function handleGameGrant(request, env) {
     .then(response => response.json())
     .catch(() => null);
   const role = Array.isArray(lookup) && lookup[0] ? String(lookup[0].role || '') : '';
-  if (role !== 'admin') return json(403, { error: 'Réservé aux administrateurs.' });
+  if (!isAdminRole(role)) return json(403, { error: 'Réservé aux administrateurs.' });
 
   let body = {};
   try {
@@ -492,6 +492,16 @@ export async function handleGameAnnounce(request, env) {
 }
 
 /** Le rôle du compte de site connecté, ou '' — et 401 si personne n'est connecté. */
+/**
+ * `owner` est le rôle du propriétaire du site, et il a les droits de l'administrateur.
+ * Les contrôles ne comparaient qu'à `'admin'` : le propriétaire recevait donc 403
+ * « Réservé aux administrateurs » sur ses propres boutons, Débannir compris.
+ */
+function isAdminRole(role) {
+  const value = String(role || '').toLowerCase();
+  return value === 'admin' || value === 'owner';
+}
+
 async function adminVerdict(request, cfg) {
   const user = await currentUser(request, cfg);
   if (!user) return { error: json(401, { error: 'Connectez-vous d’abord sur le site.' }) };
@@ -505,7 +515,7 @@ async function adminVerdict(request, cfg) {
     .then(response => response.json())
     .catch(() => null);
   const role = Array.isArray(lookup) && lookup[0] ? String(lookup[0].role || '') : '';
-  if (role !== 'admin') return { error: json(403, { error: 'Réservé aux administrateurs.' }) };
+  if (!isAdminRole(role)) return { error: json(403, { error: 'Réservé aux administrateurs.' }) };
   return { user };
 }
 
@@ -1498,7 +1508,7 @@ export async function handleGameCertified(request, env) {
 
   // `plus` et `certified` viennent du compte de JEU : le site s'en sert pour l'or, le cadre
   // et la marque de certification. `role` évite qu'un modérateur du jeu s'affiche « Membre ».
-  const roleJeu = compte.role === 'admin' ? 'admin' : compte.role === 'moderator' ? 'moderator' : '';
+  const roleJeu = isAdminRole(compte.role) ? 'admin' : compte.role === 'moderator' ? 'moderator' : '';
   return json(200, {
     certified: compte.certified === true,
     plus: compte.plus === true,

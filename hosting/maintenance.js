@@ -143,7 +143,12 @@ export async function handleMaintenanceAdmin(request, env) {
 
   const session = await adminSession(request, cfg);
   if (!session.user) return json(401, { error: 'Connectez-vous d’abord sur le site.' });
-  if (session.role !== 'admin') return json(403, { error: 'Réservé aux administrateurs.' });
+  // `owner` (propriétaire du site) administre aussi : ne comparer qu'à `admin` fermait
+  // les réglages au propriétaire lui-même.
+  const adminRole = String(session.role || '').toLowerCase();
+  if (adminRole !== 'admin' && adminRole !== 'owner') {
+    return json(403, { error: 'Réservé aux administrateurs.' });
+  }
 
   if (request.method === 'GET') {
     return json(200, await readConfig(cfg));
