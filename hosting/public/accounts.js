@@ -9,6 +9,8 @@
   let client;
   let profile = null;
   let revision = 0;
+  let authRevision = 0;
+  let mfaChallengeId = '';
   const announce = text => { message.textContent = text; };
   const labels = { member: 'Membre', moderator: 'Modérateur', admin: 'Administrateur' };
   const navLink = document.querySelector('a.nav-control[href="#connexion"]');
@@ -160,6 +162,9 @@
     profile = null;
     setNavLabel('Se connecter');
     byId('account-profile').hidden = true;
+    byId('account-mfa').hidden = true;
+    byId('mfa-code').value = '';
+    mfaChallengeId = '';
     byId('account-admin').hidden = true;
     if (navBubble) navBubble.classList.remove('plus-ring');
     const navCertOff = byId('nav-certified');
@@ -184,7 +189,9 @@
       if (error && error.name !== 'AuthSessionMissingError') announce('Session non vérifiée. Reconnectez-vous ou réessayez.');
       return;
     }
-    if (await mfaPending()) { showMfaPrompt(); return; }
+    const pendingMfa = await mfaPending();
+    if (current !== revision) return;
+    if (pendingMfa) { showMfaPrompt(); return; }
     byId('account-guest').hidden = true;
     byId('account-profile').hidden = false;
     const pseudo = pseudoFromEmail(data.user.email);
@@ -195,11 +202,15 @@
     profile = result.data;
     // Plus et certification vivent sur le compte de JEU : on lit l'état réel, pas une copie.
     const jeu = await gameStatus();
+    if (current !== revision) return;
     const plusSite = isPlus(profile.plus_until) || jeu.plus;
-    setNavLabel('@' + (pseudo || profile.display_name), (await gameAvatarUrl()) || profile.avatar_url, plusSite);
+    const avatar = await gameAvatarUrl();
+    if (current !== revision) return;
+    setNavLabel('@' + (pseudo || profile.display_name), avatar || profile.avatar_url, plusSite);
     const creditsBadge = byId('nav-credits');
     if (creditsBadge) {
       const soldeJeu = await gameCredits();
+      if (current !== revision) return;
       const total = soldeJeu === null ? (Number(profile.credits) || 0) : soldeJeu;
       const creditsText = formatCredits(total) + (total === 1 ? ' crédit' : ' crédits');
       const creditsValue = creditsLabel(creditsBadge);
@@ -220,16 +231,18 @@
     if (navCert) navCert.hidden = !certified;
     const plusBadge = byId('account-plus');
     if (plusBadge) plusBadge.hidden = !plusSite;
-    byId('account-admin').hidden = !(profile.role === 'admin' || profile.role === 'moderator');
+    byId('account-admin').hidden = !((profile.role === 'admin' || profile.role === 'owner') || profile.role === 'moderator');
     // Les crédits et le Plus restent réservés aux administrateurs : un
     // modérateur ne voit que la liste des comptes.
-    const isAdminMember = profile.role === 'admin';
-    ['admin-credits', 'admin-plus', 'admin-maintenance', 'admin-announcement'].forEach(id => {
+    const isAdminMember = (profile.role === 'admin' || profile.role === 'owner');
+    ['admin-credits', 'admin-plus', 'admin-maintenance', 'admin-announcement', 'admin-gift'].forEach(id => {
       const block = byId(id);
       if (block) block.hidden = !isAdminMember;
     });
     if (isAdminMember) loadMaintenanceAdmin();
+    if (isAdminMember) giftCatalog(Number((byId('admin-gift-storefront') || {}).value) || 3).then(fillGiftList).catch(() => {});
     const factorList = await client.auth.mfa.listFactors();
+    if (current !== revision) return;
     const verifiedFactors = (factorList.data?.all || []).filter(factor => factor.status === 'verified').length;
     const mfaNote = byId('account-mfa-note');
     if (mfaNote) mfaNote.hidden = verifiedFactors > 0;
@@ -239,7 +252,6 @@
     try { await action(); } catch (error) { announce(error.message || 'Service inaccessible. Réessayez.'); }
     finally { button.disabled = false; }
   }
-  let mfaChallengeId = '';
   async function mfaPending() {
     const { data, error } = await client.auth.mfa.getAuthenticatorAssuranceLevel();
     if (error) return false;
@@ -278,7 +290,7 @@
     if (result.error) throw result.error;
     const accounts = result.data;
     await refreshAccount();
-    if (!profile || !(profile.role === 'admin' || profile.role === 'moderator')) throw new Error('Accès réservé à l’équipe.');
+    if (!profile || !((profile.role === 'admin' || profile.role === 'owner') || profile.role === 'moderator')) throw new Error('Accès réservé à l’équipe.');
     const fragment = document.createDocumentFragment();
     accounts.forEach(account => {
       const row = document.createElement('div'); row.className = 'detail-row';
@@ -289,7 +301,7 @@
       select.value = account.role;
       const save = document.createElement('button'); save.type = 'button'; save.className = 'button'; save.textContent = 'Appliquer';
       // Seul un administrateur peut changer les droits ; un modérateur consulte la liste.
-      const isAdmin = profile.role === 'admin';
+      const isAdmin = (profile.role === 'admin' || profile.role === 'owner');
       select.disabled = !isAdmin; save.disabled = !isAdmin; save.hidden = !isAdmin;
       save.addEventListener('click', () => run(save, async () => {
         const synced = await setSiteRole(account, select.value);
@@ -325,7 +337,7 @@
       code: String((data && data.code) || '')
     };
     const block = byId('admin-maintenance');
-    if (block) block.hidden = !(profile && profile.role === 'admin');
+    if (block) block.hidden = !(profile && (profile.role === 'admin' || profile.role === 'owner'));
     const state = byId('maintenance-state');
     if (state) state.textContent = maintenanceState.active
       ? 'Maintenance active : les joueurs doivent saisir le code.'
@@ -338,7 +350,7 @@
     if (code) code.value = maintenanceState.code;
   }
   async function loadMaintenanceAdmin() {
-    if (!profile || profile.role !== 'admin') {
+    if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) {
       const block = byId('admin-maintenance');
       if (block) block.hidden = true;
       return;
@@ -358,7 +370,7 @@
   if (maintenanceForm) maintenanceForm.addEventListener('submit', event => {
     event.preventDefault();
     run(byId('maintenance-toggle'), async () => {
-      if (!profile || profile.role !== 'admin') throw new Error('Accès administrateur requis.');
+      if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) throw new Error('Accès administrateur requis.');
       const token = await sessionToken();
       if (!token) throw new Error('Session absente : reconnecte-toi.');
       const active = !maintenanceState.active;
@@ -382,7 +394,7 @@
   if (announcementForm) announcementForm.addEventListener('submit', event => {
     event.preventDefault();
     run(byId('admin-announcement-submit'), async () => {
-      if (!profile || profile.role !== 'admin') throw new Error('Accès administrateur requis.');
+      if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) throw new Error('Accès administrateur requis.');
       const input = byId('admin-announcement-message');
       const text = String(input.value || '').trim();
       if (!text) throw new Error('Écris le message à envoyer.');
@@ -404,7 +416,7 @@
   if (creditsForm) creditsForm.addEventListener('submit', event => {
     event.preventDefault();
     run(byId('admin-credits-submit'), async () => {
-      if (!profile || !(profile.role === 'admin' || profile.role === 'moderator')) throw new Error('Accès réservé à l’équipe.');
+      if (!profile || !((profile.role === 'admin' || profile.role === 'owner') || profile.role === 'moderator')) throw new Error('Accès réservé à l’équipe.');
       const target = byId('admin-credits-target').value.trim();
       const amount = Number(byId('admin-credits-amount').value);
       if (!target) throw new Error('Indiquez un pseudo ou une adresse email.');
@@ -430,7 +442,7 @@
   if (debitForm) debitForm.addEventListener('submit', event => {
     event.preventDefault();
     run(byId('admin-debit-submit'), async () => {
-      if (!profile || profile.role !== 'admin') throw new Error('Accès administrateur requis.');
+      if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) throw new Error('Accès administrateur requis.');
       const target = String(byId('admin-debit-target').value || '').trim();
       if (!target) throw new Error('Indiquez un pseudo de jeu ou une adresse email.');
       const amount = Number(byId('admin-debit-amount').value);
@@ -446,6 +458,91 @@
     });
   });
 
+  // Cadeau d’administration : le pseudo suffit, l’objet est choisi dans le catalogue du
+  // jeu, et il arrive dans la boîte du joueur — sans rien débiter.
+  const giftForm = byId('admin-gift');
+  const giftSelect = byId('admin-gift-storefront');
+  const giftList = byId('admin-gift-items');
+  const giftCatalogs = new Map();
+  const giftStorefrontLabels = { 3: 'Rec Center', 400: 'Boutique 2025', 401: 'Skins 1', 402: 'Skins 2', 403: 'Skins 3', 404: 'Skins 4', 405: 'Skins 5', 406: 'Skins 6' };
+  async function giftCatalog(storefront) {
+    if (giftCatalogs.has(storefront)) return giftCatalogs.get(storefront);
+    const token = await sessionToken();
+    if (!token) throw new Error('Session absente : reconnecte-toi.');
+    const response = await fetch('/api/game/catalog?storefront=' + storefront, {
+      headers: { Authorization: 'Bearer ' + token },
+      cache: 'no-store'
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || !body) throw new Error((body && body.error) || ('catalogue indisponible (' + response.status + ')'));
+    const items = Array.isArray(body.items) ? body.items : [];
+    giftCatalogs.set(storefront, items);
+    if (giftSelect && Array.isArray(body.storefronts) && body.storefronts.length > 0) {
+      const current = Number(giftSelect.value) || storefront;
+      giftSelect.replaceChildren();
+      for (const id of body.storefronts) {
+        const option = document.createElement('option');
+        option.value = String(id);
+        option.textContent = (giftStorefrontLabels[id] || 'Boutique ' + id) + (giftStorefrontLabels[id] ? '' : ' — n° ' + id);
+        giftSelect.append(option);
+      }
+      giftSelect.value = String(current);
+    }
+    return items;
+  }
+  function fillGiftList(items) {
+    if (!giftList) return;
+    giftList.replaceChildren();
+    for (const item of items) {
+      const option = document.createElement('option');
+      option.value = item.name;
+      option.label = typeof item.price === 'number' ? formatCredits(item.price) + ' crédits' : 'non vendu en crédits';
+      giftList.append(option);
+    }
+  }
+  async function loadGiftBlock() {
+    try {
+      const storefront = Number(giftSelect && giftSelect.value) || 3;
+      fillGiftList(await giftCatalog(storefront));
+    } catch (error) {
+      announce(error.message || 'Catalogue du jeu inaccessible.');
+    }
+  }
+  if (giftSelect) giftSelect.addEventListener('change', () => { loadGiftBlock(); });
+  if (giftForm) giftForm.addEventListener('submit', event => {
+    event.preventDefault();
+    run(byId('admin-gift-submit'), async () => {
+      if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) throw new Error('Accès administrateur requis.');
+      const target = String(byId('admin-gift-target').value || '').trim();
+      if (!target) throw new Error('Indiquez le pseudo du joueur.');
+      const storefront = Number(giftSelect && giftSelect.value) || 3;
+      const written = String(byId('admin-gift-item').value || '').trim();
+      if (!written) throw new Error('Choisis un objet dans la liste.');
+      const items = await giftCatalog(storefront);
+      const needle = written.toLowerCase();
+      const item = items.find(entry => entry.name.toLowerCase() === needle) ||
+        items.find(entry => entry.name.toLowerCase().includes(needle));
+      if (!item) throw new Error('Aucun objet de cette boutique ne s’appelle « ' + written + ' ».');
+      const message = String(byId('admin-gift-message').value || '').trim();
+      const quantity = Math.max(1, Math.min(99, Math.round(Number(byId('admin-gift-quantity').value) || 1)));
+      const result = await gameRequest('/api/game/gift-item', { target, storefront, item: item.id, quantity, message });
+      if (!result || !result.ok) throw new Error((result && result.error) || 'Cadeau refusé.');
+      const name = (result.item && result.item.name) || item.name;
+      const who = result.username || target;
+      const sent = Number(result.quantity) || 1;
+      // Un objet possédé une seule fois ne s'empile pas : le jeu n'en garde qu'un exemplaire.
+      const detail = sent > 1
+        ? ' × ' + sent
+        : (quantity > 1 && !result.stacks ? ' (un seul exemplaire : cet objet ne s’empile pas)' : '');
+      const status = byId('admin-gift-result');
+      if (status) status.textContent = '« ' + name + ' »' + detail + ' est dans la boîte de ' + who + '.';
+      announce('Cadeau envoyé à ' + who + ' : ' + name + detail + '.');
+      byId('admin-gift-item').value = '';
+      byId('admin-gift-message').value = '';
+      byId('admin-gift-quantity').value = '1';
+    });
+  });
+
   // REC BLUE Plus : un administrateur choisit la date de fin (ou retire l’avantage).
   const plusForm = byId('admin-plus');
   const plusTarget = target => {
@@ -456,7 +553,7 @@
   if (plusForm) plusForm.addEventListener('submit', event => {
     event.preventDefault();
     run(byId('admin-plus-submit'), async () => {
-      if (!profile || profile.role !== 'admin') throw new Error('Accès administrateur requis.');
+      if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) throw new Error('Accès administrateur requis.');
       const target = plusTarget(byId('admin-plus-target').value);
       const day = byId('admin-plus-date').value;
       if (!day) throw new Error('Choisissez la date de fin du REC BLUE Plus.');
@@ -475,7 +572,7 @@
   });
   const plusRemove = byId('admin-plus-remove');
   if (plusRemove) plusRemove.addEventListener('click', () => run(plusRemove, async () => {
-    if (!profile || profile.role !== 'admin') throw new Error('Accès administrateur requis.');
+    if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) throw new Error('Accès administrateur requis.');
     const target = plusTarget(byId('admin-plus-target').value);
     const site = await client.rpc('recblue_grant_plus', { p_identifier: target, p_until: null });
     const jeu = await gameRequest('/api/game/plus', { target, until: null });
@@ -491,7 +588,7 @@
   if (banForm) banForm.addEventListener('submit', event => {
     event.preventDefault();
     run(byId('admin-ban-submit'), async () => {
-      if (!profile || profile.role !== 'admin') throw new Error('Accès administrateur requis.');
+      if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) throw new Error('Accès administrateur requis.');
       const target = String(byId('admin-ban-target').value || '').trim();
       if (!target) throw new Error('Indiquez un pseudo de jeu ou une adresse email.');
       const reason = String(byId('admin-ban-reason').value || '').trim();
@@ -504,7 +601,7 @@
   });
   const banLift = byId('admin-ban-lift');
   if (banLift) banLift.addEventListener('click', () => run(banLift, async () => {
-    if (!profile || profile.role !== 'admin') throw new Error('Accès administrateur requis.');
+    if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) throw new Error('Accès administrateur requis.');
     const target = String(byId('admin-ban-target').value || '').trim();
     if (!target) throw new Error('Indiquez le pseudo du joueur à débannir.');
     const result = await gameRequest('/api/game/ban', { target, ban: false });
@@ -523,11 +620,18 @@
       client = window.supabase.createClient(url.href, config.publishableKey, {
         auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
       });
+      // Publié pour les autres scripts de la page (boutons PayPal) : un seul client par
+      // page, sinon deux clients se disputent le même jeton et la session saute.
+      window.recblueClient = client;
       client.auth.onAuthStateChange((event, session) => {
         ++revision;
+        const current = ++authRevision;
         clearPrivateUI();
-        window.dispatchEvent(new CustomEvent('recblue:auth', { detail: { event, signedIn: !!session } }));
-        setTimeout(() => { refreshAccount().catch(() => announce('Impossible de vérifier la session.')); }, 0);
+        setTimeout(() => {
+          if (current !== authRevision) return;
+          window.dispatchEvent(new CustomEvent('recblue:auth', { detail: { event, signedIn: !!session } }));
+          refreshAccount().catch(() => announce('Impossible de vérifier la session.'));
+        }, 0);
       });
       byId('account-setup').hidden = true;
       byId('account-controls').disabled = false;

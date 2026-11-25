@@ -32,7 +32,10 @@ export function gameSettings(env) {
     supabaseKey:
       env.SUPABASE_PUBLISHABLE_KEY ||
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZnRkcXJiYWd5bmJibHRoa2ZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM3MDA5OTEsImV4cCI6MjEwOTI3Njk5MX0.JHTNOWkI9DY1xhU8PKco4KqxsIxp_-IsSZL211NGEE8',
-    serviceKey: env.SUPABASE_SERVICE_ROLE_KEY || '',
+    // Cle service : le nouveau format (`sb_secret_…`) passe en premier, l'ancienne cle
+    // `service_role` reste acceptee en second. La rotation consiste donc a poser
+    // SUPABASE_SECRET_KEY ; le code n'a plus besoin d'etre modifie pour changer de cle.
+    serviceKey: env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY || '',
     authHost: keep(env.GAME_AUTH_HOST, 'https://auth.recblue.net'),
     accountsHost: keep(env.GAME_ACCOUNTS_HOST, 'https://accounts.recblue.net'),
     econHost: keep(env.GAME_ECON_HOST, 'https://econ.recblue.net'),
@@ -517,6 +520,160 @@ async function adminVerdict(request, cfg) {
   const role = Array.isArray(lookup) && lookup[0] ? String(lookup[0].role || '') : '';
   if (!isAdminRole(role)) return { error: json(403, { error: 'Réservé aux administrateurs.' }) };
   return { user };
+}
+
+/** Administrateur du site, ou développeur dont le compte de jeu est lié au compte site. */
+async function siteOperator(request, cfg) {
+  const user = await currentUser(request, cfg);
+  if (!user) return { error: json(401, { error: 'Connectez-vous d’abord sur le site.' }) };
+  if (!cfg.serviceKey) return { error: json(503, { error: 'Service de comptes incomplet.' }) };
+
+  // `level` n'est PAS dans ce select : sur un projet où la migration n'est pas passée, la
+  // colonne n'existe pas et PostgREST renvoie 400 — ce qui rendait la fiche illisible, donc
+  // toute la page compte déconnectée. Le niveau se lit à part, et son absence reste sans effet.
+  const lookup = await fetch(
+    cfg.supabaseUrl +
+      '/rest/v1/recblue_accounts?select=id,display_name,role&id=eq.' +
+      encodeURIComponent(String(user.id)),
+    { headers: { apikey: cfg.serviceKey, Authorization: 'Bearer ' + cfg.serviceKey } }
+  )
+    .then(response => response.json())
+    .catch(() => null);
+  const account = Array.isArray(lookup) && lookup[0] ? lookup[0] : null;
+  if (!account) return { error: json(404, { error: 'Aucune fiche de site pour ce compte.' }) };
+  // Un administrateur n'a pas à porter le badge pour administrer son propre site.
+  if (isAdminRole(account.role)) {
+    return { user, account, admin: true, developer: false };
+  }
+
+  const developer = await gameDeveloperBadge(cfg, user.id);
+  return { user, account, admin: false, developer };
+}
+
+/**
+ * Le niveau d'une fiche, ou `null` quand la colonne n'existe pas encore : une lecture qui
+ * échoue doit laisser le reste de la fiche utilisable, pas casser la page.
+ */
+async function readMemberLevel(cfg, id) {
+  const response = await fetch(
+    cfg.supabaseUrl +
+      '/rest/v1/recblue_accounts?select=level&id=eq.' +
+      encodeURIComponent(String(id)),
+    { headers: { apikey: cfg.serviceKey, Authorization: 'Bearer ' + cfg.serviceKey } }
+  ).catch(() => null);
+  if (!response || !response.ok) return null;
+  const rows = await response.json().catch(() => null);
+  const value = Array.isArray(rows) && rows[0] ? rows[0].level : null;
+  return Number.isInteger(value) && value >= 0 && value <= 999 ? value : null;
+}
+
+/** Seul auth peut vérifier la liaison et le badge actuel du compte de jeu. */
+async function gameDeveloperBadge(cfg, siteUserId) {
+  if (!cfg.bridgeToken) return false;
+  const response = await fetch(cfg.authHost + '/internal/site/developer', {
+    method: 'POST',
+    headers: { 'X-Site-Bridge-Token': cfg.bridgeToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ siteUserId })
+  }).catch(() => null);
+  if (!response || !response.ok) return false;
+  const data = await response.json().catch(() => null);
+  return data?.developer === true;
+}
+
+/**
+ * Le niveau d'un membre tel que le SITE le montre (`recblue_accounts.level`).
+ *
+ * Volontairement séparé de la progression du jeu : un chiffre choisi à la main n'a pas à
+ * changer les niveaux gagnés en jouant, ni à faire bouger la barre d'XP du client.
+ *
+ * GET  → le niveau de l'appelant, et s'il a le droit de régler celui des autres.
+ * POST → { target, level } : pseudo ou identifiant de la fiche à régler.
+ */
+export async function handleMemberLevel(request, env) {
+  if (request.method !== 'GET' && request.method !== 'POST') {
+    return json(405, { error: 'Méthode non autorisée.' });
+  }
+  const cfg = gameSettings(env);
+  const operator = await siteOperator(request, cfg);
+  if (operator.error) return operator.error;
+
+  if (request.method === 'GET') {
+    return json(200, {
+      level: await readMemberLevel(cfg, operator.user.id),
+      admin: operator.admin,
+      developer: operator.developer
+    });
+  }
+
+  if (!operator.admin && !operator.developer) {
+    return json(403, { error: 'Réservé aux développeurs.' });
+  }
+
+  const payload = await request.json().catch(() => null);
+  const raw = payload && payload.level !== undefined ? payload.level : '';
+  // Entier strict : `parseInt` acceptait « 5.9 » et en faisait 5 sans rien dire, et « 12abc »
+  // aussi. Un niveau à moitié appliqué est plus déroutant qu'un refus net.
+  const text = String(raw).trim();
+  const level = Number(text);
+  if (!/^\d{1,3}$/.test(text) || !Number.isInteger(level) || level > 999) {
+    return json(400, { error: 'Niveau invalide : un nombre entier entre 0 et 999.' });
+  }
+  const target = String((payload && payload.target) || '').trim();
+  if (target === '') return json(400, { error: 'Indiquez le pseudo ou l’identifiant complet du membre.' });
+
+  // `*`, `%` et `_` sont des jokers pour `ilike` : sans échappement, taper « a_b » réglait le
+  // niveau d'un membre nommé « axb ». On échappe le motif, puis on refait la comparaison
+  // exacte en mémoire — et un pseudo porté par deux fiches demande l'identifiant plutôt que
+  // de modifier la première trouvée.
+  const byId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(target);
+  const filter = byId
+    ? 'id=eq.' + encodeURIComponent(target)
+    : 'display_name=ilike.' + encodeURIComponent(target.replace(/[\\%_*]/g, ch => '\\' + ch));
+  const found = await fetch(
+    cfg.supabaseUrl + '/rest/v1/recblue_accounts?select=id,display_name&' + filter + '&limit=5',
+    { headers: { apikey: cfg.serviceKey, Authorization: 'Bearer ' + cfg.serviceKey } }
+  )
+    .then(response => response.json())
+    .catch(() => null);
+  const rows = Array.isArray(found) ? found.filter(row => row && row.id !== undefined) : [];
+  const wanted = target.toLowerCase();
+  const matches = byId
+    ? rows.slice(0, 1)
+    : rows.filter(row => String(row.display_name || '').trim().toLowerCase() === wanted);
+  if (matches.length > 1) {
+    return json(409, { error: 'Plusieurs membres portent ce pseudo : indiquez leur identifiant complet à la place.' });
+  }
+  const member = matches[0] || null;
+  if (!member) return json(404, { error: 'Aucun membre ne correspond à « ' + target + ' ».' });
+
+  const patched = await fetch(
+    cfg.supabaseUrl + '/rest/v1/recblue_accounts?id=eq.' + encodeURIComponent(String(member.id)),
+    {
+      method: 'PATCH',
+      headers: {
+        apikey: cfg.serviceKey,
+        Authorization: 'Bearer ' + cfg.serviceKey,
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation'
+      },
+      body: JSON.stringify({ level })
+    }
+  ).catch(() => null);
+  if (!patched || !patched.ok) {
+    // Cas de la colonne absente : la migration n'a pas encore été appliquée, et le message
+    // de Postgres le dit mieux qu'un « échec » générique.
+    const detail = patched ? String(await patched.text().catch(() => '')) : '';
+    if (/level/i.test(detail) && /column/i.test(detail)) {
+      return json(503, { error: 'La colonne « level » manque en base : appliquez la migration SQL.' });
+    }
+    return json(502, { error: 'Le niveau n’a pas pu être enregistré.' });
+  }
+  const saved = await patched.json().catch(() => null);
+  if (!Array.isArray(saved) || saved.length !== 1 || !saved[0] || saved[0].level !== level) {
+    return json(502, { error: 'La modification a peut-être été enregistrée, mais n’a pas pu être confirmée. Vérifiez avant de réessayer.' });
+  }
+
+  return json(200, { ok: true, id: member.id, displayName: member.display_name, level });
 }
 
 /**
@@ -1826,6 +1983,101 @@ export async function handleGameDebit(request, env) {
       username,
       credits: data && typeof data.balance === 'number' ? data.balance : null,
       removed: data && typeof data.removed === 'number' ? data.removed : null
+    });
+  }
+  return json(404, { error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' });
+}
+
+/**
+ * Le catalogue d'une vitrine pour le cadeau d'administration : tout ce que la vitrine
+ * contient, avec ou sans prix — un cadeau n'en a pas. Réservé aux administrateurs du site,
+ * et le navigateur ne voit jamais le jeton du pont.
+ */
+export async function handleGameCatalog(request, env) {
+  if (request.method !== 'GET') return json(405, { error: 'Méthode non autorisée.' });
+  const cfg = gameSettings(env);
+  const verdict = await adminVerdict(request, cfg);
+  if (verdict.error) return verdict.error;
+  if (!cfg.bridgeToken) return json(503, { error: 'Le pont vers le jeu n’est pas configuré.' });
+
+  const storefront = Number(new URL(request.url).searchParams.get('storefront') || '3');
+  if (!Number.isInteger(storefront) || storefront <= 0) {
+    return json(400, { error: 'Boutique inconnue.' });
+  }
+
+  const response = await fetch(cfg.econHost + '/api/site/catalog?storefront=' + storefront, {
+    headers: { Authorization: 'Bearer ' + cfg.bridgeToken },
+    cache: 'no-store'
+  }).catch(() => null);
+  if (response === null) return json(502, { error: 'Le serveur de jeu est injoignable.' });
+  if (!response.ok) {
+    return json(502, { error: 'Le catalogue de cette boutique est indisponible (' + response.status + ').' });
+  }
+
+  const data = await response.json().catch(() => null);
+  return json(200, {
+    storefront,
+    storefronts: Array.isArray(data && data.storefronts) ? data.storefronts : [storefront],
+    items: (Array.isArray(data && data.items) ? data.items : []).map(item => ({
+      id: item.id,
+      name: String(item.name || ''),
+      desc: String(item.desc || ''),
+      price: typeof item.price === 'number' ? item.price : null,
+      plusOnly: item.plusOnly === true
+    }))
+  });
+}
+
+/**
+ * « Donner un objet » : le seul renseignement saisi est le pseudo, l'objet vient du
+ * catalogue, et la boîte du joueur reçoit exactement ce qu'un achat aurait donné — sans
+ * débit. Un cadeau n'est pas un achat : rien n'est facturé, même pour un objet Plus.
+ */
+export async function handleGameGiftItem(request, env) {
+  if (request.method !== 'POST') return json(405, { error: 'Méthode non autorisée.' });
+  const cfg = gameSettings(env);
+  const verdict = await adminVerdict(request, cfg);
+  if (verdict.error) return verdict.error;
+  if (!cfg.bridgeToken) return json(503, { error: 'Le pont vers le jeu n’est pas configuré.' });
+
+  let body = {};
+  try {
+    body = await request.json();
+  } catch {
+    body = {};
+  }
+  const storefront = Number(body.storefront);
+  const item = Number(body.item);
+  if (!Number.isInteger(storefront) || !Number.isInteger(item)) {
+    return json(400, { error: 'Choisissez un objet dans le catalogue.' });
+  }
+  const quantity = Number(body.quantity ?? 1);
+  if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 99) {
+    return json(400, { error: 'Quantité invalide (1 à 99 exemplaires).' });
+  }
+  const message = String(body.message || '').trim().slice(0, 200);
+  const { raw, names } = await resolveGameTargets(cfg, body.target);
+  if (names.length === 0) return json(400, { error: 'Indiquez un pseudo de jeu valide.' });
+
+  for (const username of names) {
+    const response = await fetch(cfg.econHost + '/api/site/gift-item', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + cfg.bridgeToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, storefront, item, quantity, message })
+    }).catch(() => null);
+
+    if (response === null) return json(502, { error: 'Le serveur de jeu est injoignable.' });
+    if (response.status === 404) continue;
+    if (!response.ok) return json(502, { error: 'Le serveur de jeu a refusé (' + response.status + ').' });
+
+    const data = await response.json().catch(() => null);
+    return json(200, {
+      ok: true,
+      username,
+      item: (data && data.item) || { id: item, name: '' },
+      quantity: data && typeof data.quantity === 'number' ? data.quantity : quantity,
+      stacks: data ? data.stacks === true : false,
+      giftId: data && data.giftId ? data.giftId : null
     });
   }
   return json(404, { error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' });

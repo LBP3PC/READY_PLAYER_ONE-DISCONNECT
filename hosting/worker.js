@@ -1,7 +1,15 @@
-import { handleGameSignup, handleGameUsernameAvailability, handleGameCredits, handleGameGrant, handleGameAnnounce, handleGamePlus, handleGameBan, handleGameRole, handleGameSiteRole, handleGameSitePlus, handleSiteAccountAdmin, handleGameCertify, handleGameCertified, handleGameDeveloper, handleGamePlayers, handleCommunityPlayers, handleCommunityLike, handleGameAvatar, handleGameRooms, handleGameDebit, handleGameOnline, handleGameStatus, handleGamePhotos } from './game-bridge.js';
+import { handleGameSignup, handleGameUsernameAvailability, handleGameCredits, handleGameGrant, handleGameAnnounce, handleGamePlus, handleGameBan, handleGameRole, handleGameSiteRole, handleGameSitePlus, handleMemberLevel, handleSiteAccountAdmin, handleGameCertify, handleGameCertified, handleGameDeveloper, handleGamePlayers, handleCommunityPlayers, handleCommunityLike, handleGameAvatar, handleGameRooms, handleGameDebit, handleGameOnline, handleGameStatus, handleGamePhotos, handleGameCatalog, handleGameGiftItem } from './game-bridge.js';
 import { handleFreeClaim, handleClaimHistory } from './shop.js';
 import { handleGameInventory, handleGameShopBuy, handleGameStorefront } from './game-shop.js';
 import { handleMaintenanceStatus, handleMaintenanceAdmin, handleMaintenanceAccess } from './maintenance.js';
+
+/**
+ * Pages d'administration servies par les assets : elles restent accessibles (chaque
+ * action exige un compte administrateur), mais rien ne justifie qu'un moteur de
+ * recherche les référence — la page « Joueurs & équipe » sortait dans les résultats.
+ * Voir le `X-Robots-Tag` posé plus bas.
+ */
+const ADMIN_PATHS = ['/equipe'];
 
 export default {
   async fetch(request, env) {
@@ -94,6 +102,10 @@ export default {
     if (path === '/api/game/developer') {
       return handleGameDeveloper(request, env);
     }
+    // Le niveau affiché d'un membre, réglé depuis la page compte par un développeur.
+    if (path === '/api/game/member-level' || path === '/api/game/member-level/') {
+      return handleMemberLevel(request, env);
+    }
     if (path === '/api/game/players') {
       return handleGamePlayers(request, env);
     }
@@ -147,11 +159,25 @@ export default {
     if (path === '/api/game/buy') {
       return handleGameShopBuy(request, env);
     }
+    // Le catalogue complet et le cadeau d’administration : le pseudo suffit, l’objet
+    // est choisi dans la vitrine et arrive dans la boîte du joueur sans rien débiter.
+    if (path === '/api/game/catalog') {
+      return handleGameCatalog(request, env);
+    }
+    if (path === '/api/game/gift-item') {
+      return handleGameGiftItem(request, env);
+    }
 
     const response = await env.ASSETS.fetch(request);
     const headers = new Headers(response.headers);
     headers.set('X-Content-Type-Options', 'nosniff');
     headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    // Les pages d'administration ne s'indexent pas : le `meta robots` de la page est le
+    // signal principal, cet en-tête couvre les fichiers voisins (`/equipe` sans
+    // extension, ressources) que le moteur pourrait suivre de lui-même.
+    if (ADMIN_PATHS.some((admin) => path === admin || path === `${admin}.html`)) {
+      headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+    }
     return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
   }
 };

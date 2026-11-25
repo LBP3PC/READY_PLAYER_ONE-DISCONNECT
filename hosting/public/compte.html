@@ -101,21 +101,21 @@
           <small id="side-login">—</small>
           <span class="badge" id="side-role">—</span>
           <span class="badge plus" id="side-plus" hidden>REC BLUE Plus</span>
-          <dl class="facts">
-            <div><dt>Compte créé</dt><dd id="side-created">—</dd></div>
+                      <dl class="facts">
+              <div><dt>Compte créé</dt><dd id="side-created">—</dd></div>
+              <div><dt>Niveau du site</dt><dd id="side-level">—</dd></div>
             <div><dt>Email</dt><dd id="side-email">—</dd></div>
             <div><dt>Identifiant</dt><dd id="side-id">—</dd></div>
           </dl>
           <button class="btn ghost" id="logout" type="button">Se déconnecter</button>
         </aside>
         <div class="stack">
-          <section class="card">
           <section class="card" id="credits-card">
             <h2>Mes crédits</h2>
             <p class="credits-balance"><img class="credits-coin" src="credits-coin.svg" alt="" width="34" height="34" aria-hidden="true"><strong id="credits-balance">—</strong><span>crédits</span></p>
             <p class="note">Votre solde de crédits REC BLUE, le même que dans le jeu : il baisse à chaque achat en boutique.</p>
           </section>
-
+          <section class="card">
             <h2>Profil</h2>
             <form id="profile">
               <label>Mon pseudo affiché<input id="name" required minlength="2" maxlength="40" autocomplete="nickname"></label>
@@ -161,6 +161,16 @@
             </form>
             <p class="note" id="game-status" role="status" aria-live="polite"></p>
           </section>
+          <section class="card" id="level-card" hidden>
+            <h2>Niveaux des membres</h2>
+            <p class="note">Réservé aux administrateurs et développeurs. Ce niveau s’affiche dans l’espace compte du membre ; il ne change pas sa progression dans le jeu, qui se gagne en jouant.</p>
+            <form id="level-form">
+              <label>Pseudo ou identifiant complet du membre<input id="level-target" required maxlength="40" autocomplete="off" placeholder="pseudo ou identifiant"></label>
+              <label>Niveau<input id="level-value" type="number" min="0" max="999" step="1" required></label>
+              <button class="btn" type="submit">Appliquer</button>
+            </form>
+            <p class="note" id="level-status" role="status" aria-live="polite"></p>
+          </section>
           <section class="card">
             <h2>Sécurité</h2>
             <form id="password">
@@ -179,7 +189,6 @@
           <section class="card">
             <h2>Préférences de ce navigateur</h2>
             <label class="row">Langue<select id="lang"><option value="fr">Français</option><option value="en">English</option><option value="es">Español</option><option value="ru">Русский</option><option value="de">Deutsch</option><option value="ar">العربية</option><option value="zh">中文</option><option value="it">Italiano</option><option value="ro">Română</option><option value="hu">Magyar</option></select></label>
-            <label class="row">Musique du site<input id="music" type="checkbox"></label>
             <label class="row">Pings de mise à jour<input id="pings" type="checkbox"></label>
             <p class="note">Ces réglages sont enregistrés sur cet appareil uniquement, pas sur le compte.</p>
           </section>
@@ -247,8 +256,7 @@
   <script src="account-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.js" integrity="sha384-3wY11tldQ5+yWqAvmTN4XtQvnjoTva0cV15O/O/O5NTtp0ivVopSzLOzsVXWZse9" crossorigin="anonymous" defer></script>
   <script src="countdown.js?v=1" defer></script>
-  <script src="compte.js?v=14" defer></script>
-  <script src="boutique.js?v=1" defer></script>
-  <script src="music.js?v=3" defer></script>
+  <script src="compte.js?v=20" defer></script>
+  <script src="boutique.js?v=3" defer></script>
 </body>
 </html>

@@ -9,6 +9,7 @@
   let user = null;
   let profile = null;
   let revision = 0;
+  let authUserId = null;
   let factors = { totp: [], phone: [] };
   let pendingFactorId = '';
   let phoneChallengeId = '';
@@ -132,7 +133,9 @@
     byId('mfa-factors').replaceChildren(fragment);
   }
   async function loadFactors() {
+    const current = revision;
     const { data, error } = await client.auth.mfa.listFactors();
+    if (current !== revision) return;
     if (error) throw error;
     const all = data.all || [];
     factors = {
@@ -237,7 +240,15 @@
   }
   function showGuest() {
     user = null; profile = null;
+    revision++;
+    factors = { totp: [], phone: [] };
+    pendingFactorId = '';
+    phoneChallengeId = '';
+    byId('gate-code').value = '';
+    byId('side-level').textContent = '—';
+    byId('level-card').hidden = true;
     byId('member').hidden = true;
+    byId('gate').hidden = true;
     byId('guest').hidden = false;
   }
   // Séparateur de milliers VISIBLE : l'espace fine de fr-FR (U+202F) est invisible dans
@@ -253,13 +264,19 @@
     user = data.user;
     try {
       const soldeJeu = await gameCredits();
+      if (current !== revision) return;
       const secours = await client.from('recblue_accounts').select('credits').eq('id', user.id).single();
+      if (current !== revision) return;
       const montant = formatCredits(soldeJeu === null ? (Number(secours.data?.credits) || 0) : soldeJeu) + ' crédits';
       const gateSolde = byId('gate-credits');
       if (gateSolde) gateSolde.textContent = 'Solde actuel : ' + montant;
     } catch (error) { /* solde indisponible */ }
-    if (await needsMfa()) {
+    if (current !== revision) return;
+    const pendingMfa = await needsMfa();
+    if (current !== revision) return;
+    if (pendingMfa) {
       try { await loadFactors(); } catch (error) { /* liste 2FA indisponible */ }
+      if (current !== revision) return;
       showGate();
       return;
     }
@@ -269,9 +286,9 @@
     profile = result.data;
     const pseudo = pseudoOf(user.email);
     const jeu = await gameAvatar();
+    if (current !== revision) return;
     gameImage = jeu.image;
     gameBanner = jeu.banner;
-    if (current !== revision) return;
     byId('guest').hidden = true;
     byId('member').hidden = false;
     applyAvatar();
@@ -279,6 +296,7 @@
     const solde = byId('credits-balance');
     if (solde) {
       const soldeJeu = await gameCredits();
+      if (current !== revision) return;
       solde.textContent = formatCredits(soldeJeu === null ? (Number(profile.credits) || 0) : soldeJeu);
     }
     byId('side-login').textContent = pseudo ? '@' + pseudo : (user.email || '—');
@@ -286,6 +304,7 @@
     // certification. Le RÔLE affiché, lui, est celui du site : c'est la seule autorité,
     // sinon un rôle retiré depuis ce site continuerait de s'afficher.
     const etatJeu = await gameStatus();
+    if (current !== revision) return;
     const roleEffectif = profile.role;
     const role = byId('side-role');
     role.textContent = labels[roleEffectif] || 'Droit inconnu';
@@ -309,11 +328,16 @@
     const certBadge = byId('side-certified');
     if (certBadge) certBadge.hidden = !etatJeu.certified;
     byId('side-created').textContent = formatDate(profile.created_at);
+    // Le niveau ne fait pas partie du select du profil : la colonne peut manquer et une
+    // erreur ici ferait tomber toute la page dans l'écran déconnecté. Il arrive par l'API,
+    // après coup, et son absence laisse simplement un tiret.
+    try { await drawLevelPanel(); } catch (error) { /* panneau optionnel */ }
+    if (current !== revision) return;
     byId('side-id').textContent = String(user.id).slice(0, 8) + '…';
     byId('side-email').textContent = profile.contact_email || '—';
     byId('contact-email').value = profile.contact_email || '';
     byId('name').value = profile.display_name;
-    byId('admin').hidden = !(profile.role === 'admin' || profile.role === 'moderator');
+    byId('admin').hidden = !((profile.role === 'admin' || profile.role === 'owner') || profile.role === 'moderator');
     byId('admin-users').replaceChildren();
     try { await loadFactors(); } catch (error) { byId('mfa-state').textContent = 'État de la double authentification indisponible.'; }
   }
@@ -384,7 +408,7 @@
       const apply = document.createElement('button');
       apply.type = 'button'; apply.className = 'btn ghost'; apply.textContent = 'Appliquer';
       // Un modérateur voit la liste mais ne change pas les droits.
-      const isAdmin = profile?.role === 'admin';
+      const isAdmin = (profile?.role === 'admin' || profile?.role === 'owner');
       select.disabled = !isAdmin; apply.disabled = !isAdmin; apply.hidden = !isAdmin;
       apply.addEventListener('click', () => guard(apply, async () => {
         // Un seul aller-retour : le Worker écrit le rôle du site (clé de service, sur
@@ -398,7 +422,7 @@
         else if (!game.ok) say('Rôle du site : ' + (site.ok ? label : 'refusé') + '. En jeu, le rôle n’a pas suivi : ' + (game.error || 'serveur de jeu injoignable') + '.');
         else say('Rôle de jeu passé à ' + label + ', mais la fiche du site a refusé : ' + (site.error || 'erreur inconnue') + '.');
         await loadProfile();
-        if (profile?.role === 'admin') await listUsers();
+        if ((profile?.role === 'admin' || profile?.role === 'owner')) await listUsers();
       }));
       // Le badge « Certifié REC BLUE » : accordé par l’administration, rangé sur le compte de jeu.
       const certify = document.createElement('button');
@@ -545,7 +569,6 @@
   byId('logout').addEventListener('click', () => guard(byId('logout'), async () => {
     const { error } = await client.auth.signOut({ scope: 'local' });
     if (error) throw new Error('Déconnexion impossible.');
-    ++revision;
     showGuest();
     say('Vous êtes déconnecté.');
   }));
@@ -556,7 +579,7 @@
   byId('admin-plus')?.addEventListener('submit', event => {
     event.preventDefault();
     guard(byId('admin-plus-submit'), async () => {
-      if (profile?.role !== 'admin') throw new Error('Accès administrateur requis.');
+      if ((profile?.role !== 'admin' && profile?.role !== 'owner')) throw new Error('Accès administrateur requis.');
       const target = byId('admin-plus-target').value.trim();
       if (!target) throw new Error('Indiquez un pseudo ou une adresse email.');
       const day = byId('admin-plus-date').value;
@@ -579,7 +602,7 @@
   });
 
   byId('admin-plus-remove')?.addEventListener('click', () => guard(byId('admin-plus-remove'), async () => {
-    if (profile?.role !== 'admin') throw new Error('Accès administrateur requis.');
+    if ((profile?.role !== 'admin' && profile?.role !== 'owner')) throw new Error('Accès administrateur requis.');
     const target = byId('admin-plus-target').value.trim();
     if (!target) throw new Error('Indiquez un pseudo ou une adresse email.');
     const jeu = await gameRequest('/api/game/site-plus', { target, until: null }).catch(() => null);
@@ -597,7 +620,7 @@
   byId('admin-ban')?.addEventListener('submit', event => {
     event.preventDefault();
     guard(byId('admin-ban-submit'), async () => {
-      if (profile?.role !== 'admin') throw new Error('Accès administrateur requis.');
+      if ((profile?.role !== 'admin' && profile?.role !== 'owner')) throw new Error('Accès administrateur requis.');
       const target = byId('admin-ban-target').value.trim();
       if (!target) throw new Error('Indiquez un pseudo de jeu ou une adresse email.');
       const reason = byId('admin-ban-reason').value.trim();
@@ -613,7 +636,7 @@
   });
 
   byId('admin-ban-lift')?.addEventListener('click', () => guard(byId('admin-ban-lift'), async () => {
-    if (profile?.role !== 'admin') throw new Error('Accès administrateur requis.');
+    if ((profile?.role !== 'admin' && profile?.role !== 'owner')) throw new Error('Accès administrateur requis.');
     const target = byId('admin-ban-target').value.trim();
     if (!target) throw new Error('Indiquez le pseudo du joueur à débannir.');
     const result = await gameRequest('/api/game/ban', { target, ban: false });
@@ -626,7 +649,7 @@
   byId('admin-debit')?.addEventListener('submit', event => {
     event.preventDefault();
     guard(byId('admin-debit-submit'), async () => {
-      if (profile?.role !== 'admin') throw new Error('Accès administrateur requis.');
+      if ((profile?.role !== 'admin' && profile?.role !== 'owner')) throw new Error('Accès administrateur requis.');
       const target = byId('admin-debit-target').value.trim();
       if (!target) throw new Error('Indiquez un pseudo de jeu ou une adresse email.');
       const amount = Number(byId('admin-debit-amount').value);
@@ -643,7 +666,6 @@
   });
 
   byId('lang').addEventListener('change', () => { savePref('recblue.language', byId('lang').value); document.documentElement.lang = byId('lang').value; say('Langue enregistrée pour ce navigateur.'); });
-  byId('music').addEventListener('change', () => { savePref('recblue.musicOff', String(!byId('music').checked)); say(byId('music').checked ? 'Musique activée sur ce navigateur.' : 'Musique désactivée sur ce navigateur.'); });
   byId('pings').addEventListener('change', () => { savePref('recblue.updatePings', String(byId('pings').checked)); say('Préférence de notifications enregistrée.'); });
 
 
@@ -797,7 +819,7 @@
       const email = byId('reset-email').value.trim().toLowerCase();
       if (!email.includes('@')) throw new Error('Indiquez l’adresse email enregistrée sur le compte.');
       const { error } = await client.auth.resetPasswordForEmail(email, {
-        redirectTo: (config?.siteOrigin || 'https://recblue.net') + location.pathname + '?reset=1'
+        redirectTo: (config?.siteOrigin || 'https://recblue.net') + '/compte.html?reset=1'
       });
       if (error) throw error;
       say('Si un compte utilise ' + email + ', un lien de réinitialisation vient de partir. Pensez à regarder les indésirables.');
@@ -859,14 +881,22 @@
       if (url.protocol !== 'https:' || !/^[a-z0-9-]+\.supabase\.co$/i.test(url.hostname) || !/^(sb_publishable_|eyJ)/.test(config.publishableKey)) throw new Error('Configuration Supabase invalide.');
       if (!window.supabase?.createClient) throw new Error('Service de comptes indisponible.');
       client = window.supabase.createClient(url.href, config.publishableKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
-      client.auth.onAuthStateChange((event) => {
+      // Publié pour la boutique de la page : un seul client par page, une seule session.
+      window.recblueClient = client;
+      client.auth.onAuthStateChange((event, session) => {
         // Retour du lien email : Supabase ouvre une session de recuperation.
         if (event === 'PASSWORD_RECOVERY') showResetCard();
-        loadProfile().catch(() => say('Session non vérifiée.'));
+        const userId = session?.user?.id || null;
+        if (!userId || userId !== authUserId) showGuest();
+        authUserId = userId;
+        const current = ++revision;
+        setTimeout(() => {
+          if (current === revision) loadProfile().catch(() => say('Session non vérifiée.'));
+        }, 0);
       });
       byId('lang').value = readPref('recblue.language', 'fr');
-      byId('music').checked = readPref('recblue.musicOff', 'false') !== 'true';
       byId('pings').checked = readPref('recblue.updatePings', 'false') === 'true';
+      wireLevelForm();
       await loadProfile();
       // Retour depuis le lien de réinitialisation : la carte « nouveau mot de passe »
       // s’affiche au-dessus, que la session de récupération soit ouverte ou non.
@@ -876,5 +906,61 @@
       }
     } catch (error) { say(error.message); }
   }
-  init();
-})();
+      /**
+     * Le niveau affiché du membre vit dans `recblue_accounts.level` : un chiffre du site,
+     * distinct de la progression du jeu. Chaque membre peut lire son niveau ; le panneau
+     * de réglage reste réservé aux personnes autorisées par le serveur.
+     */
+    async function drawLevelPanel() {
+      const current = revision;
+      const card = byId('level-card');
+      if (!card) return;
+      const cell = byId('side-level');
+      card.hidden = true;
+      if (cell) cell.textContent = '—';
+      const token = await sessionToken();
+      if (!token) return;
+      const response = await fetch('/api/game/member-level', {
+        headers: { Authorization: 'Bearer ' + token },
+        cache: 'no-store'
+      }).catch(() => null);
+      const body = response && response.ok ? await response.json().catch(() => null) : null;
+      if (current !== revision) return;
+      card.hidden = !(body && (body.admin === true || body.developer === true));
+      if (cell) {
+        cell.textContent =
+          body && body.level !== null && body.level !== undefined ? String(body.level) : '—';
+      }
+    }
+
+    function wireLevelForm() {
+      const form = byId('level-form');
+      if (!form) return;
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        const status = byId('level-status');
+        const target = byId('level-target').value.trim();
+        const level = byId('level-value').value.trim();
+        if (target === '') { status.textContent = 'Indiquez le pseudo ou l’identifiant complet du membre.'; return; }
+        status.textContent = 'Enregistrement…';
+        const token = await sessionToken();
+        const response = await fetch('/api/game/member-level', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ target, level })
+        }).catch(() => null);
+        const body = response ? await response.json().catch(() => null) : null;
+        if (!response || !response.ok) {
+          status.textContent = (body && body.error) || 'Le niveau n’a pas été enregistré.';
+          return;
+        }
+        status.textContent =
+          (body.displayName || target) + ' est maintenant au niveau ' + body.level + '.';
+        form.reset();
+        // Le changement peut concerner l'appelant lui-même : la colonne de gauche se remet à jour.
+        drawLevelPanel().catch(() => {});
+      });
+    }
+
+    init();
+  })();

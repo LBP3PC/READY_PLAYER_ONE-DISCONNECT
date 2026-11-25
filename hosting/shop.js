@@ -39,7 +39,8 @@ function settings(env) {
     supabaseKey:
       env.SUPABASE_PUBLISHABLE_KEY ||
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uZnRkcXJiYWd5bmJibHRoa2ZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM3MDA5OTEsImV4cCI6MjEwOTI3Njk5MX0.JHTNOWkI9DY1xhU8PKco4KqxsIxp_-IsSZL211NGEE8',
-    serviceKey: env.SUPABASE_SERVICE_ROLE_KEY || '',
+    // Meme ordre que game-bridge : nouveau format d'abord, ancienne cle ensuite.
+    serviceKey: env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY || '',
     econHost: keep(env.GAME_ECON_HOST, 'https://econ.recblue.net'),
     bridgeToken: env.SITE_BRIDGE_TOKEN || ''
   };
