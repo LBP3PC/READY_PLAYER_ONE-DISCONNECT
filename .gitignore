@@ -31,3 +31,6 @@ game-plugin/**/*.bak
 # Sorties de compilation des petits outils de tools/
 tools/**/bin/
 tools/**/obj/
+
+# Coffre complet : trop volumineux pour GitHub (limite 100 Mo par fichier)
+coffres/coffre-recblue-20261125.zip
