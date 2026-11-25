@@ -239,9 +239,10 @@
       client = window.supabase.createClient(url.href, config.publishableKey, {
         auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
       });
-      client.auth.onAuthStateChange(() => {
+      client.auth.onAuthStateChange((event, session) => {
         ++revision;
         clearPrivateUI();
+        window.dispatchEvent(new CustomEvent('recblue:auth', { detail: { event, signedIn: !!session } }));
         setTimeout(() => { refreshAccount().catch(() => announce('Impossible de vérifier la session.')); }, 0);
       });
       byId('account-setup').hidden = true;
