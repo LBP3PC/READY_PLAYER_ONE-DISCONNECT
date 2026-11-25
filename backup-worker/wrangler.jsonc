@@ -1,0 +1,38 @@
+{
+  // Sauvegarde quotidienne de la base D1 et des réglages joueurs (KV).
+  // Aucune ressource n'est modifiée : uniquement des lectures D1/KV
+  // et des écritures dans le namespace BACKUPS.
+  "name": "recblue-backup",
+  "main": "index.js",
+  "compatibility_date": "2025-10-11",
+  "observability": {
+    "enabled": true
+  },
+  // Sauvegarde quotidienne lancée par Cloudflare : le plan Workers Paid ne subit
+  // plus la limite de 5 déclencheurs cron du plan gratuit. 02:17 UTC = 03:17 à
+  // Paris en hiver, 04:17 en été.
+  // La tâche planifiée Windows (backup-worker/lancer-sauvegarde.cmd) peut rester en
+  // secours : elle écrit les mêmes clés, une double exécution écrase sans doubler.
+  "triggers": {
+    "crons": ["17 2 * * *"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "recflare",
+      "database_id": "6064ae1b-2459-4c96-8fcf-4666e69d9a27"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      // Réglages joueurs réellement utilisés par le serveur de jeu.
+      "binding": "PLAYER_SETTINGS",
+      "id": "a937614d6f67473885a962ff1570c9ea"
+    },
+    {
+      // Namespace créé pour les sauvegardes, séparé des données du jeu.
+      "binding": "BACKUPS",
+      "id": "e50cc256814b400ebf559691774aa677"
+    }
+  ]
+}
