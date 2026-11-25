@@ -34,3 +34,9 @@ tools/**/obj/
 
 # Coffre complet : trop volumineux pour GitHub (limite 100 Mo par fichier)
 coffres/coffre-recblue-20261125.zip
+
+# Copies de travail locales (serveur upstream, coffre) : jamais dans Git
+.tmp/
+
+# Installeurs du lanceur : binaires publies via le Worker, pas versionnes
+*.exe
