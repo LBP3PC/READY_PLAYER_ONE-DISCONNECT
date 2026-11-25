@@ -46,3 +46,6 @@ coffres/coffre-recblue-20261125.zip
 .game-dump/
 .game-shot/
 .tmp-*
+
+# Sorties de simulation de wrangler
+.dry/
