@@ -259,31 +259,15 @@ export async function grantGameCredits(env, userId, tokens, orderId, pseudo, mes
   const names = await gameUsernames(cfg, userId, pseudo);
   if (names.length === 0) return { ok: false, reason: 'no pseudo' };
 
-  let lastStatus = 0;
-  for (const username of names) {
-    const response = await fetch(cfg.econHost + '/api/site/grant', {
-      method: 'POST',
-      headers: {
-        Authorization: 'Bearer ' + cfg.bridgeToken,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        username,
-        tokens,
-        message: message || 'Merci pour ton achat sur recblue.net ! (commande ' + orderId + ')'
-      })
-    }).catch(() => null);
-
-    if (response === null) return { ok: false, reason: 'unreachable' };
-    if (response.status === 404) {
-      lastStatus = 404;
-      continue;
+  const hit = await askGame(cfg, '/api/site/grant', names, {
+    body: {
+      tokens,
+      message: message || 'Merci pour ton achat sur recblue.net ! (commande ' + orderId + ')'
     }
-    if (!response.ok) return { ok: false, reason: 'status ' + response.status };
-    const data = await response.json().catch(() => null);
-    return { ok: true, username, giftId: data && data.giftId, balance: data && data.balance };
-  }
-  return { ok: false, reason: 'status ' + (lastStatus || 404) };
+  });
+  if (hit.outcome === 'unreachable') return { ok: false, reason: 'unreachable' };
+  if (hit.outcome !== 'hit') return { ok: false, reason: 'status ' + hit.status };
+  return { ok: true, username: hit.username, giftId: hit.data && hit.data.giftId, balance: hit.data && hit.data.balance };
 }
 
 /** Le pseudo de connexion du site, dérivé de `pseudo@players.recblue.invalid`. */
@@ -320,27 +304,10 @@ export async function syncGamePlus(env, userId, loginPseudo) {
   let game = { ok: false, reason: 'no pseudo' };
   if (cfg.bridgeToken !== '') {
     const names = await gameUsernames(cfg, userId, loginPseudo);
-    for (const username of names) {
-      const sync = await fetch(cfg.econHost + '/api/site/plus', {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + cfg.bridgeToken,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ username, until })
-      }).catch(() => null);
-      if (sync === null) {
-        game = { ok: false, reason: 'unreachable' };
-        break;
-      }
-      if (sync.status === 404) continue;
-      if (!sync.ok) {
-        game = { ok: false, reason: 'status ' + sync.status };
-        break;
-      }
-      game = { ok: true, username };
-      break;
-    }
+    const hit = await askGame(cfg, '/api/site/plus', names, { body: { until } });
+    if (hit.outcome === 'unreachable') game = { ok: false, reason: 'unreachable' };
+    else if (hit.outcome === 'refused') game = { ok: false, reason: 'status ' + hit.status };
+    else if (hit.outcome === 'hit') game = { ok: true, username: hit.username };
   }
   return { ok: true, until, game };
 }
@@ -368,22 +335,15 @@ export async function handleGameCredits(request, env) {
   if (cfg.bridgeToken === '') return json(200, { credits: null, username: null });
 
   const names = await gameUsernames(cfg, user.id, pseudoFromEmail(user.email));
-  for (const username of names) {
-    const response = await fetch(
-      cfg.econHost + '/api/site/balance?username=' + encodeURIComponent(username),
-      { headers: { Authorization: 'Bearer ' + cfg.bridgeToken }, cache: 'no-store' }
-    ).catch(() => null);
-    if (response === null) return json(200, { credits: null, username: null });
-    if (!response.ok) continue;
-    const data = await response.json().catch(() => null);
-    const credits = data && typeof data.balance === 'number' ? data.balance : null;
-    return json(200, {
-      credits,
-      username,
-      accountId: data && data.accountId ? data.accountId : null
-    });
-  }
-  return json(200, { credits: null, username: names[0] || null });
+  const hit = await askGame(cfg, '/api/site/balance', names, { retryAnyFailure: true });
+  if (hit.outcome === 'unreachable') return json(200, { credits: null, username: null });
+  if (hit.outcome !== 'hit') return json(200, { credits: null, username: names[0] || null });
+  const data = hit.data;
+  return json(200, {
+    credits: data && typeof data.balance === 'number' ? data.balance : null,
+    username: hit.username,
+    accountId: data && data.accountId ? data.accountId : null
+  });
 }
 
 /**
@@ -428,33 +388,19 @@ export async function handleGameGrant(request, env) {
   const names = candidates.filter(name => PSEUDO.test(name));
   if (names.length === 0) return json(400, { error: 'Indiquez un pseudo de jeu valide.' });
 
-  for (const username of names) {
-    const response = await fetch(cfg.econHost + '/api/site/grant', {
-      method: 'POST',
-      headers: {
-        Authorization: 'Bearer ' + cfg.bridgeToken,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        username,
-        tokens,
-        message: 'Crédits offerts par l’administration REC BLUE (' + tokens + ' crédits).'
-      })
-    }).catch(() => null);
-
-    if (response === null) return json(502, { error: 'Le serveur de jeu est injoignable.' });
-    if (response.status === 404) continue;
-    if (!response.ok) return json(502, { error: 'Le serveur de jeu a refusé (' + response.status + ').' });
-
-    const data = await response.json().catch(() => null);
-    return json(200, {
-      ok: true,
-      username,
-      credits: data && typeof data.balance === 'number' ? data.balance : null,
-      giftId: data && data.giftId ? data.giftId : null
-    });
-  }
-  return json(404, { error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' });
+  const hit = await askGame(cfg, '/api/site/grant', names, {
+    body: { tokens, message: 'Crédits offerts par l’administration REC BLUE (' + tokens + ' crédits).' }
+  });
+  if (hit.outcome === 'unreachable') return json(502, { error: 'Le serveur de jeu est injoignable.' });
+  if (hit.outcome === 'refused') return json(502, { error: 'Le serveur de jeu a refusé (' + hit.status + ').' });
+  if (hit.outcome !== 'hit') return json(404, { error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' });
+  const data = hit.data;
+  return json(200, {
+    ok: true,
+    username: hit.username,
+    credits: data && typeof data.balance === 'number' ? data.balance : null,
+    giftId: data && data.giftId ? data.giftId : null
+  });
 }
 
 /**
@@ -715,26 +661,57 @@ async function resolveGameTargets(cfg, value) {
 }
 
 /** Applique un rôle au compte de JEU (pseudo ou nom affiché) et dit ce qui s'est passé. */
+/**
+ * Essaie chaque pseudo candidat sur une route du serveur de jeu, dans l'ordre.
+ *
+ * Un 404 veut dire « ce pseudo n'est pas un compte de jeu » : on passe au candidat
+ * suivant. Une panne reseau arrete tout, insister sur un autre pseudo n'y changerait rien.
+ * `retryAnyFailure` sert aux lectures, ou un refus (compte pas encore cree, image
+ * absente) signifie simplement « candidat suivant ». `usable` laisse l'appelant refuser
+ * une reponse 200 dont le corps ne lui sert pas.
+ *
+ * `body` fourni : POST avec `{ username, ...body }`. Omis : GET `?username=...`.
+ * Renvoie `{ outcome, username, status, data }` ou `outcome` vaut 'hit', 'refused',
+ * 'unreachable' ou 'not-found'.
+ */
+async function askGame(cfg, path, names, { body = null, retryAnyFailure = false, usable = null } = {}) {
+  for (const username of names) {
+    const response = await fetch(
+      cfg.econHost + (body === null ? path + '?username=' + encodeURIComponent(username) : path),
+      body === null
+        ? { headers: { Authorization: 'Bearer ' + cfg.bridgeToken }, cache: 'no-store' }
+        : {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + cfg.bridgeToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, ...body })
+        }
+    ).catch(() => null);
+
+    if (response === null) return { outcome: 'unreachable', username, status: 0, data: null };
+    if (response.status === 404) continue;
+    if (!response.ok) {
+      if (!retryAnyFailure) return { outcome: 'refused', username, status: response.status, data: null };
+      continue;
+    }
+    const data = await response.json().catch(() => null);
+    if (usable !== null && !usable(data)) continue;
+    return { outcome: 'hit', username, status: response.status, data };
+  }
+  return { outcome: 'not-found', username: null, status: 404, data: null };
+}
+
 async function pushGameRole(cfg, target, role) {
   const { raw, names } = await resolveGameTargets(cfg, target);
-  for (const username of names) {
-    const response = await fetch(cfg.econHost + '/api/site/role', {
-      method: 'POST',
-      headers: { Authorization: 'Bearer ' + cfg.bridgeToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, role })
-    }).catch(() => null);
-    if (response === null) return { ok: false, error: 'Le serveur de jeu est injoignable.' };
-    if (response.status === 404) continue;
-    if (!response.ok) return { ok: false, error: 'Le serveur de jeu a refusé (' + response.status + ').' };
-    const data = await response.json().catch(() => null);
-    return {
-      ok: true,
-      username,
-      isModerator: Boolean(data && data.isModerator),
-      isDeveloper: Boolean(data && data.isDeveloper)
-    };
-  }
-  return { ok: false, error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' };
+  const hit = await askGame(cfg, '/api/site/role', names, { body: { role } });
+  if (hit.outcome === 'unreachable') return { ok: false, error: 'Le serveur de jeu est injoignable.' };
+  if (hit.outcome === 'refused') return { ok: false, error: 'Le serveur de jeu a refusé (' + hit.status + ').' };
+  if (hit.outcome !== 'hit') return { ok: false, error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' };
+  return {
+    ok: true,
+    username: hit.username,
+    isModerator: Boolean(hit.data && hit.data.isModerator),
+    isDeveloper: Boolean(hit.data && hit.data.isDeveloper)
+  };
 }
 
 /**
@@ -760,19 +737,11 @@ export async function handleGamePlus(request, env) {
     return json(400, { error: 'Date de fin du Plus invalide.' });
   }
 
-  for (const username of names) {
-    const response = await fetch(cfg.econHost + '/api/site/plus', {
-      method: 'POST',
-      headers: { Authorization: 'Bearer ' + cfg.bridgeToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, until })
-    }).catch(() => null);
-
-    if (response === null) return json(502, { error: 'Le serveur de jeu est injoignable.' });
-    if (response.status === 404) continue;
-    if (!response.ok) return json(502, { error: 'Le serveur de jeu a refusé (' + response.status + ').' });
-    return json(200, { ok: true, username, hasPlus: until !== null, until });
-  }
-  return json(404, { error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' });
+  const hit = await askGame(cfg, '/api/site/plus', names, { body: { until } });
+  if (hit.outcome === 'unreachable') return json(502, { error: 'Le serveur de jeu est injoignable.' });
+  if (hit.outcome === 'refused') return json(502, { error: 'Le serveur de jeu a refusé (' + hit.status + ').' });
+  if (hit.outcome !== 'hit') return json(404, { error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' });
+  return json(200, { ok: true, username: hit.username, hasPlus: until !== null, until });
 }
 
 /**
@@ -847,33 +816,20 @@ export async function handleGameRole(request, env) {
   const { raw, names } = await resolveGameTargets(cfg, body.target);
   if (names.length === 0) return json(400, { error: 'Indiquez un pseudo de jeu valide.' });
 
-  for (const username of names) {
-    const response = await fetch(cfg.econHost + '/api/site/role', {
-      method: 'POST',
-      headers: {
-        Authorization: 'Bearer ' + cfg.bridgeToken,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ username, role })
-    }).catch(() => null);
-
-    if (response === null) return json(502, { error: 'Le serveur de jeu est injoignable.' });
-    if (response.status === 404) continue;
-    if (!response.ok) return json(502, { error: 'Le serveur de jeu a refusé (' + response.status + ').' });
-
-    const data = await response.json().catch(() => null);
-    // Le rôle de jeu change : la fiche du site suit, sinon les deux écrans se contredisent.
-    const site = await syncSiteRoleFromGame(cfg, username, role);
-    return json(200, {
-      ok: true,
-      username,
-      role,
-      isModerator: Boolean(data && data.isModerator),
-      isDeveloper: Boolean(data && data.isDeveloper),
-      site
-    });
-  }
-  return json(404, { error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' });
+  const hit = await askGame(cfg, '/api/site/role', names, { body: { role } });
+  if (hit.outcome === 'unreachable') return json(502, { error: 'Le serveur de jeu est injoignable.' });
+  if (hit.outcome === 'refused') return json(502, { error: 'Le serveur de jeu a refusé (' + hit.status + ').' });
+  if (hit.outcome !== 'hit') return json(404, { error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' });
+  // Le rôle de jeu change : la fiche du site suit, sinon les deux écrans se contredisent.
+  const site = await syncSiteRoleFromGame(cfg, hit.username, role);
+  return json(200, {
+    ok: true,
+    username: hit.username,
+    role,
+    isModerator: Boolean(hit.data && hit.data.isModerator),
+    isDeveloper: Boolean(hit.data && hit.data.isDeveloper),
+    site
+  });
 }
 
 /**
@@ -896,22 +852,11 @@ export async function handleGameCertify(request, env) {
   const { raw, names } = await resolveGameTargets(cfg, body.target);
   if (names.length === 0) return json(400, { error: 'Indiquez un pseudo de jeu valide.' });
 
-  for (const username of names) {
-    const response = await fetch(cfg.econHost + '/api/site/certify', {
-      method: 'POST',
-      headers: {
-        Authorization: 'Bearer ' + cfg.bridgeToken,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ username, certified })
-    }).catch(() => null);
-
-    if (response === null) return json(502, { error: 'Le serveur de jeu est injoignable.' });
-    if (response.status === 404) continue;
-    if (!response.ok) return json(502, { error: 'Le serveur de jeu a refusé (' + response.status + ').' });
-    return json(200, { ok: true, username, certified });
-  }
-  return json(404, { error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' });
+  const hit = await askGame(cfg, '/api/site/certify', names, { body: { certified } });
+  if (hit.outcome === 'unreachable') return json(502, { error: 'Le serveur de jeu est injoignable.' });
+  if (hit.outcome === 'refused') return json(502, { error: 'Le serveur de jeu a refusé (' + hit.status + ').' });
+  if (hit.outcome !== 'hit') return json(404, { error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' });
+  return json(200, { ok: true, username: hit.username, certified });
 }
 
 /**
@@ -936,22 +881,11 @@ export async function handleGameDeveloper(request, env) {
   const { raw, names } = await resolveGameTargets(cfg, body.target);
   if (names.length === 0) return json(400, { error: 'Indiquez un pseudo de jeu valide.' });
 
-  for (const username of names) {
-    const response = await fetch(cfg.econHost + '/api/site/developer', {
-      method: 'POST',
-      headers: {
-        Authorization: 'Bearer ' + cfg.bridgeToken,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ username, developer })
-    }).catch(() => null);
-
-    if (response === null) return json(502, { error: 'Le serveur de jeu est injoignable.' });
-    if (response.status === 404) continue;
-    if (!response.ok) return json(502, { error: 'Le serveur de jeu a refusé (' + response.status + ').' });
-    return json(200, { ok: true, username, developer });
-  }
-  return json(404, { error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' });
+  const hit = await askGame(cfg, '/api/site/developer', names, { body: { developer } });
+  if (hit.outcome === 'unreachable') return json(502, { error: 'Le serveur de jeu est injoignable.' });
+  if (hit.outcome === 'refused') return json(502, { error: 'Le serveur de jeu a refusé (' + hit.status + ').' });
+  if (hit.outcome !== 'hit') return json(404, { error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' });
+  return json(200, { ok: true, username: hit.username, developer });
 }
 
 /**
@@ -965,27 +899,23 @@ export async function handleGameAvatar(request, env) {
   if (!user) return json(401, { error: 'Connectez-vous d’abord sur le site.' });
 
   const names = await gameUsernames(cfg, user.id, pseudoFromEmail(user.email));
-  for (const username of names) {
-    const response = await fetch(
-      cfg.econHost + '/api/site/profile-image?username=' + encodeURIComponent(username),
-      { headers: { Authorization: 'Bearer ' + cfg.bridgeToken } }
-    ).catch(() => null);
-    if (response === null) return json(502, { error: 'Le serveur de jeu est injoignable.' });
-    if (!response.ok) continue;
-    const data = await response.json().catch(() => null);
-    if (data === null) continue;
-    const image = String(data.profileImage || '').trim();
-    const banner = String(data.bannerImage || '').trim();
-    // La vignette par défaut du jeu n'est PAS une photo du joueur : elle ne doit pas
-    // remplacer la photo qu'il a mise sur le site. Seule une vraie image compte.
-    const real = image !== '' && !/^DefaultProfileImage\./i.test(image);
-    return json(200, {
-      username,
-      image: real ? cfg.imagesHost + '/' + image.replace(/^\/+/, '') : null,
-      banner: banner === '' ? null : cfg.imagesHost + '/' + banner.replace(/^\/+/, '')
-    });
-  }
-  return json(200, { image: null, banner: null });
+  const hit = await askGame(cfg, '/api/site/profile-image', names, {
+    retryAnyFailure: true,
+    usable: data => data !== null
+  });
+  if (hit.outcome === 'unreachable') return json(502, { error: 'Le serveur de jeu est injoignable.' });
+  if (hit.outcome !== 'hit') return json(200, { image: null, banner: null });
+  const data = hit.data;
+  const image = String(data.profileImage || '').trim();
+  const banner = String(data.bannerImage || '').trim();
+  // La vignette par défaut du jeu n'est PAS une photo du joueur : elle ne doit pas
+  // remplacer la photo qu'il a mise sur le site. Seule une vraie image compte.
+  const real = image !== '' && !/^DefaultProfileImage\./i.test(image);
+  return json(200, {
+    username: hit.username,
+    image: real ? cfg.imagesHost + '/' + image.replace(/^\/+/, '') : null,
+    banner: banner === '' ? null : cfg.imagesHost + '/' + banner.replace(/^\/+/, '')
+  });
 }
 
 /**
@@ -1135,24 +1065,10 @@ export async function handleGameSitePlus(request, env) {
 
   let game = null;
   const { names } = await resolveGameTargets(cfg, raw);
-  for (const username of names) {
-    const sync = await fetch(cfg.econHost + '/api/site/plus', {
-      method: 'POST',
-      headers: { Authorization: 'Bearer ' + cfg.bridgeToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, until })
-    }).catch(() => null);
-    if (sync === null) {
-      game = { ok: false, error: 'Le serveur de jeu est injoignable.' };
-      break;
-    }
-    if (sync.status === 404) continue;
-    if (!sync.ok) {
-      game = { ok: false, error: 'Le serveur de jeu a refusé (' + sync.status + ').' };
-      break;
-    }
-    game = { ok: true, username };
-    break;
-  }
+  const hit = await askGame(cfg, '/api/site/plus', names, { body: { until } });
+  if (hit.outcome === 'unreachable') game = { ok: false, error: 'Le serveur de jeu est injoignable.' };
+  else if (hit.outcome === 'refused') game = { ok: false, error: 'Le serveur de jeu a refusé (' + hit.status + ').' };
+  else if (hit.outcome === 'hit') game = { ok: true, username: hit.username };
   return json(200, { ok: true, until, game: game || { ok: false, error: 'Aucun compte de jeu trouvé.' } });
 }
 
@@ -1700,19 +1616,11 @@ export async function handleGameBan(request, env) {
       ? new Date(Date.now() + days * 86400000).toISOString()
       : null;
 
-  for (const username of names) {
-    const response = await fetch(cfg.econHost + '/api/site/ban', {
-      method: 'POST',
-      headers: { Authorization: 'Bearer ' + cfg.bridgeToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, ban, reason, until })
-    }).catch(() => null);
-
-    if (response === null) return json(502, { error: 'Le serveur de jeu est injoignable.' });
-    if (response.status === 404) continue;
-    if (!response.ok) return json(502, { error: 'Le serveur de jeu a refusé (' + response.status + ').' });
-    return json(200, { ok: true, username, banned: ban, reason, until });
-  }
-  return json(404, { error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' });
+  const hit = await askGame(cfg, '/api/site/ban', names, { body: { ban, reason, until } });
+  if (hit.outcome === 'unreachable') return json(502, { error: 'Le serveur de jeu est injoignable.' });
+  if (hit.outcome === 'refused') return json(502, { error: 'Le serveur de jeu a refusé (' + hit.status + ').' });
+  if (hit.outcome !== 'hit') return json(404, { error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' });
+  return json(200, { ok: true, username: hit.username, banned: ban, reason, until });
 }
 
 /**
@@ -1960,26 +1868,16 @@ export async function handleGameDebit(request, env) {
     return json(400, { error: 'Nombre de crédits à retirer invalide (1 à 1 000 000 000).' });
   }
 
-  for (const username of names) {
-    const response = await fetch(cfg.econHost + '/api/site/debit', {
-      method: 'POST',
-      headers: { Authorization: 'Bearer ' + cfg.bridgeToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, tokens })
-    }).catch(() => null);
-
-    if (response === null) return json(502, { error: 'Le serveur de jeu est injoignable.' });
-    if (response.status === 404) continue;
-    if (!response.ok) return json(502, { error: 'Le serveur de jeu a refusé (' + response.status + ').' });
-
-    const data = await response.json().catch(() => null);
-    return json(200, {
-      ok: true,
-      username,
-      credits: data && typeof data.balance === 'number' ? data.balance : null,
-      removed: data && typeof data.removed === 'number' ? data.removed : null
-    });
-  }
-  return json(404, { error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' });
+  const hit = await askGame(cfg, '/api/site/debit', names, { body: { tokens } });
+  if (hit.outcome === 'unreachable') return json(502, { error: 'Le serveur de jeu est injoignable.' });
+  if (hit.outcome === 'refused') return json(502, { error: 'Le serveur de jeu a refusé (' + hit.status + ').' });
+  if (hit.outcome !== 'hit') return json(404, { error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' });
+  return json(200, {
+    ok: true,
+    username: hit.username,
+    credits: hit.data && typeof hit.data.balance === 'number' ? hit.data.balance : null,
+    removed: hit.data && typeof hit.data.removed === 'number' ? hit.data.removed : null
+  });
 }
 
 /**
@@ -2053,26 +1951,19 @@ export async function handleGameGiftItem(request, env) {
   const { raw, names } = await resolveGameTargets(cfg, body.target);
   if (names.length === 0) return json(400, { error: 'Indiquez un pseudo de jeu valide.' });
 
-  for (const username of names) {
-    const response = await fetch(cfg.econHost + '/api/site/gift-item', {
-      method: 'POST',
-      headers: { Authorization: 'Bearer ' + cfg.bridgeToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, storefront, item, quantity, message })
-    }).catch(() => null);
-
-    if (response === null) return json(502, { error: 'Le serveur de jeu est injoignable.' });
-    if (response.status === 404) continue;
-    if (!response.ok) return json(502, { error: 'Le serveur de jeu a refusé (' + response.status + ').' });
-
-    const data = await response.json().catch(() => null);
-    return json(200, {
-      ok: true,
-      username,
-      item: (data && data.item) || { id: item, name: '' },
-      quantity: data && typeof data.quantity === 'number' ? data.quantity : quantity,
-      stacks: data ? data.stacks === true : false,
-      giftId: data && data.giftId ? data.giftId : null
-    });
-  }
-  return json(404, { error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' });
+  const hit = await askGame(cfg, '/api/site/gift-item', names, {
+    body: { storefront, item, quantity, message }
+  });
+  if (hit.outcome === 'unreachable') return json(502, { error: 'Le serveur de jeu est injoignable.' });
+  if (hit.outcome === 'refused') return json(502, { error: 'Le serveur de jeu a refusé (' + hit.status + ').' });
+  if (hit.outcome !== 'hit') return json(404, { error: 'Aucun compte de jeu ne correspond à « ' + raw + ' ».' });
+  const data = hit.data;
+  return json(200, {
+    ok: true,
+    username: hit.username,
+    item: (data && data.item) || { id: item, name: '' },
+    quantity: data && typeof data.quantity === 'number' ? data.quantity : quantity,
+    stacks: data ? data.stacks === true : false,
+    giftId: data && data.giftId ? data.giftId : null
+  });
 }
